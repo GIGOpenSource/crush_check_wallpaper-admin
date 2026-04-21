@@ -70,7 +70,7 @@ const AdminLayout: React.FC = () => {
       label: '标签管理',
       children: [
         { key: '/tags', label: '标签列表' },
-        { key: '/tags/navigation', label: '导航标签' },
+        // { key: '/tags/navigation', label: '导航标签' },
       ],
     },
     {
@@ -79,7 +79,7 @@ const AdminLayout: React.FC = () => {
       label: '内容管理',
       children: [
         { key: '/comments', label: '评论管理' },
-        { key: '/reports', label: '举报处理' },
+        // { key: '/reports', label: '举报处理' },
       ],
     },
     {

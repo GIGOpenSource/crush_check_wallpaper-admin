@@ -93,8 +93,11 @@ service.interceptors.response.use(
     const responseCode = res.code !== undefined ? res.code : res.Code;
     const responseMessage = res.message !== undefined ? res.message : res.Message;
     
-    // 只要 code 存在且不等于 200 和 0，就视为错误
-    if (responseCode !== undefined && responseCode !== 200 && responseCode !== 0) {
+    // 判断逻辑：
+    // 1. 如果有 code 字段，且 code 不等于 200、201 或 0，则视为错误
+    // 2. 如果没有 code 字段，视为成功（兼容部分接口只返回 message 的情况）
+    // 注意：201 表示"已创建"，也是成功的响应
+    if (responseCode !== undefined && responseCode !== 200 && responseCode !== 201 && responseCode !== 0) {
       const customConfig = response.config as CustomRequestConfig;
       
       console.log('🔴 接口返回错误:', { code: responseCode, message: responseMessage, data: res });
