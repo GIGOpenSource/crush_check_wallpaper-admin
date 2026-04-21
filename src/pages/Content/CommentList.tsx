@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Avatar, Input, Space, message, Popconfirm, Pagination } from 'antd';
-import { UserOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Table, Card, Button, Avatar, Input, Space, message, Popconfirm } from 'antd';
+import { UserOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, PictureOutlined } from '@ant-design/icons';
 import { 
   getCommentList, 
   deleteComment,
@@ -123,6 +123,29 @@ const CommentList: React.FC = () => {
       dataIndex: 'content',
       key: 'content',
       ellipsis: true,
+    },
+    {
+      title: '所属壁纸',
+      key: 'wallpaper_object',
+      width: 200,
+      render: (_: unknown, record: Comment) => (
+        <Space>
+          {record.wallpaper_object?.thumb_url ? (
+            <img
+              src={record.wallpaper_object.thumb_url}
+              alt={record.wallpaper_object.name}
+              style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }}
+            />
+          ) : (
+            <div style={{ width: 40, height: 40, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PictureOutlined style={{ color: '#999' }} />
+            </div>
+          )}
+          <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {record.wallpaper_object?.name || '未知壁纸'}
+          </span>
+        </Space>
+      ),
     },
     {
       title: '点赞',

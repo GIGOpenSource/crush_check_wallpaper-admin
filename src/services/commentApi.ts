@@ -15,10 +15,10 @@ export interface Comment {
   content: string;
   like_count: number;
   created_at: string;
-  wallpaper?: {
+  wallpaper_object: {
     id: number;
     name: string;
-    thumbnail_url: string;
+    thumb_url: string;
   };
 }
 

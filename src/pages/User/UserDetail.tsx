@@ -61,20 +61,20 @@ const UserDetail: React.FC = () => {
     { title: '分类', dataIndex: 'category', key: 'category', width: 120 },
     { title: '浏览量', dataIndex: 'views', key: 'views', width: 100 },
     { title: '下载量', dataIndex: 'downloads', key: 'downloads', width: 100 },
-    { title: '上传时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+    { title: '上传时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
   ];
 
-  const uploadData = userInfo?.uploads || [];
+  const uploadData = [];  // 暂时为空数组，等待后端接口
 
   // 用户收藏的壁纸
   const collectionColumns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '壁纸名称', dataIndex: 'name', key: 'name' },
     { title: '上传者', dataIndex: 'uploader', key: 'uploader', width: 120 },
-    { title: '收藏时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+    { title: '收藏时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
   ];
 
-  const collectionData = userInfo?.collections || [];
+  const collectionData = [];  // 暂时为空数组，等待后端接口
 
   if (loading) {
     return (
@@ -111,14 +111,14 @@ const UserDetail: React.FC = () => {
               <Avatar 
                 size={100} 
                 icon={<UserOutlined />} 
-                src={userInfo.avatar_url || userInfo.avatar} 
+                src={userInfo.avatar_url} 
               />
               <h3 style={{ marginTop: 16, marginBottom: 8 }}>
                 {userInfo.nickname || '--'}
               </h3>
               <p style={{ color: '#666', marginBottom: 8 }}>{userInfo.email}</p>
-              <Tag color={userInfo.status === 'normal' ? 'success' : 'error'}>
-                {userInfo.status === 'normal' ? '正常' : '已禁用'}
+              <Tag color={userInfo.status === 1 ? 'success' : 'error'}>
+                {userInfo.status === 1 ? '正常' : '已禁用'}
               </Tag>
             </div>
             <Row gutter={16}>
@@ -126,16 +126,16 @@ const UserDetail: React.FC = () => {
                 <Statistic title="等级" value={userInfo.level} />
               </Col>
               <Col span={12}>
-                <Statistic title="粉丝数" value={(userInfo as any).followersCount || 0} />
+                <Statistic title="粉丝数" value={userInfo.followers_count || 0} />
               </Col>
               <Col span={12} style={{ marginTop: 16 }}>
-                <Statistic title="关注数" value={(userInfo as any).followingCount || 0} />
+                <Statistic title="关注数" value={userInfo.following_count || 0} />
               </Col>
               <Col span={12} style={{ marginTop: 16 }}>
-                <Statistic title="上传数" value={(userInfo as any).upload_count || userInfo.uploadCount || 0} />
+                <Statistic title="上传数" value={userInfo.upload_count || 0} />
               </Col>
               <Col span={12} style={{ marginTop: 16 }}>
-                <Statistic title="收藏数" value={(userInfo as any).collection_count || userInfo.collectionCount || 0} />
+                <Statistic title="收藏数" value={userInfo.collection_count || 0} />
               </Col>
             </Row>
           </Card>
@@ -151,15 +151,15 @@ const UserDetail: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="等级">{userInfo.level}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={userInfo.status === 'normal' ? 'success' : 'error'}>
-                  {userInfo.status === 'normal' ? '正常' : '已禁用'}
+                <Tag color={userInfo.status === 1 ? 'success' : 'error'}>
+                  {userInfo.status === 1 ? '正常' : '已禁用'}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="注册时间" span={2}>
-                {formatTime((userInfo as any).created_at || userInfo.createdAt)}
+              <Descriptions.Item label="注册时间">
+                {formatTime(userInfo.created_at)}
               </Descriptions.Item>
-              <Descriptions.Item label="最后登录时间" span={2}>
-                {formatTime((userInfo as any).updated_at || userInfo.lastLogin)}
+              <Descriptions.Item label="最后登录">
+                {formatTime(userInfo.updated_at)}
               </Descriptions.Item>
             </Descriptions>
           </Card>
@@ -168,36 +168,36 @@ const UserDetail: React.FC = () => {
 
       <Card style={{ marginTop: 24 }}>
         <Tabs defaultActiveKey="uploads">
-          <TabPane
+          <TabPane 
             tab={
               <span>
-                <PictureOutlined />
-                上传的壁纸 ({(userInfo as any).upload_count || userInfo.uploadCount || 0})
+                上传的壁纸 ({userInfo.upload_count || 0})
               </span>
-            }
+            } 
             key="uploads"
           >
             <Table
               columns={uploadColumns}
               dataSource={uploadData}
               rowKey="id"
-              pagination={{ pageSize: 5 }}
+              pagination={false}
+              scroll={{ x: 800 }}
             />
           </TabPane>
-          <TabPane
+          <TabPane 
             tab={
               <span>
-                <StarOutlined />
-                收藏的壁纸 ({(userInfo as any).collection_count || userInfo.collectionCount || 0})
+                收藏的壁纸 ({userInfo.collection_count || 0})
               </span>
-            }
+            } 
             key="collections"
           >
             <Table
               columns={collectionColumns}
               dataSource={collectionData}
               rowKey="id"
-              pagination={{ pageSize: 5 }}
+              pagination={false}
+              scroll={{ x: 800 }}
             />
           </TabPane>
         </Tabs>

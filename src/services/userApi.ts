@@ -77,13 +77,13 @@ export interface CustomerUser {
   nickname: string;            // 昵称
   gender: number;              // 性别
   level: number;               // 等级
+  followers_count?: number;    // 粉丝数
+  following_count?: number;    // 关注数
   collection_count: number;    // 收藏数
   upload_count: number;        // 上传数
   created_at: string;          // 注册时间
   updated_at: string;          // 最后登陆时间
-  status: 'normal' | 'disabled';
-  followersCount?: number;     // 粉丝数（如果API返回）
-  followingCount?: number;     // 关注数（如果API返回）
+  status: 1 | 2;               // 状态：1正常 2禁用
 }
 
 // 获取客户用户列表请求参数
@@ -116,7 +116,7 @@ export interface CreateOrUpdateCustomerUserParams {
   gender?: number;
   avatar_url?: string;
   level?: number;
-  status?: 'normal' | 'disabled';
+  status?: 1 | 2;  // 1正常 2禁用
 }
 
 /**

@@ -23,9 +23,10 @@ const UserList: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   
   // 搜索条件
-  const [searchParams, setSearchParams] = useState<GetCustomerUserListParams>({
-    currentPage: 1,
-    pageSize: 10,
+  const [searchParams, setSearchParams] = useState({
+    nickname: '',
+    email: '',
+    status: undefined as 1 | 2 | undefined,
   });
 
   // 编辑弹窗
@@ -116,9 +117,9 @@ const UserList: React.FC = () => {
   // 禁用/启用用户
   const handleToggleStatus = async (record: CustomerUser) => {
     try {
-      const newStatus = record.status === 'normal' ? 'disabled' : 'normal';
+      const newStatus = record.status === 1 ? 2 : 1;
       await updateCustomerUser(record.id, { status: newStatus });
-      message.success(newStatus === 'normal' ? '启用成功' : '禁用成功');
+      message.success(newStatus === 1 ? '启用成功' : '禁用成功');
       loadUserList(searchParams);
     } catch (error) {
       console.error('操作失败:', error);
@@ -222,15 +223,15 @@ const UserList: React.FC = () => {
     },
     {
       title: '粉丝数',
-      dataIndex: 'followersCount',
-      key: 'followersCount',
+      dataIndex: 'followers_count',
+      key: 'followers_count',
       width: 100,
       sorter: true,
     },
     {
       title: '关注数',
-      dataIndex: 'followingCount',
-      key: 'followingCount',
+      dataIndex: 'following_count',
+      key: 'following_count',
       width: 100,
       sorter: true,
     },
@@ -290,9 +291,9 @@ const UserList: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: string) => (
-        <Tag color={status === 'normal' ? 'success' : 'error'}>
-          {status === 'normal' ? '正常' : '已禁用'}
+      render: (status: 1 | 2) => (
+        <Tag color={status === 1 ? 'success' : 'error'}>
+          {status === 1 ? '正常' : '已禁用'}
         </Tag>
       ),
     },
@@ -322,10 +323,10 @@ const UserList: React.FC = () => {
           <Button 
             type="link" 
             size="small" 
-            icon={record.status === 'normal' ? <StopOutlined /> : <UserOutlined />}
+            icon={record.status === 1 ? <StopOutlined /> : <UserOutlined />}
             onClick={() => handleToggleStatus(record)}
           >
-            {record.status === 'normal' ? '禁用' : '启用'}
+            {record.status === 1 ? '禁用' : '启用'}
           </Button>
           <Popconfirm
             title="确认删除"
@@ -383,8 +384,8 @@ const UserList: React.FC = () => {
             value={searchParams.status}
             onChange={(value) => setSearchParams({ ...searchParams, status: value })}
             options={[
-              { value: 'normal', label: '正常' },
-              { value: 'disabled', label: '已禁用' },
+              { value: 1, label: '正常' },
+              { value: 2, label: '已禁用' },
             ]}
           />
           <RangePicker 
