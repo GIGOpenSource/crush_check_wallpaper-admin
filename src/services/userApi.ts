@@ -66,3 +66,112 @@ export function logout() {
 export function changePassword(data: { oldPassword: string; newPassword: string }) {
   return http.post('/users/change-password', data);
 }
+
+// ==================== 客户用户管理 ====================
+
+// 客户用户信息
+export interface CustomerUser {
+  id: number;
+  avatar_url: string;          // 头像
+  email: string;               // 邮箱
+  nickname: string;            // 昵称
+  gender: number;              // 性别
+  level: number;               // 等级
+  collection_count: number;    // 收藏数
+  upload_count: number;        // 上传数
+  created_at: string;          // 注册时间
+  updated_at: string;          // 最后登陆时间
+  status: 'normal' | 'disabled';
+  followersCount?: number;     // 粉丝数（如果API返回）
+  followingCount?: number;     // 关注数（如果API返回）
+}
+
+// 获取客户用户列表请求参数
+export interface GetCustomerUserListParams {
+  currentPage?: number;
+  pageSize?: number;
+  email?: string;
+  nickname?: string;
+  gender?: number;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+// 获取客户用户列表响应
+export interface GetCustomerUserListResponse {
+  results: CustomerUser[];
+  pagination: {
+    currentPage: number;        // 当前页码
+    page_size: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
+// 创建/更新客户用户请求参数
+export interface CreateOrUpdateCustomerUserParams {
+  email?: string;
+  nickname?: string;
+  gender?: number;
+  avatar_url?: string;
+  level?: number;
+  status?: 'normal' | 'disabled';
+}
+
+/**
+ * 获取客户用户列表
+ * @param params 查询参数
+ */
+export function getCustomerUserList(params?: GetCustomerUserListParams) {
+  return http.get<GetCustomerUserListResponse>('/dashboard/customer_user/', params);
+}
+
+/**
+ * 获取客户用户详情
+ * @param id 用户ID
+ */
+export function getCustomerUserDetail(id: number) {
+  return http.get<CustomerUser>(`/dashboard/customer_user/${id}/`);
+}
+
+/**
+ * 创建客户用户
+ * @param data 用户数据
+ */
+export function createCustomerUser(data: CreateOrUpdateCustomerUserParams) {
+  return http.post<CustomerUser>('/dashboard/customer_user/', data);
+}
+
+/**
+ * 更新客户用户
+ * @param id 用户ID
+ * @param data 用户数据
+ */
+export function updateCustomerUser(id: number, data: CreateOrUpdateCustomerUserParams) {
+  return http.put<CustomerUser>(`/dashboard/customer_user/${id}/`, data);
+}
+
+/**
+ * 删除客户用户
+ * @param id 用户ID
+ */
+export function deleteCustomerUser(id: number) {
+  return http.delete(`/dashboard/customer_user/${id}/`);
+}
+
+/**
+ * 批量禁用客户用户
+ * @param ids 用户ID数组
+ */
+export function batchDisableCustomerUsers(ids: number[]) {
+  return http.post('/dashboard/customer_user/batch_disable/', { ids });
+}
+
+/**
+ * 批量删除客户用户
+ * @param ids 用户ID数组
+ */
+export function batchDeleteCustomerUsers(ids: number[]) {
+  return http.post('/dashboard/customer_user/batch_delete/', { ids });
+}
