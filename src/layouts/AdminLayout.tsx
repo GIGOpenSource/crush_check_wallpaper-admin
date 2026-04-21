@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Badge, theme, Drawer, message, Modal } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Badge, theme, Drawer, message, Popconfirm } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -160,51 +160,40 @@ const AdminLayout: React.FC = () => {
       icon: <SettingOutlined />,
       label: '账号设置',
     },
-    {
-      type: 'divider' as const,
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-    },
   ];
+
+  // 退出登录处理函数
+  const handleLogout = async () => {
+    try {
+      // 调用退出登录接口
+      await logout();
+      
+      // 清除本地存储的认证信息
+      localStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
+      
+      message.success('退出登录成功');
+      
+      // 跳转到登录页
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('退出登录失败:', error);
+      // 即使接口调用失败，也清除本地信息并跳转
+      localStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
+      navigate('/login', { replace: true });
+    }
+  };
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
   };
 
   const handleUserMenuClick = ({ key }: { key: string }) => {
-    if (key === 'logout') {
-      // 使用静态 Modal.confirm 方法
-      Modal.confirm({
-        title: '确认退出',
-        content: '确定要退出登录吗？',
-        okText: '确定退出',
-        cancelText: '取消',
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          try {
-            // 调用退出登录接口
-            await logout();
-            
-            // 清除本地存储的认证信息
-            localStorage.removeItem('token');
-            localStorage.removeItem('userInfo');
-            
-            message.success('退出登录成功');
-            
-            // 跳转到登录页
-            navigate('/login', { replace: true });
-          } catch (error) {
-            console.error('退出登录失败:', error);
-            // 即使接口调用失败，也清除本地信息并跳转
-            localStorage.removeItem('token');
-            localStorage.removeItem('userInfo');
-            navigate('/login', { replace: true });
-          }
-        },
-      });
+    if (key === 'profile') {
+      navigate('/profile');
+    } else if (key === 'settings') {
+      navigate('/settings');
     }
   };
 
@@ -344,6 +333,19 @@ const AdminLayout: React.FC = () => {
                 <span>管理员</span>
               </div>
             </Dropdown>
+            {/* 退出登录按钮 - 使用 Popconfirm */}
+            <Popconfirm
+              title="确认退出"
+              description="确定要退出登录吗？"
+              onConfirm={handleLogout}
+              okText="确定退出"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" icon={<LogoutOutlined />} style={{ color: '#ff4d4f' }}>
+                退出
+              </Button>
+            </Popconfirm>
           </div>
         </Header>
         <Content
