@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Input, Select, Space, Tag, Image, Dropdown, message, Modal, Form, Tabs, Tooltip } from 'antd';
+import { Table, Card, Button, Input, Select, Space, Tag, Image, Dropdown, message, Modal, Form, Tabs, Tooltip, Popconfirm } from 'antd';
+const { TextArea } = Input;
 import { SearchOutlined, ReloadOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckOutlined, CloseOutlined, GlobalOutlined } from '@ant-design/icons';
 import { 
   getWallpaperList,
+  batchAuditWallpaper,
   type Wallpaper as ApiWallpaper,
   type GetWallpaperListParams
 } from '../../services/wallpaperApi';
@@ -31,6 +33,10 @@ const WallpaperList: React.FC = () => {
   const [searchText, setSearchText] = useState<string>('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingWallpaper, setEditingWallpaper] = useState<Wallpaper | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectingWallpaper, setRejectingWallpaper] = useState<Wallpaper | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [form] = Form.useForm();
 
   // 加载壁纸列表
@@ -110,21 +116,175 @@ const WallpaperList: React.FC = () => {
   };
 
   const handleDelete = (record: Wallpaper) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除壁纸 "${record.name}" 吗？`,
-      okText: '确认删除',
-      cancelText: '取消',
-      okButtonProps: { danger: true },
-      onOk: () => {
-        message.success(`已删除: ${record.name}`);
-        loadWallpaperList();
-      },
-    });
+    message.success(`已删除: ${record.name}`);
+    loadWallpaperList();
   };
 
-  const handleAudit = (record: Wallpaper, pass: boolean) => {
-    message.success(`${pass ? '通过' : '拒绝'}审核: ${record.name}`);
+  // 单个通过（使用 Popconfirm）
+  const handleAuditPass = (record: Wallpaper) => {
+    batchAuditWallpaper({
+      wallpaper_ids: [record.id],
+      remark: '',
+      action: 'approve',
+    })
+      .then(() => {
+        message.success(`通过审核: ${record.name}`);
+        loadWallpaperList();
+      })
+      .catch((error) => {
+        console.error('审核失败:', error);
+        message.error('审核失败');
+      });
+  };
+
+  // 打开拒绝弹窗
+  const handleOpenRejectModal = (record: Wallpaper) => {
+    setRejectingWallpaper(record);
+    setRejectReason('');
+    setRejectModalVisible(true);
+  };
+
+  // 提交拒绝
+  const handleSubmitReject = async () => {
+    if (!rejectReason || rejectReason.trim() === '') {
+      message.error('请输入拒绝原因');
+      return;
+    }
+    
+    if (!rejectingWallpaper) return;
+    
+    try {
+      await batchAuditWallpaper({
+        wallpaper_ids: [rejectingWallpaper.id],
+        remark: rejectReason.trim(),
+        action: 'reject',
+      });
+      message.success(`拒绝审核: ${rejectingWallpaper.name}`);
+      setRejectModalVisible(false);
+      setRejectingWallpaper(null);
+      setRejectReason('');
+      loadWallpaperList();
+    } catch (error) {
+      console.error('审核失败:', error);
+      message.error('审核失败');
+    }
+  };
+
+  const handleAuditPassConfirm = (record: Wallpaper) => {
+    return (
+      <Popconfirm
+        title="确认通过"
+        description={`确定要通过壁纸 "${record.name}" 的审核吗？`}
+        onConfirm={() => handleAuditPass(record)}
+        okText="确认通过"
+        cancelText="取消"
+        okButtonProps={{ style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } }}
+      >
+        <Button 
+          type="primary"
+          size="small"
+          icon={<CheckOutlined />}
+          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+        >
+          通过
+        </Button>
+      </Popconfirm>
+    );
+  };
+
+  const handleAuditRejectButton = (record: Wallpaper) => {
+    return (
+      <Button 
+        type="link"
+        size="small"
+        danger
+        icon={<CloseOutlined />}
+        onClick={() => handleOpenRejectModal(record)}
+      >
+        拒绝
+      </Button>
+    );
+  };
+
+  // 批量通过
+  const handleBatchPass = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请选择要审核的壁纸');
+      return;
+    }
+    
+    batchAuditWallpaper({
+      wallpaper_ids: selectedRowKeys.map(key => Number(key)),
+      remark: '',
+      action: 'approve',
+    })
+      .then(() => {
+        message.success(`已通过 ${selectedRowKeys.length} 个壁纸`);
+        setSelectedRowKeys([]);
+        loadWallpaperList();
+      })
+      .catch((error) => {
+        console.error('批量通过失败:', error);
+        message.error('批量通过失败');
+      });
+  };
+
+  const handleBatchPassConfirm = () => {
+    return (
+      <Popconfirm
+        title="确认批量通过"
+        description={`确定要通过选中的 ${selectedRowKeys.length} 个壁纸吗？`}
+        onConfirm={handleBatchPass}
+        okText="确认通过"
+        cancelText="取消"
+        okButtonProps={{ style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } }}
+      >
+        <Button 
+          type="primary" 
+          icon={<CheckOutlined />}
+          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+        >
+          批量通过
+        </Button>
+      </Popconfirm>
+    );
+  };
+
+  // 批量拒绝（使用 Modal 输入必填原因）
+  const [batchRejectModalVisible, setBatchRejectModalVisible] = useState(false);
+  const [batchRejectReason, setBatchRejectReason] = useState('');
+
+  const handleOpenBatchRejectModal = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请选择要审核的壁纸');
+      return;
+    }
+    setBatchRejectReason('');
+    setBatchRejectModalVisible(true);
+  };
+
+  const handleSubmitBatchReject = async () => {
+    if (!batchRejectReason || batchRejectReason.trim() === '') {
+      message.error('请输入拒绝原因');
+      return;
+    }
+    
+    try {
+      const wallpaperIds = selectedRowKeys.map(key => Number(key));
+      await batchAuditWallpaper({
+        wallpaper_ids: wallpaperIds,
+        remark: batchRejectReason.trim(),
+        action: 'reject',
+      });
+      message.success(`已拒绝 ${selectedRowKeys.length} 个壁纸`);
+      setSelectedRowKeys([]);
+      setBatchRejectModalVisible(false);
+      setBatchRejectReason('');
+      loadWallpaperList();
+    } catch (error) {
+      console.error('批量拒绝失败:', error);
+      message.error('批量拒绝失败');
+    }
   };
 
   const columns = [
@@ -207,28 +367,6 @@ const WallpaperList: React.FC = () => {
               <Tag key={`${tag}-${index}`} color="blue">{tag}</Tag>
             ))}
           </Space>
-        );
-      },
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      width: 200,
-      ellipsis: true,
-      render: (text: string) => {
-        if (!text) return '-';
-        return (
-          <Tooltip title={text} placement="topLeft">
-            <div style={{ 
-              overflow: 'hidden', 
-              textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap',
-              maxWidth: 200
-            }}>
-              {text}
-            </div>
-          </Tooltip>
         );
       },
     },
@@ -341,20 +479,13 @@ const WallpaperList: React.FC = () => {
           </Button>
           {record.audit_status === 'pending' && (
             <>
+              {handleAuditPassConfirm(record)}
               <Button 
-                type="primary" 
+                type="link"
                 size="small"
-                icon={<CheckOutlined />} 
-                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                onClick={() => handleAudit(record, true)}
-              >
-                通过
-              </Button>
-              <Button 
                 danger
-                size="small"
-                icon={<CloseOutlined />} 
-                onClick={() => handleAudit(record, false)}
+                icon={<CloseOutlined />}
+                onClick={() => handleOpenRejectModal(record)}
               >
                 拒绝
               </Button>
@@ -368,14 +499,23 @@ const WallpaperList: React.FC = () => {
           >
             SEO设置
           </Button>
-          <Button 
-            danger
-            size="small"
-            icon={<DeleteOutlined />} 
-            onClick={() => handleDelete(record)}
+          <Popconfirm
+            title="确认删除"
+            description={`确定要删除壁纸 "${record.name}" 吗？`}
+            onConfirm={() => handleDelete(record)}
+            okText="确定"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
           >
-            删除
-          </Button>
+            <Button 
+              type="link" 
+              size="small" 
+              danger
+              icon={<DeleteOutlined />}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -420,8 +560,14 @@ const WallpaperList: React.FC = () => {
       <Card>
         <div style={{ marginBottom: 16 }}>
           <Space>
-            <Button type="primary">批量通过</Button>
-            <Button danger>批量拒绝</Button>
+            {handleBatchPassConfirm()}
+            <Button 
+              danger
+              icon={<CloseOutlined />}
+              onClick={handleOpenBatchRejectModal}
+            >
+              批量拒绝
+            </Button>
             <Button danger>批量删除</Button>
           </Space>
         </div>
@@ -442,7 +588,11 @@ const WallpaperList: React.FC = () => {
             showQuickJumper: true,
             showTotal: (total) => `共 ${total} 条`,
           }}
-          rowSelection={{ type: 'checkbox' }}
+          rowSelection={{ 
+            type: 'checkbox',
+            selectedRowKeys,
+            onChange: (keys) => setSelectedRowKeys(keys),
+          }}
           scroll={{ x: 1500 }}
         />
       </Card>
@@ -493,11 +643,94 @@ const WallpaperList: React.FC = () => {
           </Tabs>
         </Form>
       </Modal>
+
+      {/* 单个拒绝弹窗 */}
+      <Modal
+        title={`拒绝壁纸 - ${rejectingWallpaper?.name}`}
+        open={rejectModalVisible}
+        onOk={handleSubmitReject}
+        onCancel={() => {
+          setRejectModalVisible(false);
+          setRejectingWallpaper(null);
+          setRejectReason('');
+        }}
+        okText="确认拒绝"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+      >
+        <Form layout="vertical">
+          <Form.Item label="拒绝原因（必填）" required>
+            <TextArea
+              rows={4}
+              placeholder="请输入拒绝原因"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 批量拒绝弹窗 */}
+      <Modal
+        title="批量拒绝壁纸"
+        open={batchRejectModalVisible}
+        onOk={handleSubmitBatchReject}
+        onCancel={() => {
+          setBatchRejectModalVisible(false);
+          setBatchRejectReason('');
+        }}
+        okText="确认拒绝"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+      >
+        <Form layout="vertical">
+          <p style={{ marginBottom: 16 }}>确定要拒绝选中的 {selectedRowKeys.length} 个壁纸吗？</p>
+          <Form.Item label="拒绝原因（必填）" required>
+            <TextArea
+              rows={4}
+              placeholder="请输入拒绝原因"
+              value={batchRejectReason}
+              onChange={(e) => setBatchRejectReason(e.target.value)}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
     </div>
   );
 };
 
 export default WallpaperList;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

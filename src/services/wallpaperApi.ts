@@ -87,7 +87,7 @@ export function auditWallpaper(id: number, params: AuditWallpaperParams) {
  */
 export function batchAuditWallpaper(params: {
   wallpaper_ids: number[];
-  remark?: string;
+  remark: string;
   action: 'approve' | 'reject';
 }) {
   const url = params.action === 'approve' 
