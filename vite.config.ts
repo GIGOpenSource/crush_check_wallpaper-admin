@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+// http://192.168.77.46:8002/
 const MARK_WALLPAPERS_ORIGIN = 'https://www.markwallpapers.com'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-   server: {
+  server: {
     port: 5176,
     strictPort: true,
     host: true,

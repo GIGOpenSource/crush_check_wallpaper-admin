@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import { Row, Col, Card, Statistic, Table, List, Avatar, Tag } from 'antd';
-import {
-  UserOutlined,
-  PictureOutlined,
-  EyeOutlined,
-  DownloadOutlined,
-  LikeOutlined,
-  StarOutlined,
-  RiseOutlined,
-} from '@ant-design/icons';
+import { Card, Row, Col, Statistic, Table, Tag, List, Avatar, Divider } from 'antd';
+import { UserOutlined, PictureOutlined, EyeOutlined, DownloadOutlined, LikeOutlined, StarOutlined, RiseOutlined } from '@ant-design/icons';
 import { Line, Pie } from '@ant-design/charts';
 
 interface StatsData {
@@ -80,12 +72,7 @@ const Dashboard: React.FC = () => {
     color: '#1890ff',
     point: {
       size: 5,
-      shape: 'diamond',
-    },
-    label: {
-      style: {
-        fill: '#aaa',
-      },
+      shape: 'circle',
     },
   };
 
@@ -97,7 +84,14 @@ const Dashboard: React.FC = () => {
     height: 300,
     label: {
       type: 'outer',
-      content: '{name} {percentage}',
+      text: (item: any) => `${item.type} ${(item.value / categoryData.reduce((sum, d) => sum + d.value, 0) * 100).toFixed(1)}%`,
+    },
+    legend: {
+      color: {
+        title: false,
+        position: 'right',
+        rowPadding: 5,
+      },
     },
   };
 

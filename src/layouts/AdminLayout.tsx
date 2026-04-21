@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Badge, theme, Drawer } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Badge, theme, Drawer, message, Modal } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -17,6 +17,7 @@ import {
   StarOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { logout } from '../services/userApi';
 
 const { Header, Sider, Content } = Layout;
 
@@ -175,7 +176,35 @@ const AdminLayout: React.FC = () => {
 
   const handleUserMenuClick = ({ key }: { key: string }) => {
     if (key === 'logout') {
-      navigate('/login');
+      // 使用静态 Modal.confirm 方法
+      Modal.confirm({
+        title: '确认退出',
+        content: '确定要退出登录吗？',
+        okText: '确定退出',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            // 调用退出登录接口
+            await logout();
+            
+            // 清除本地存储的认证信息
+            localStorage.removeItem('token');
+            localStorage.removeItem('userInfo');
+            
+            message.success('退出登录成功');
+            
+            // 跳转到登录页
+            navigate('/login', { replace: true });
+          } catch (error) {
+            console.error('退出登录失败:', error);
+            // 即使接口调用失败，也清除本地信息并跳转
+            localStorage.removeItem('token');
+            localStorage.removeItem('userInfo');
+            navigate('/login', { replace: true });
+          }
+        },
+      });
     }
   };
 

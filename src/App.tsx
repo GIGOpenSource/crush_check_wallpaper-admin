@@ -2,6 +2,8 @@ import { ConfigProvider, theme } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import zhCN from 'antd/locale/zh_CN';
 import AdminLayout from './layouts/AdminLayout';
+import ProtectedRoute from './components/ProtectedRoute';
+import NavigateInitializer from './components/NavigateInitializer';
 import Dashboard from './pages/Dashboard';
 import UserList from './pages/User/UserList';
 import UserDetail from './pages/User/UserDetail';
@@ -50,9 +52,19 @@ function App() {
       }}
     >
       <BrowserRouter>
+        {/* 初始化全局导航函数 */}
+        <NavigateInitializer />
+        
         <Routes>
+          {/* 登录页面 - 无需权限 */}
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<AdminLayout />}>
+          
+          {/* 后台页面 - 需要登录权限 */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             
@@ -107,6 +119,9 @@ function App() {
             <Route path="settings/basic" element={<BasicSettings />} />
             <Route path="settings/pages" element={<PageContent />} />
           </Route>
+          
+          {/* 捕获未匹配的路由，重定向到登录页 */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </ConfigProvider>

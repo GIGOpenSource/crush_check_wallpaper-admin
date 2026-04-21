@@ -1,21 +1,45 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, message, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { login } from '../services/userApi';
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const onFinish = async () => {
+  // 获取用户原本想访问的页面
+  const from = (location.state as any)?.from || '/dashboard';
+
+  const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
+    
     try {
-      // TODO: 调用登录接口
-      // 登录信息处理
+      // 调用登录接口
+      const response = await login({
+        username: values.username,
+        password: values.password,
+      });
+
+      // 保存token到localStorage
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
+
+      // 保存用户信息（如果有）
+      if (response.userInfo) {
+        localStorage.setItem('userInfo', JSON.stringify(response.userInfo));
+      }
+
       message.success('登录成功');
-      navigate('/dashboard');
-    } catch {
-      message.error('登录失败');
+      
+      // 跳转到原本想访问的页面，或者默认的仪表盘
+      navigate(from, { replace: true });
+    } catch (error) {
+      console.error('登录失败，错误详情:', error);
+      // 错误消息已在request拦截器中显示
+      // 这里可以添加额外的错误处理逻辑
     } finally {
       setLoading(false);
     }

@@ -1,224 +1,423 @@
 /**
- * HTTP请求服务
- * 封装fetch API，提供统一的请求处理
+ * Axios HTTP请求服务
+ * 封装axios，提供统一的请求处理、拦截器、错误处理等
  */
 
-import { message } from 'antd';
+import axios from 'axios';
+import type { 
+  AxiosInstance, 
+  AxiosRequestConfig, 
+  AxiosResponse, 
+  InternalAxiosRequestConfig,
+  AxiosError 
+} from 'axios';
+import { message, Modal } from 'antd';
 
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+// 全局导航函数（用于在非组件中导航）
+let navigate: ((to: string, options?: { replace?: boolean }) => void) | null = null;
 
-type QueryValue = string | number | boolean | null | undefined;
-
-interface RequestOptions {
-  method?: HttpMethod;
-  params?: Record<string, QueryValue>;
-  data?: unknown;
-  headers?: Record<string, string>;
-  token?: string;
-  signal?: AbortSignal;
-  responseType?: 'json' | 'blob' | 'text';
+export function setNavigate(fn: typeof navigate) {
+  navigate = fn;
 }
 
-interface RequestConfig {
-  baseURL?: string;
-  timeout?: number;
-  headers?: Record<string, string>;
+// 响应数据结构定义
+export interface ApiResponse<T = any> {
+  code: number;
+  data: T;
+  message: string;
+  success?: boolean;
 }
 
-// 默认配置
-const defaultConfig: RequestConfig = {
+// 请求配置扩展
+export interface CustomRequestConfig extends AxiosRequestConfig {
+  showErrorMessage?: boolean | 'modal'; // false:不显示, true:message提示, 'modal':弹窗提示
+  skipAuth?: boolean; // 是否跳过认证，默认false
+  showErrorModal?: boolean; // 是否使用Modal显示错误（针对重要错误）
+}
+
+// 创建axios实例
+const service: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
-};
+});
 
 /**
- * 构建URL查询字符串
+ * 请求拦截器
  */
-function buildQueryString(params: Record<string, QueryValue>): string {
-  const searchParams = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== null && value !== undefined) {
-      searchParams.append(key, String(value));
+service.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    // 从localStorage获取token
+    const token = localStorage.getItem('token');
+    
+    // 如果配置了skipAuth则不添加token
+    const customConfig = config as CustomRequestConfig;
+    if (token && !customConfig.skipAuth) {
+      // 方式1: 添加 Token 请求头（后端自定义的 Token 头）
+      config.headers.Token = token;
+      
+      // 方式2: 添加标准的 Authorization Bearer 头（兼容 RESTful API 规范）
+      if (!config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
-  });
-  const queryString = searchParams.toString();
-  return queryString ? `?${queryString}` : '';
-}
+
+    // 可以在这里添加其他请求前的处理逻辑
+    // 例如：添加请求时间戳、loading状态等
+    
+    return config;
+  },
+  (error: AxiosError) => {
+    // 请求错误处理
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
 
 /**
- * 获取存储的token
+ * 响应拦截器
  */
-function getToken(): string | null {
-  return localStorage.getItem('token');
-}
-
-/**
- * 发送HTTP请求
- */
-async function httpRequest<T>(url: string, options: RequestOptions = {}): Promise<T> {
-  const {
-    method = 'GET',
-    params,
-    data,
-    headers = {},
-    token,
-    signal,
-    responseType = 'json',
-  } = options;
-
-  // 构建完整URL
-  let fullUrl = url.startsWith('http') ? url : `${defaultConfig.baseURL}${url}`;
-  
-  // 添加查询参数
-  if (params && Object.keys(params).length > 0) {
-    fullUrl += buildQueryString(params);
-  }
-
-  // 构建请求头
-  const requestHeaders: Record<string, string> = {
-    ...defaultConfig.headers,
-    ...headers,
-  };
-
-  // 添加认证token
-  const authToken = token || getToken();
-  if (authToken) {
-    requestHeaders.Authorization = `Bearer ${authToken}`;
-  }
-
-  // 构建请求配置
-  const requestConfig: RequestInit = {
-    method,
-    headers: requestHeaders,
-    signal,
-  };
-
-  // 添加请求体
-  if (data && method !== 'GET') {
-    if (data instanceof FormData) {
-      // FormData不需要设置Content-Type，浏览器会自动设置
-      delete requestHeaders['Content-Type'];
-      requestConfig.body = data;
-    } else {
-      requestConfig.body = JSON.stringify(data);
+service.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const res = response.data;
+    
+    // 如果返回的是二进制数据（blob），直接返回
+    if (response.config.responseType === 'blob') {
+      return response;
     }
-  }
 
-  try {
-    const response = await fetch(fullUrl, requestConfig);
+    // 根据后端返回的code判断请求是否成功
+    // 支持大小写兼容：code 或 Code
+    const responseCode = res.code !== undefined ? res.code : res.Code;
+    const responseMessage = res.message !== undefined ? res.message : res.Message;
+    
+    // 只要 code 存在且不等于 200 和 0，就视为错误
+    if (responseCode !== undefined && responseCode !== 200 && responseCode !== 0) {
+      const customConfig = response.config as CustomRequestConfig;
+      
+      console.log('🔴 接口返回错误:', { code: responseCode, message: responseMessage, data: res });
+      
+      // 只要 code 不等于 200，都显示错误提示（除非明确配置为 false）
+      if (customConfig.showErrorMessage !== false) {
+        const errorMsg = responseMessage || '请求失败';
+        console.log('📢 准备显示错误提示:', errorMsg);
+        
+        // 使用 setTimeout 确保在下一个事件循环中显示
+        setTimeout(() => {
+          // 根据配置决定如何显示错误消息
+          if (customConfig.showErrorMessage === 'modal' || customConfig.showErrorModal) {
+            // 使用 Modal 弹窗显示重要错误
+            console.log('💬 显示 Modal 错误提示');
+            Modal.error({
+              title: '请求失败',
+              content: errorMsg,
+              okText: '确定',
+            });
+          } else {
+            // 默认使用 message 提示错误
+            console.log('📣 显示 message 错误提示');
+            message.error(errorMsg);
+          }
+        }, 0);
+      }
 
-    // 处理响应
-    if (!response.ok) {
-      // 处理特定状态码
-      if (response.status === 401) {
+      // 特殊状态码处理
+      if (responseCode === 401) {
         // 未授权，清除token并跳转登录
         localStorage.removeItem('token');
-        window.location.href = '/login';
-        throw new Error('登录已过期，请重新登录');
-      }
-      
-      if (response.status === 403) {
-        throw new Error('没有权限执行此操作');
-      }
-
-      if (response.status === 404) {
-        throw new Error('请求的资源不存在');
-      }
-
-      if (response.status >= 500) {
-        throw new Error('服务器错误，请稍后重试');
+        localStorage.removeItem('userInfo');
+        
+        // 使用 react-router 导航（如果已设置）
+        if (navigate) {
+          navigate('/login', { replace: true });
+        } else {
+          // 降级方案：使用 window.location
+          window.location.href = '/login';
+        }
       }
 
-      // 尝试解析错误信息
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.message || `请求失败: ${response.status}`);
+      return Promise.reject(new Error(responseMessage || '请求失败'));
     }
 
-    // 根据responseType处理响应数据
-    if (responseType === 'blob') {
-      return response.blob() as Promise<T>;
+    // 请求成功，返回数据
+    return res;
+  },
+  (error: AxiosError) => {
+    const customConfig = error.config as CustomRequestConfig;
+    
+    // 处理HTTP错误状态码
+    let errorMessage = '网络错误，请稍后重试';
+    let showAsModal = false;
+    
+    if (error.response) {
+      // 尝试从响应中获取错误信息
+      const errorData = error.response.data as any;
+      if (errorData?.message) {
+        errorMessage = errorData.message;
+      } else {
+        switch (error.response.status) {
+          case 400:
+            errorMessage = '请求参数错误';
+            break;
+          case 401:
+            errorMessage = '登录已过期，请重新登录';
+            localStorage.removeItem('token');
+            localStorage.removeItem('userInfo');
+            
+            // 使用 react-router 导航（如果已设置）
+            if (navigate) {
+              navigate('/login', { replace: true });
+            } else {
+              window.location.href = '/login';
+            }
+            break;
+          case 403:
+            errorMessage = '没有权限执行此操作';
+            showAsModal = true; // 403错误使用弹窗
+            break;
+          case 404:
+            errorMessage = '请求的资源不存在';
+            break;
+          case 408:
+            errorMessage = '请求超时';
+            break;
+          case 500:
+            errorMessage = '服务器内部错误';
+            showAsModal = true; // 500错误使用弹窗
+            break;
+          case 502:
+            errorMessage = '网关错误';
+            showAsModal = true;
+            break;
+          case 503:
+            errorMessage = '服务不可用';
+            showAsModal = true;
+            break;
+          case 504:
+            errorMessage = '网关超时';
+            showAsModal = true;
+            break;
+          default:
+            errorMessage = `请求失败: ${error.response.status}`;
+        }
+      }
+    } else if (error.code === 'ECONNABORTED') {
+      errorMessage = '请求超时，请检查网络连接';
+    } else if (error.message === 'Network Error') {
+      errorMessage = '网络连接失败，请检查网络设置';
+      showAsModal = true; // 网络错误使用弹窗
+    }
+
+    // 根据配置决定如何显示错误消息
+    if (customConfig?.showErrorMessage !== false) {
+      if (customConfig.showErrorMessage === 'modal' || customConfig.showErrorModal || showAsModal) {
+        // 使用 Modal 弹窗显示重要错误
+        Modal.error({
+          title: '错误提示',
+          content: errorMessage,
+          okText: '确定',
+        });
+      } else {
+        // 使用 message 提示普通错误
+        message.error(errorMessage);
+      }
+    }
+
+    console.error('Response error:', error);
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * 通用请求方法
+ */
+async function request<T = any>(
+  url: string,
+  config: CustomRequestConfig = {}
+): Promise<T> {
+  try {
+    const response = await service.request<ApiResponse<T>>({
+      url,
+      ...config,
+    });
+    
+    // 如果响应数据是blob类型，直接返回
+    if (config.responseType === 'blob') {
+      return response.data as unknown as T;
     }
     
-    if (responseType === 'text') {
-      return response.text() as Promise<T>;
-    }
-
-    // 默认JSON响应
-    const result = await response.json();
-    return result as T;
+    // 返回data字段
+    return (response as any).data ?? response;
   } catch (error) {
-    // 处理网络错误
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      message.error('网络连接失败，请检查网络设置');
-      throw new Error('网络连接失败');
-    }
-
-    // 处理中止请求
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('请求已取消');
-    }
-
-    // 显示错误消息
-    if (error instanceof Error) {
-      message.error(error.message);
-    }
-
     throw error;
   }
 }
 
 /**
- * 请求对象，提供get/post/put/patch/delete方法
+ * 封装常用的HTTP方法
  */
-export const request = {
+export const http = {
   /**
    * GET请求
+   * @param url 请求地址
+   * @param params 查询参数
+   * @param config 其他配置
    */
-  get<T>(url: string, options?: Omit<RequestOptions, 'method' | 'data'>): Promise<T> {
-    return httpRequest<T>(url, { ...options, method: 'GET' });
+  get<T = any>(
+    url: string,
+    params?: Record<string, any>,
+    config?: CustomRequestConfig
+  ): Promise<T> {
+    return request<T>(url, {
+      method: 'GET',
+      params,
+      ...config,
+    });
   },
 
   /**
    * POST请求
+   * @param url 请求地址
+   * @param data 请求体数据
+   * @param config 其他配置
    */
-  post<T>(url: string, data?: unknown, options?: Omit<RequestOptions, 'method' | 'data'>): Promise<T> {
-    return httpRequest<T>(url, { ...options, method: 'POST', data });
+  post<T = any>(
+    url: string,
+    data?: any,
+    config?: CustomRequestConfig
+  ): Promise<T> {
+    return request<T>(url, {
+      method: 'POST',
+      data,
+      ...config,
+    });
   },
 
   /**
    * PUT请求
+   * @param url 请求地址
+   * @param data 请求体数据
+   * @param config 其他配置
    */
-  put<T>(url: string, data?: unknown, options?: Omit<RequestOptions, 'method' | 'data'>): Promise<T> {
-    return httpRequest<T>(url, { ...options, method: 'PUT', data });
+  put<T = any>(
+    url: string,
+    data?: any,
+    config?: CustomRequestConfig
+  ): Promise<T> {
+    return request<T>(url, {
+      method: 'PUT',
+      data,
+      ...config,
+    });
   },
 
   /**
    * PATCH请求
+   * @param url 请求地址
+   * @param data 请求体数据
+   * @param config 其他配置
    */
-  patch<T>(url: string, data?: unknown, options?: Omit<RequestOptions, 'method' | 'data'>): Promise<T> {
-    return httpRequest<T>(url, { ...options, method: 'PATCH', data });
+  patch<T = any>(
+    url: string,
+    data?: any,
+    config?: CustomRequestConfig
+  ): Promise<T> {
+    return request<T>(url, {
+      method: 'PATCH',
+      data,
+      ...config,
+    });
   },
 
   /**
    * DELETE请求
+   * @param url 请求地址
+   * @param params 查询参数
+   * @param config 其他配置
    */
-  delete<T>(url: string, options?: Omit<RequestOptions, 'method'>): Promise<T> {
-    return httpRequest<T>(url, { ...options, method: 'DELETE' });
+  delete<T = any>(
+    url: string,
+    params?: Record<string, any>,
+    config?: CustomRequestConfig
+  ): Promise<T> {
+    return request<T>(url, {
+      method: 'DELETE',
+      params,
+      ...config,
+    });
+  },
+
+  /**
+   * 上传文件
+   * @param url 请求地址
+   * @param formData FormData对象
+   * @param config 其他配置
+   */
+  upload<T = any>(
+    url: string,
+    formData: FormData,
+    config?: CustomRequestConfig
+  ): Promise<T> {
+    return request<T>(url, {
+      method: 'POST',
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      ...config,
+    });
+  },
+
+  /**
+   * 下载文件
+   * @param url 请求地址
+   * @param params 查询参数
+   * @param filename 文件名（可选）
+   * @param config 其他配置
+   */
+  download(
+    url: string,
+    params?: Record<string, any>,
+    filename?: string,
+    config?: CustomRequestConfig
+  ): Promise<void> {
+    return request<Blob>(url, {
+      method: 'GET',
+      params,
+      responseType: 'blob',
+      ...config,
+    }).then((blob) => {
+      // 创建下载链接
+      const blobUrl = window.URL.createObjectURL(blob as unknown as Blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'download';
+      document.body.appendChild(link);
+      link.click();
+      
+      // 清理
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    });
   },
 };
 
 /**
- * 创建取消令牌
+ * 取消请求令牌
+ */
+export const CancelToken = axios.CancelToken;
+
+/**
+ * 创建取消令牌源
  */
 export function createCancelToken() {
-  const controller = new AbortController();
-  return {
-    signal: controller.signal,
-    cancel: () => controller.abort(),
-  };
+  return axios.CancelToken.source();
 }
 
-export default request;
+// 导出axios实例（用于特殊场景）
+export { service };
+
+// 默认导出
+export default http;
