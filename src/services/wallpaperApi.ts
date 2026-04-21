@@ -2,7 +2,7 @@
  * 壁纸相关API接口
  */
 
-import http from './request';
+import http, { service } from './request';
 
 // 壁纸信息
 export interface Wallpaper {
@@ -106,4 +106,14 @@ export function batchAuditWallpaper(params: {
  */
 export function getWallpaperDetail(id: number) {
   return http.get<Wallpaper>(`/wallpapers/wallpaper/${id}/`);
+}
+
+/**
+ * 批量删除壁纸
+ * @param params 批量删除参数
+ */
+export function batchDeleteWallpaper(params: {
+  wallpaper_ids: number[];
+}) {
+  return http.post('/wallpapers/wallpaper/batch-delete/', params);
 }

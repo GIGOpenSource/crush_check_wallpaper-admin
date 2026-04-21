@@ -5,6 +5,7 @@ import { SearchOutlined, ReloadOutlined, MoreOutlined, EditOutlined, DeleteOutli
 import { 
   getWallpaperList,
   batchAuditWallpaper,
+  batchDeleteWallpaper,
   type Wallpaper as ApiWallpaper,
   type GetWallpaperListParams
 } from '../../services/wallpaperApi';
@@ -116,8 +117,17 @@ const WallpaperList: React.FC = () => {
   };
 
   const handleDelete = (record: Wallpaper) => {
-    message.success(`已删除: ${record.name}`);
-    loadWallpaperList();
+    batchDeleteWallpaper({
+      wallpaper_ids: [record.id],
+    })
+      .then(() => {
+        message.success(`已删除: ${record.name}`);
+        loadWallpaperList();
+      })
+      .catch((error) => {
+        console.error('删除失败:', error);
+        message.error('删除失败');
+      });
   };
 
   // 单个通过（使用 Popconfirm）
@@ -246,6 +256,42 @@ const WallpaperList: React.FC = () => {
         >
           批量通过
         </Button>
+      </Popconfirm>
+    );
+  };
+
+  // 批量删除
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请选择要删除的壁纸');
+      return;
+    }
+    
+    batchDeleteWallpaper({
+      wallpaper_ids: selectedRowKeys.map(key => Number(key)),
+    })
+      .then(() => {
+        message.success(`已删除 ${selectedRowKeys.length} 个壁纸`);
+        setSelectedRowKeys([]);
+        loadWallpaperList();
+      })
+      .catch((error) => {
+        console.error('批量删除失败:', error);
+        message.error('批量删除失败');
+      });
+  };
+
+  const handleBatchDeleteConfirm = () => {
+    return (
+      <Popconfirm
+        title="确认批量删除"
+        description={`确定要删除选中的 ${selectedRowKeys.length} 个壁纸吗？`}
+        onConfirm={handleBatchDelete}
+        okText="确定"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+      >
+        <Button danger>批量删除</Button>
       </Popconfirm>
     );
   };
@@ -568,7 +614,7 @@ const WallpaperList: React.FC = () => {
             >
               批量拒绝
             </Button>
-            <Button danger>批量删除</Button>
+            {handleBatchDeleteConfirm()}
           </Space>
         </div>
         <Table
@@ -701,6 +747,26 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
