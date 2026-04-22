@@ -12,7 +12,7 @@ export interface Notification {
     content?: string;
     [key: string]: unknown;
   };
-  notification_type: 'system' | 'feature' | 'activity';
+  notification_type: 'system' | 'feature' | 'Activity';
   send_to: 'all' | 'specific';
   created_at: string;
   updated_at?: string;
@@ -35,7 +35,7 @@ export interface GetNotificationListParams {
   currentPage?: number;
   pageSize?: number;
   title?: string;
-  notification_type?: 'system' | 'feature' | 'activity';
+  notification_type?: 'system' | 'feature' | 'Activity';
 }
 
 /**
@@ -71,7 +71,7 @@ export function deleteNotification(id: number) {
 export interface SendNotificationParams {
   title: string;
   content: string;
-  notification_type: 'system' | 'feature' | 'activity';
+  notification_type: 'system' | 'feature' | 'Activity';
   send_to: 'all' | 'specific';
   user_ids?: number[]; // 当 send_to 为 specific 时需要
 }

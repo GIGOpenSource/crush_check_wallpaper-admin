@@ -106,7 +106,7 @@ const NotificationList: React.FC = () => {
         const typeMap: Record<string, { color: string; text: string }> = {
           system: { color: 'blue', text: '系统' },
           feature: { color: 'green', text: '功能' },
-          activity: { color: 'orange', text: '活动' },
+          Activity: { color: 'orange', text: '活动' },
         };
         const { color, text } = typeMap[type] || { color: 'default', text: type };
         return <Tag color={color}>{text}</Tag>;
@@ -114,10 +114,10 @@ const NotificationList: React.FC = () => {
     },
     {
       title: '发送对象',
-      dataIndex: 'send_to',
       key: 'send_to',
       width: 150,
-      render: (sendTo: string) => {
+      render: (_: unknown, record: Notification) => {
+        const sendTo = record.extra_data?.send_to as string;
         const sendToMap: Record<string, string> = {
           all: '全部用户',
           specific: '部分用户',
@@ -186,7 +186,7 @@ const NotificationList: React.FC = () => {
             options={[
               { value: 'system', label: '系统' },
               { value: 'feature', label: '功能' },
-              { value: 'activity', label: '活动' },
+              { value: 'Activity', label: '活动' },
             ]}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>

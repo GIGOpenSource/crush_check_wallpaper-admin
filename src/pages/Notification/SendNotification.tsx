@@ -141,7 +141,7 @@ const SendNotification: React.FC = () => {
               options={[
                 { value: 'system', label: '系统通知' },
                 { value: 'feature', label: '功能更新' },
-                { value: 'activity', label: '活动通知' },
+                { value: 'Activity', label: '活动通知' },
               ]} 
             />
           </Form.Item>
