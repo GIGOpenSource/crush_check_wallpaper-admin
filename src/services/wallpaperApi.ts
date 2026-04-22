@@ -142,6 +142,70 @@ export function updateWallpaper(id: number, data: {
 }
 
 /**
+ * 更新壁纸（带图片上传）
+ * @param id 壁纸ID
+ * @param data 壁纸数据（包含二进制图片文件和is_change标志）
+ */
+export function updateWallpaperWithImage(id: number, data: {
+  name?: string;
+  description?: string;
+  category_ids?: number[];
+  tag_ids?: number[];
+  file?: File; // 二进制图片文件
+  is_change?: boolean; // 是否修改图片
+  view_count?: number;
+  download_count?: number;
+  hot_score?: number;
+}) {
+  const formData = new FormData();
+  
+  // 添加文本字段
+  if (data.name) {
+    formData.append('name', data.name);
+  }
+  if (data.description) {
+    formData.append('description', data.description);
+  }
+  
+  // 添加分类ID（数组转为JSON字符串）
+  if (data.category_ids && data.category_ids.length > 0) {
+    formData.append('category_ids', JSON.stringify(data.category_ids));
+  }
+  
+  // 添加标签ID（数组转为JSON字符串）
+  if (data.tag_ids && data.tag_ids.length > 0) {
+    formData.append('tag_ids', JSON.stringify(data.tag_ids));
+  }
+  
+  // 添加图片修改标志
+  if (data.is_change !== undefined) {
+    formData.append('is_change', String(data.is_change));
+  }
+  
+  // 如果修改了图片，添加图片文件（二进制）
+  if (data.is_change && data.file) {
+    formData.append('file', data.file);
+  }
+  
+  // 添加可选字段
+  if (data.view_count !== undefined) {
+    formData.append('view_count', String(data.view_count));
+  }
+  if (data.download_count !== undefined) {
+    formData.append('download_count', String(data.download_count));
+  }
+  if (data.hot_score !== undefined) {
+    formData.append('hot_score', String(data.hot_score));
+  }
+  
+  return http.put(`/wallpapers/wallpaper/${id}/`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+}
+
+/**
  * 上传图片
  * @param file 图片文件
  */
@@ -174,4 +238,55 @@ export function createWallpaper(data: {
   hot_score?: number;
 }) {
   return http.post('/wallpapers/wallpaper/', data);
+}
+
+/**
+ * 创建壁纸（带图片上传）
+ * @param data 壁纸数据（包含二进制图片文件）
+ */
+export function createWallpaperWithImage(data: {
+  name: string;
+  description?: string;
+  category_ids: number[];
+  tag_ids?: number[];
+  file: File; // 二进制图片文件
+  view_count?: number;
+  download_count?: number;
+  hot_score?: number;
+}) {
+  const formData = new FormData();
+  
+  // 添加文本字段
+  formData.append('name', data.name);
+  if (data.description) {
+    formData.append('description', data.description);
+  }
+  
+  // 添加分类ID（数组转为JSON字符串）
+  formData.append('category_ids', JSON.stringify(data.category_ids));
+  
+  // 添加标签ID（数组转为JSON字符串）
+  if (data.tag_ids && data.tag_ids.length > 0) {
+    formData.append('tag_ids', JSON.stringify(data.tag_ids));
+  }
+  
+  // 添加图片文件（二进制）
+  formData.append('file', data.file);
+  
+  // 添加可选字段
+  if (data.view_count !== undefined) {
+    formData.append('view_count', String(data.view_count));
+  }
+  if (data.download_count !== undefined) {
+    formData.append('download_count', String(data.download_count));
+  }
+  if (data.hot_score !== undefined) {
+    formData.append('hot_score', String(data.hot_score));
+  }
+  
+  return http.post('/wallpapers/wallpaper/upload-admin/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 }

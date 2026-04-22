@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Input, Select, Space, Tag as AntdTag, Image, Dropdown, message, Modal, Form, Tabs, Tooltip, Popconfirm, Upload, Row, Col, InputNumber } from 'antd';
-const { TextArea } = Input;
-import { SearchOutlined, ReloadOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckOutlined, CloseOutlined, GlobalOutlined, UploadOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Form, Input, message, Modal, Upload, Select, Row, Col, Popconfirm, InputNumber, Image, Space, Tabs, Tooltip, Input as AntdInput } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, UploadOutlined, EyeOutlined, GlobalOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { 
-  getWallpaperList,
-  batchAuditWallpaper,
-  batchDeleteWallpaper,
-  updateWallpaper,
-  createWallpaper,
-  uploadImage,
-  type Wallpaper as ApiWallpaper,
-  type GetWallpaperListParams
-} from '../../services/wallpaperApi';
-import { getTagList, type Tag as ApiTag } from '../../services/tagApi';
+import { Tag as AntdTag } from 'antd';
+import { getWallpaperList, batchDeleteWallpaper, batchAuditWallpaper, createWallpaperWithImage, updateWallpaper, updateWallpaperWithImage, uploadImage } from '../../services/wallpaperApi';
+import { getTagList } from '../../services/tagApi';
+import type { Wallpaper as ApiWallpaper, GetWallpaperListParams } from '../../services/wallpaperApi';
+import type { Tag as ApiTag } from '../../services/tagApi';
+
+const { TextArea } = AntdInput;
 
 // 扩展 API 返回的 Wallpaper 类型，添加页面特有的字段
 interface Wallpaper extends ApiWallpaper {
@@ -251,24 +246,40 @@ const WallpaperList: React.FC = () => {
         categoryIds.push(1); // 添加电脑壁纸
       }
       
-      // 准备更新数据
-      const updateData: any = {
-        name: values.name,
-        description: values.description,
-        category_ids: categoryIds, // [3] 或 [3, 4, 5] 或 [3, 1] 或 [3, 2] 或 [3, 4, 5, 1] 等
-        tag_ids: values.tags, // 标签必填，直接传递
-        view_count: values.view_count,
-        download_count: values.download_count,
-        hot_score: values.hot_score,
-      };
+      // 判断是否修改了图片
+      const isImageChanged = fileList.length > 0 && fileList[0].originFileObj;
       
-      // 如果有上传新图片，添加图片URL
-      if (fileList.length > 0 && fileList[0].url) {
-        updateData.thumb_url = fileList[0].url;
-        updateData.url = fileList[0].url;
+      if (isImageChanged) {
+        // 如果修改了图片，使用 updateWallpaperWithImage
+        const updateData = {
+          name: values.name,
+          description: values.description,
+          category_ids: categoryIds,
+          tag_ids: values.tags,
+          file: fileList[0].originFileObj as File,
+          is_change: true,
+          view_count: values.view_count,
+          download_count: values.download_count,
+          hot_score: values.hot_score,
+        };
+        
+        await updateWallpaperWithImage(editingWallpaper.id, updateData);
+      } else {
+        // 如果没有修改图片，使用普通的 updateWallpaper
+        const updateData: any = {
+          name: values.name,
+          description: values.description,
+          category_ids: categoryIds,
+          tag_ids: values.tags,
+          is_change: false,
+          view_count: values.view_count,
+          download_count: values.download_count,
+          hot_score: values.hot_score,
+        };
+        
+        await updateWallpaper(editingWallpaper.id, updateData);
       }
       
-      await updateWallpaper(editingWallpaper.id, updateData);
       message.success('保存成功');
       setEditModalVisible(false);
       setEditingWallpaper(null);
@@ -295,8 +306,8 @@ const WallpaperList: React.FC = () => {
       const values = await form.validateFields();
       
       // 检查是否已上传图片
-      if (fileList.length === 0 || !fileList[0].url) {
-        message.error('请先上传缩略图');
+      if (fileList.length === 0 || !fileList[0].originFileObj) {
+        message.error('请先选择壁纸图片');
         return;
       }
       
@@ -311,19 +322,18 @@ const WallpaperList: React.FC = () => {
       }
       
       // 准备创建数据
-      const createData: any = {
+      const createData = {
         name: values.name,
         description: values.description,
         category_ids: categoryIds, // 使用分类ID数组
         tag_ids: values.tags, // 标签必填，直接传递
-        thumb_url: fileList[0].url,
-        url: fileList[0].url,
+        file: fileList[0].originFileObj as File, // 二进制图片文件
         view_count: values.view_count || 0,
         download_count: values.download_count || 0,
         hot_score: values.hot_score || 0,
       };
       
-      await createWallpaper(createData);
+      await createWallpaperWithImage(createData);
       message.success('创建成功');
       setCreateModalVisible(false);
       setFileList([]);
@@ -1355,6 +1365,20 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
