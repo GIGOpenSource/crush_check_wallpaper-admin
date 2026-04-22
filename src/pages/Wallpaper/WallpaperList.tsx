@@ -53,6 +53,8 @@ const WallpaperList: React.FC = () => {
   const [tagPage, setTagPage] = useState(1);
   const [tagLoading, setTagLoading] = useState(false);
   const [hasMoreTags, setHasMoreTags] = useState(true);
+  const [currentEditingTagMap, setCurrentEditingTagMap] = useState<Record<number, string>>({}); // 当前编辑壁纸的标签ID->名称映射
+  const [originalCategoryIds, setOriginalCategoryIds] = useState<number[]>([]); // 原始分类ID（用于保留其他分类）
 
   // 加载壁纸列表
   useEffect(() => {
@@ -158,17 +160,53 @@ const WallpaperList: React.FC = () => {
       else if (cat === '电脑壁纸') deviceType = 'desktop';
     });
     
-    // 处理标签数据 - 提取标签ID
-    const tagIds = Array.isArray(record.tags)
-      ? record.tags.map(tag => typeof tag === 'object' ? (tag as any).id : tag)
-      : [];
+    // 提取原始分类ID（保留非1、2、3的其他分类ID）
+    const otherCategoryIds: number[] = [];
+    if (Array.isArray(record.category)) {
+      (record.category as any[]).forEach(cat => {
+        if (typeof cat === 'object' && cat !== null && cat.id != null) {
+          const categoryId = cat.id;
+          // 只保留非1、2、3的其他分类ID
+          if (categoryId !== 1 && categoryId !== 2 && categoryId !== 3) {
+            otherCategoryIds.push(categoryId);
+          }
+        }
+      });
+    }
+    
+    // 保存原始分类ID
+    setOriginalCategoryIds(otherCategoryIds);
+    
+    // 处理标签数据 - 提取标签ID和名称映射
+    let tagIds: number[] = [];
+    const tagIdToNameMap: Record<number, string> = {}; // 构建ID到名称的映射
+    
+    if (record.tag_ids && Array.isArray(record.tag_ids)) {
+      // 如果后端直接返回tag_ids，直接使用
+      tagIds = record.tag_ids;
+    } else if (Array.isArray(record.tags)) {
+      // 如果返回tags数组，提取ID并构建映射
+      (record.tags as any[]).forEach(tag => {
+        if (tag != null) {
+          if (typeof tag === 'object' && tag.id != null && tag.name != null) {
+            tagIds.push(tag.id);
+            tagIdToNameMap[tag.id] = tag.name; // 保存ID到名称的映射
+          } else if (typeof tag === 'number') {
+            tagIds.push(tag);
+          }
+        }
+      });
+    }
+    
+    // 保存当前编辑壁纸的标签映射
+    setCurrentEditingTagMap(tagIdToNameMap);
     
     form.setFieldsValue({
       name: record.name,
       description: record.description,
       wallpaper_type: '静态壁纸', // 固定为静态壁纸
       device_type: deviceType,
-      tags: tagIds,
+      tags: tagIds, // Select组件会根据value匹配options中的label显示名称
       view_count: record.view_count || 0,
       download_count: record.download_count || 0,
       hot_score: record.hot_score || 0,
@@ -198,18 +236,27 @@ const WallpaperList: React.FC = () => {
     try {
       const values = await form.validateFields();
       
-      // 将壁纸类型（固定为静态）和设备类型合并为category数组
-      const category: string[] = ['静态壁纸'];
+      // 构建category_ids：始终包含3（静态壁纸）+ 其他分类ID + 设备类型ID
+      const categoryIds: number[] = [3]; // 始终包含静态壁纸
       
-      if (values.device_type === 'mobile') category.push('手机壁纸');
-      else if (values.device_type === 'desktop') category.push('电脑壁纸');
+      // 添加其他分类ID（非1、2、3的分类）
+      if (originalCategoryIds.length > 0) {
+        categoryIds.push(...originalCategoryIds);
+      }
+      
+      // 根据设备类型添加对应的ID
+      if (values.device_type === 'mobile') {
+        categoryIds.push(2); // 添加手机壁纸
+      } else if (values.device_type === 'desktop') {
+        categoryIds.push(1); // 添加电脑壁纸
+      }
       
       // 准备更新数据
       const updateData: any = {
         name: values.name,
         description: values.description,
-        category: category,
-        tags: values.tags,
+        category_ids: categoryIds, // [3] 或 [3, 4, 5] 或 [3, 1] 或 [3, 2] 或 [3, 4, 5, 1] 等
+        tag_ids: values.tags, // 标签必填，直接传递
         view_count: values.view_count,
         download_count: values.download_count,
         hot_score: values.hot_score,
@@ -226,6 +273,7 @@ const WallpaperList: React.FC = () => {
       setEditModalVisible(false);
       setEditingWallpaper(null);
       setFileList([]);
+      setOriginalCategoryIds([]); // 清除原始分类ID
       form.resetFields();
       loadWallpaperList();
     } catch (error) {
@@ -252,18 +300,22 @@ const WallpaperList: React.FC = () => {
         return;
       }
       
-      // 将壁纸类型（固定为静态）和设备类型合并为category数组
-      const category: string[] = ['静态壁纸'];
+      // 构建category_ids：始终包含3（静态壁纸）+ 设备类型ID
+      const categoryIds: number[] = [3]; // 始终包含静态壁纸
       
-      if (values.device_type === 'mobile') category.push('手机壁纸');
-      else if (values.device_type === 'desktop') category.push('电脑壁纸');
+      // 根据设备类型添加对应的ID
+      if (values.device_type === 'mobile') {
+        categoryIds.push(2); // 添加手机壁纸
+      } else if (values.device_type === 'desktop') {
+        categoryIds.push(1); // 添加电脑壁纸
+      }
       
       // 准备创建数据
       const createData: any = {
         name: values.name,
         description: values.description,
-        category: category,
-        tags: values.tags || [],
+        category_ids: categoryIds, // 使用分类ID数组
+        tag_ids: values.tags, // 标签必填，直接传递
         thumb_url: fileList[0].url,
         url: fileList[0].url,
         view_count: values.view_count || 0,
@@ -875,6 +927,8 @@ const WallpaperList: React.FC = () => {
           setEditModalVisible(false);
           setEditingWallpaper(null);
           setFileList([]);
+          setCurrentEditingTagMap({}); // 清除标签映射
+          setOriginalCategoryIds([]); // 清除原始分类ID
           form.resetFields();
         }}
         width={900}
@@ -917,7 +971,11 @@ const WallpaperList: React.FC = () => {
                 </Col>
               </Row>
               
-              <Form.Item name="tags" label="标签">
+              <Form.Item 
+                name="tags" 
+                label="标签" 
+                rules={[{ required: true, message: '请至少选择一个标签' }]}
+              >
                 <Select 
                   mode="multiple" 
                   placeholder="请选择标签（支持搜索和滚动加载更多）"
@@ -925,6 +983,48 @@ const WallpaperList: React.FC = () => {
                     label: tag.name,
                     value: tag.id,
                   }))}
+                  // 自定义已选中标签的显示
+                  tagRender={(props) => {
+                    const { label, value, closable, onClose } = props;
+                    // 优先从当前编辑壁纸的标签映射中查找名称
+                    const tagName = currentEditingTagMap[value as number];
+                    // 如果找不到，再从全局tagList中查找
+                    const tag = tagName ? { name: tagName } : tagList.find(t => t.id === value);
+                    const displayName = tag ? tag.name : `标签 ${value}`;
+                    
+                    return (
+                      <span
+                        style={{
+                          backgroundColor: '#f5f5f5',
+                          border: '1px solid #d9d9d9',
+                          borderRadius: 4,
+                          padding: '2px 8px',
+                          marginRight: 4,
+                          marginBottom: 4,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {displayName}
+                        {closable && (
+                          <span
+                            onClick={onClose}
+                            style={{
+                              marginLeft: 4,
+                              cursor: 'pointer',
+                              color: '#999',
+                              fontSize: 12,
+                            }}
+                          >
+                            ×
+                          </span>
+                        )}
+                      </span>
+                    );
+                  }}
+                  optionRender={(option) => (
+                    <span>{option.label}</span>
+                  )}
                   showSearch
                   filterOption={(input, option) =>
                     (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
@@ -1095,7 +1195,7 @@ const WallpaperList: React.FC = () => {
                 </Col>
               </Row>
               
-              <Form.Item name="tags" label="标签">
+              <Form.Item name="tags" label="标签" rules={[{ required: true, message: '请至少选择一个标签' }]}>
                 <Select 
                   mode="multiple" 
                   placeholder="请选择标签（支持搜索和滚动加载更多）"
@@ -1255,6 +1355,8 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
 
 
 

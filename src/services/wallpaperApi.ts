@@ -10,8 +10,8 @@ export interface Wallpaper {
   name: string;
   thumb_url: string;
   url: string;
-  category: string[];
-  tags: string[];
+  category: string[] | Array<{ id: number; name: string }>;
+  tags: string[] | Array<{ id: number; name: string }> | number[];
   width: number;
   height: number;
   image_format: string;
@@ -19,6 +19,7 @@ export interface Wallpaper {
   view_count?: number;
   download_count?: number;
   hot_score?: number;
+  tag_ids?: number[]; // 标签ID数组（用于编辑回显）
   uploader: {
     id: number;
     nickname: string;
@@ -126,8 +127,8 @@ export function batchDeleteWallpaper(params: {
 export function updateWallpaper(id: number, data: {
   name?: string;
   description?: string;
-  category?: string[];
-  tags?: number[];
+  category_ids?: number[];
+  tag_ids?: number[];
   thumb_url?: string;
   url?: string;
   width?: number;
@@ -161,10 +162,13 @@ export function uploadImage(file: File) {
 export function createWallpaper(data: {
   name: string;
   description?: string;
-  category: string[];
-  tags?: number[];
+  category_ids: number[];
+  tag_ids?: number[];
   thumb_url: string;
   url?: string;
+  width?: number;
+  height?: number;
+  image_format?: string;
   view_count?: number;
   download_count?: number;
   hot_score?: number;
