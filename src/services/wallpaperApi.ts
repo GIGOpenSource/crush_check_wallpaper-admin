@@ -117,3 +117,57 @@ export function batchDeleteWallpaper(params: {
 }) {
   return http.post('/wallpapers/wallpaper/batch-delete/', params);
 }
+
+/**
+ * 更新壁纸信息
+ * @param id 壁纸ID
+ * @param data 壁纸数据
+ */
+export function updateWallpaper(id: number, data: {
+  name?: string;
+  description?: string;
+  category?: string[];
+  tags?: number[];
+  thumb_url?: string;
+  url?: string;
+  width?: number;
+  height?: number;
+  image_format?: string;
+  view_count?: number;
+  download_count?: number;
+  hot_score?: number;
+}) {
+  return http.put(`/wallpapers/wallpaper/${id}/`, data);
+}
+
+/**
+ * 上传图片
+ * @param file 图片文件
+ */
+export function uploadImage(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return http.post<{ url: string }>('/client/upload-image/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+}
+
+/**
+ * 创建壁纸
+ * @param data 壁纸数据
+ */
+export function createWallpaper(data: {
+  name: string;
+  description?: string;
+  category: string[];
+  tags?: number[];
+  thumb_url: string;
+  url?: string;
+  view_count?: number;
+  download_count?: number;
+  hot_score?: number;
+}) {
+  return http.post('/wallpapers/wallpaper/', data);
+}

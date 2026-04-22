@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Input, Select, Space, Tag, Image, Dropdown, message, Modal, Form, Tabs, Tooltip, Popconfirm } from 'antd';
+import { Table, Card, Button, Input, Select, Space, Tag as AntdTag, Image, Dropdown, message, Modal, Form, Tabs, Tooltip, Popconfirm, Upload, Row, Col, InputNumber } from 'antd';
 const { TextArea } = Input;
-import { SearchOutlined, ReloadOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckOutlined, CloseOutlined, GlobalOutlined } from '@ant-design/icons';
+import { SearchOutlined, ReloadOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckOutlined, CloseOutlined, GlobalOutlined, UploadOutlined } from '@ant-design/icons';
+import type { UploadFile } from 'antd/es/upload/interface';
 import { 
   getWallpaperList,
   batchAuditWallpaper,
   batchDeleteWallpaper,
+  updateWallpaper,
+  createWallpaper,
+  uploadImage,
   type Wallpaper as ApiWallpaper,
   type GetWallpaperListParams
 } from '../../services/wallpaperApi';
+import { getTagList, type Tag as ApiTag } from '../../services/tagApi';
 
 // 扩展 API 返回的 Wallpaper 类型，添加页面特有的字段
 interface Wallpaper extends ApiWallpaper {
@@ -20,6 +25,8 @@ interface Wallpaper extends ApiWallpaper {
   seoDescription?: string;
   seoKeywords?: string[];
   altText?: string;
+  category_names?: string[]; // 分类名称数组
+  tag_ids?: number[]; // 标签ID数组
 }
 
 const { TabPane } = Tabs;
@@ -34,16 +41,60 @@ const WallpaperList: React.FC = () => {
   const [searchText, setSearchText] = useState<string>('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingWallpaper, setEditingWallpaper] = useState<Wallpaper | null>(null);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectingWallpaper, setRejectingWallpaper] = useState<Wallpaper | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [form] = Form.useForm();
+  const [tagList, setTagList] = useState<ApiTag[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [tagPage, setTagPage] = useState(1);
+  const [tagLoading, setTagLoading] = useState(false);
+  const [hasMoreTags, setHasMoreTags] = useState(true);
 
   // 加载壁纸列表
   useEffect(() => {
     loadWallpaperList();
+    loadTagList();
   }, [currentPage, pageSize]);
+
+  const loadTagList = async (page: number = 1, append: boolean = false) => {
+    if (tagLoading || (!append && !hasMoreTags)) return;
+    
+    setTagLoading(true);
+    try {
+      const response = await getTagList({ 
+        currentPage: page, 
+        pageSize: 50 
+      });
+      
+      if (append) {
+        // 追加模式：加载更多标签
+        setTagList(prev => [...prev, ...response.results]);
+      } else {
+        // 初始加载模式：替换标签列表
+        setTagList(response.results);
+      }
+      
+      // 判断是否还有更多数据
+      const totalPages = response.pagination.total_pages || 1;
+      setHasMoreTags(page < totalPages);
+      setTagPage(page);
+    } catch (error) {
+      console.error('加载标签列表失败:', error);
+    } finally {
+      setTagLoading(false);
+    }
+  };
+
+  // 加载更多标签
+  const loadMoreTags = () => {
+    if (hasMoreTags && !tagLoading) {
+      loadTagList(tagPage + 1, true);
+    }
+  };
 
   const loadWallpaperList = async (params?: GetWallpaperListParams) => {
     setLoading(true);
@@ -93,26 +144,173 @@ const WallpaperList: React.FC = () => {
 
   const handleEdit = (record: Wallpaper) => {
     setEditingWallpaper(record);
+    
+    // 处理分类数据 - 将category数组转换为设备类型
+    const categoryNames = Array.isArray(record.category) 
+      ? record.category.map(cat => typeof cat === 'object' ? (cat as any).name : cat)
+      : [];
+    
+    // 从分类中提取设备类型（壁纸类型固定为静态）
+    let deviceType = undefined;
+    
+    categoryNames.forEach(cat => {
+      if (cat === '手机壁纸') deviceType = 'mobile';
+      else if (cat === '电脑壁纸') deviceType = 'desktop';
+    });
+    
+    // 处理标签数据 - 提取标签ID
+    const tagIds = Array.isArray(record.tags)
+      ? record.tags.map(tag => typeof tag === 'object' ? (tag as any).id : tag)
+      : [];
+    
     form.setFieldsValue({
       name: record.name,
-      altText: record.altText,
+      description: record.description,
+      wallpaper_type: '静态壁纸', // 固定为静态壁纸
+      device_type: deviceType,
+      tags: tagIds,
+      view_count: record.view_count || 0,
+      download_count: record.download_count || 0,
+      hot_score: record.hot_score || 0,
       seoTitle: record.seoTitle,
       seoDescription: record.seoDescription,
       seoKeywords: record.seoKeywords?.join(','),
     });
+    
+    // 设置缩略图预览
+    if (record.thumb_url) {
+      setFileList([{
+        uid: '-1',
+        name: 'thumb.jpg',
+        status: 'done',
+        url: record.thumb_url,
+      }]);
+    } else {
+      setFileList([]);
+    }
+    
     setEditModalVisible(true);
   };
 
   const handleSaveEdit = async () => {
+    if (!editingWallpaper) return;
+    
     try {
       const values = await form.validateFields();
-      console.log('保存编辑:', values);
+      
+      // 将壁纸类型（固定为静态）和设备类型合并为category数组
+      const category: string[] = ['静态壁纸'];
+      
+      if (values.device_type === 'mobile') category.push('手机壁纸');
+      else if (values.device_type === 'desktop') category.push('电脑壁纸');
+      
+      // 准备更新数据
+      const updateData: any = {
+        name: values.name,
+        description: values.description,
+        category: category,
+        tags: values.tags,
+        view_count: values.view_count,
+        download_count: values.download_count,
+        hot_score: values.hot_score,
+      };
+      
+      // 如果有上传新图片，添加图片URL
+      if (fileList.length > 0 && fileList[0].url) {
+        updateData.thumb_url = fileList[0].url;
+        updateData.url = fileList[0].url;
+      }
+      
+      await updateWallpaper(editingWallpaper.id, updateData);
       message.success('保存成功');
       setEditModalVisible(false);
+      setEditingWallpaper(null);
+      setFileList([]);
+      form.resetFields();
       loadWallpaperList();
     } catch (error) {
       console.error('保存失败:', error);
       message.error('保存失败');
+    }
+  };
+
+  // 打开新建壁纸弹窗
+  const handleCreate = () => {
+    setCreateModalVisible(true);
+    form.resetFields();
+    setFileList([]);
+  };
+
+  // 保存新建壁纸
+  const handleSaveCreate = async () => {
+    try {
+      const values = await form.validateFields();
+      
+      // 检查是否已上传图片
+      if (fileList.length === 0 || !fileList[0].url) {
+        message.error('请先上传缩略图');
+        return;
+      }
+      
+      // 将壁纸类型（固定为静态）和设备类型合并为category数组
+      const category: string[] = ['静态壁纸'];
+      
+      if (values.device_type === 'mobile') category.push('手机壁纸');
+      else if (values.device_type === 'desktop') category.push('电脑壁纸');
+      
+      // 准备创建数据
+      const createData: any = {
+        name: values.name,
+        description: values.description,
+        category: category,
+        tags: values.tags || [],
+        thumb_url: fileList[0].url,
+        url: fileList[0].url,
+        view_count: values.view_count || 0,
+        download_count: values.download_count || 0,
+        hot_score: values.hot_score || 0,
+      };
+      
+      await createWallpaper(createData);
+      message.success('创建成功');
+      setCreateModalVisible(false);
+      setFileList([]);
+      form.resetFields();
+      loadWallpaperList();
+    } catch (error) {
+      console.error('创建失败:', error);
+      message.error('创建失败');
+    }
+  };
+
+  // 处理图片上传变化
+  const handleUploadChange = async ({ fileList }: { fileList: UploadFile[] }) => {
+    setFileList(fileList);
+    
+    // 如果有新上传的文件，调用上传接口
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      setUploading(true);
+      try {
+        const file = fileList[0].originFileObj as File;
+        const response = await uploadImage(file);
+        
+        // 上传成功后，更新文件列表中的URL
+        const updatedFileList = fileList.map(file => ({
+          ...file,
+          url: response.url,
+          thumbUrl: response.url,
+        }));
+        setFileList(updatedFileList);
+        
+        message.success('图片上传成功');
+      } catch (error) {
+        console.error('图片上传失败:', error);
+        message.error('图片上传失败');
+        // 上传失败，移除文件
+        setFileList([]);
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -387,7 +585,7 @@ const WallpaperList: React.FC = () => {
         return (
           <Space wrap>
             {categoryList.map((cat, index) => (
-              <Tag key={`${cat}-${index}`}>{cat}</Tag>
+              <AntdTag key={`${cat}-${index}`}>{cat}</AntdTag>
             ))}
           </Space>
         );
@@ -410,9 +608,31 @@ const WallpaperList: React.FC = () => {
         return (
           <Space wrap>
             {tagList.map((tag, index) => (
-              <Tag key={`${tag}-${index}`} color="blue">{tag}</Tag>
+              <AntdTag key={`${tag}-${index}`} color="blue">{tag}</AntdTag>
             ))}
           </Space>
+        );
+      },
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      width: 200,
+      ellipsis: true,
+      render: (text: string) => {
+        if (!text) return '-';
+        return (
+          <Tooltip title={text}>
+            <span style={{ 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap',
+              display: 'block'
+            }}>
+              {text}
+            </span>
+          </Tooltip>
         );
       },
     },
@@ -497,7 +717,7 @@ const WallpaperList: React.FC = () => {
           rejected: { color: 'error', text: '已拒绝' },
         };
         const { color, text } = statusMap[status] || { color: 'default', text: status };
-        return <Tag color={color}>{text}</Tag>;
+        return <AntdTag color={color}>{text}</AntdTag>;
       },
     },
     {
@@ -604,7 +824,10 @@ const WallpaperList: React.FC = () => {
       </Card>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Button type="primary" onClick={handleCreate}>
+            新建壁纸
+          </Button>
           <Space>
             {handleBatchPassConfirm()}
             <Button 
@@ -648,18 +871,150 @@ const WallpaperList: React.FC = () => {
         title={`编辑壁纸 - ${editingWallpaper?.name}`}
         open={editModalVisible}
         onOk={handleSaveEdit}
-        onCancel={() => setEditModalVisible(false)}
-        width={700}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setEditingWallpaper(null);
+          setFileList([]);
+          form.resetFields();
+        }}
+        width={900}
+        okText="保存"
+        cancelText="取消"
       >
         <Form form={form} layout="vertical">
           <Tabs defaultActiveKey="basic">
             <TabPane tab="基本信息" key="basic">
-              <Form.Item name="name" label="壁纸名称" rules={[{ required: true }]}>
-                <Input placeholder="请输入壁纸名称" />
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Form.Item name="name" label="壁纸名称" rules={[{ required: true, message: '请输入壁纸名称' }]}>
+                    <Input placeholder="请输入壁纸名称" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item name="description" label="壁纸描述">
+                <TextArea 
+                  rows={3} 
+                  placeholder="请输入壁纸描述"
+                  maxLength={500}
+                  showCount
+                />
               </Form.Item>
-              <Form.Item name="altText" label="图片Alt文本">
-                <Input placeholder="请输入图片Alt描述，用于SEO和 accessibility" />
+              
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="wallpaper_type" label="壁纸类型" initialValue="静态壁纸" getValueFromEvent={() => '静态壁纸'}>
+                    <Input disabled placeholder="静态壁纸" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="device_type" label="设备类型" rules={[{ required: true, message: '请选择设备类型' }]}>
+                    <Select placeholder="请选择设备类型">
+                      <Select.Option value="mobile">手机壁纸</Select.Option>
+                      <Select.Option value="desktop">电脑壁纸</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item name="tags" label="标签">
+                <Select 
+                  mode="multiple" 
+                  placeholder="请选择标签（支持搜索和滚动加载更多）"
+                  options={tagList.map(tag => ({
+                    label: tag.name,
+                    value: tag.id,
+                  }))}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  onPopupScroll={(e) => {
+                    const target = e.target as HTMLElement;
+                    // 当滚动到底部时加载更多
+                    if (target.scrollTop + target.offsetHeight >= target.scrollHeight - 10) {
+                      loadMoreTags();
+                    }
+                  }}
+                  notFoundContent={tagLoading ? '加载中...' : '暂无数据'}
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      {hasMoreTags && !tagLoading && (
+                        <div 
+                          style={{ 
+                            padding: '8px', 
+                            textAlign: 'center',
+                            borderTop: '1px solid #f0f0f0',
+                            cursor: 'pointer',
+                            color: '#1890ff'
+                          }}
+                          onClick={loadMoreTags}
+                        >
+                          加载更多...
+                        </div>
+                      )}
+                      {tagLoading && (
+                        <div 
+                          style={{ 
+                            padding: '8px', 
+                            textAlign: 'center',
+                            borderTop: '1px solid #f0f0f0',
+                            color: '#999'
+                          }}
+                        >
+                          加载中...
+                        </div>
+                      )}
+                    </>
+                  )}
+                />
               </Form.Item>
+              
+              <Form.Item label="缩略图">
+                <div style={{ marginBottom: 8 }}>
+                  {fileList.length > 0 && fileList[0].url && (
+                    <Image 
+                      src={fileList[0].url} 
+                      width={200} 
+                      height={120} 
+                      style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }} 
+                    />
+                  )}
+                </div>
+                <Upload
+                  listType="picture-card"
+                  fileList={fileList}
+                  onChange={handleUploadChange}
+                  maxCount={1}
+                  beforeUpload={() => false} // 阻止自动上传
+                  accept="image/*"
+                >
+                  {fileList.length < 1 && (
+                    <div>
+                      <UploadOutlined />
+                    </div>
+                  )}
+                </Upload>
+              </Form.Item>
+              
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="view_count" label="浏览量">
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="download_count" label="下载量">
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="hot_score" label="热度">
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+              </Row>
             </TabPane>
             <TabPane tab="SEO设置" key="seo">
               <Form.Item name="seoTitle" label="SEO标题">
@@ -685,6 +1040,159 @@ const WallpaperList: React.FC = () => {
                   <li>Alt文本应描述图片内容，便于搜索引擎理解</li>
                 </ul>
               </div>
+            </TabPane>
+          </Tabs>
+        </Form>
+      </Modal>
+
+      {/* 新建壁纸弹窗 */}
+      <Modal
+        title="新建壁纸"
+        open={createModalVisible}
+        onOk={handleSaveCreate}
+        onCancel={() => {
+          setCreateModalVisible(false);
+          setFileList([]);
+          form.resetFields();
+        }}
+        width={900}
+        okText="创建"
+        cancelText="取消"
+      >
+        <Form form={form} layout="vertical">
+          <Tabs defaultActiveKey="basic">
+            <TabPane tab="基本信息" key="basic">
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Form.Item name="name" label="壁纸名称" rules={[{ required: true, message: '请输入壁纸名称' }]}>
+                    <Input placeholder="请输入壁纸名称" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item name="description" label="壁纸描述">
+                <TextArea 
+                  rows={3} 
+                  placeholder="请输入壁纸描述"
+                  maxLength={500}
+                  showCount
+                />
+              </Form.Item>
+              
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="wallpaper_type" label="壁纸类型" initialValue="静态壁纸">
+                    <Input disabled placeholder="静态壁纸" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="device_type" label="设备类型" rules={[{ required: true, message: '请选择设备类型' }]}>
+                    <Select placeholder="请选择设备类型">
+                      <Select.Option value="mobile">手机壁纸</Select.Option>
+                      <Select.Option value="desktop">电脑壁纸</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item name="tags" label="标签">
+                <Select 
+                  mode="multiple" 
+                  placeholder="请选择标签（支持搜索和滚动加载更多）"
+                  options={tagList.map(tag => ({
+                    label: tag.name,
+                    value: tag.id,
+                  }))}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  onPopupScroll={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.scrollTop + target.offsetHeight >= target.scrollHeight - 10) {
+                      loadMoreTags();
+                    }
+                  }}
+                  notFoundContent={tagLoading ? '加载中...' : '暂无数据'}
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      {hasMoreTags && !tagLoading && (
+                        <div 
+                          style={{ 
+                            padding: '8px', 
+                            textAlign: 'center',
+                            borderTop: '1px solid #f0f0f0',
+                            cursor: 'pointer',
+                            color: '#1890ff'
+                          }}
+                          onClick={loadMoreTags}
+                        >
+                          加载更多...
+                        </div>
+                      )}
+                      {tagLoading && (
+                        <div 
+                          style={{ 
+                            padding: '8px', 
+                            textAlign: 'center',
+                            borderTop: '1px solid #f0f0f0',
+                            color: '#999'
+                          }}
+                        >
+                          加载中...
+                        </div>
+                      )}
+                    </>
+                  )}
+                />
+              </Form.Item>
+              
+              <Form.Item label="缩略图" rules={[{ required: true, message: '请上传缩略图' }]}>
+                <div style={{ marginBottom: 8 }}>
+                  {fileList.length > 0 && fileList[0].url && (
+                    <Image 
+                      src={fileList[0].url} 
+                      width={200} 
+                      height={120} 
+                      style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }} 
+                    />
+                  )}
+                </div>
+                <Upload
+                  listType="picture-card"
+                  fileList={fileList}
+                  onChange={handleUploadChange}
+                  maxCount={1}
+                  beforeUpload={() => false}
+                  accept="image/*"
+                >
+                  {fileList.length < 1 && (
+                    <div>
+                      <UploadOutlined />
+                      <div style={{ marginTop: 8 }}>上传缩略图</div>
+                    </div>
+                  )}
+                </Upload>
+              </Form.Item>
+              
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="view_count" label="浏览量" initialValue={0}>
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="download_count" label="下载量" initialValue={0}>
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="hot_score" label="热度" initialValue={0}>
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+              </Row>
             </TabPane>
           </Tabs>
         </Form>
@@ -747,6 +1255,78 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
