@@ -9,6 +9,7 @@ export type PageContentType = 'help' | 'about' | 'privacy';
 
 // 页面内容
 export interface PageContent {
+  id?: number;           // 页面内容 ID
   help?: string;         // 帮助与支持
   about?: string;        // 关于我们
   privacy?: string;      // 隐私政策
@@ -19,16 +20,17 @@ export interface PageContent {
  * @param type 页面类型：help | about | privacy
  */
 export function getPageContent(type: PageContentType) {
-  return http.get<{ content: string }>(`/site/${type}`);
+  return http.get<{ id: number; content: string }>(`/site/${type}/`);
 }
 
 /**
  * 保存页面内容
  * @param type 页面类型：help | about | privacy
  * @param content 页面内容
+ * @param id 页面内容 ID
  */
-export function savePageContent(type: PageContentType, content: string) {
-  return http.post<{ content: string }>(`/site/${type}`, { content });
+export function savePageContent(type: PageContentType, content: string, id: number) {
+  return http.put<{ content: string }>(`/site/${id}/`, { content });
 }
 
 // 基础设置数据类型
@@ -62,10 +64,10 @@ export function updateBasicSettings(data: BasicSettings) {
  */
 export function getAllPageContent() {
   return Promise.all([
-    getPageContent('help').then(res => ({ help: res.content })),
-    getPageContent('about').then(res => ({ about: res.content })),
-    getPageContent('privacy').then(res => ({ privacy: res.content })),
+    getPageContent('help').then(res => ({ help: res.content, help_id: res.id })),
+    getPageContent('about').then(res => ({ about: res.content, about_id: res.id })),
+    getPageContent('privacy').then(res => ({ privacy: res.content, privacy_id: res.id })),
   ]).then(results => {
-    return results.reduce((acc, curr) => ({ ...acc, ...curr }), {}) as PageContent;
+    return results.reduce((acc, curr) => ({ ...acc, ...curr }), {}) as any;
   });
 }

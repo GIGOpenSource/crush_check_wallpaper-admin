@@ -145,7 +145,9 @@ service.interceptors.response.use(
     }
 
     // 请求成功，返回数据
-    return res;
+    // 如果响应包含 data 字段且 data 不为 undefined，返回 data（实际业务数据）
+    // 否则返回整个响应对象（兼容不同接口格式）
+    return res.data !== undefined && res.data !== null ? res.data : res;
   },
   (error: AxiosError) => {
     const customConfig = error.config as CustomRequestConfig;

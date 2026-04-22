@@ -39,6 +39,7 @@ import {
   List,
   Typography,
   Empty,
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -53,6 +54,18 @@ import {
   UnorderedListOutlined,
   CalendarOutlined,
 } from '@ant-design/icons';
+import { 
+  getStrategyList, 
+  createStrategy, 
+  updateStrategy, 
+  deleteStrategy,
+  getContentLibrary,
+  addContentToStrategy,
+  removeContentFromStrategy,
+  type RecommendationStrategy,
+  type StrategyContentItem,
+  type ContentItem,
+} from '../../services/recommendationApi';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
@@ -61,60 +74,9 @@ const { Option } = Select;
 const { Text } = Typography;
 
 /**
- * 策略中的内容项
- */
-interface StrategyContentItem {
-  id: number;
-  contentId: number;
-  contentType: 'wallpaper' | 'category' | 'tag' | 'collection';
-  contentTitle: string;
-  contentImage: string;
-  sortOrder: number;
-}
-
-/**
  * 推荐策略数据接口
+ * 注意：此接口已从 recommendationApi 导入，此处不再重复定义以避免冲突
  */
-interface RecommendationStrategy {
-  id: number;
-  name: string;
-  position: 'home' | 'hot';
-  positionName: string;
-  
-  // 优先级：数字越大优先级越高，冲突时优先展示高优先级策略
-  priority: number;
-  
-  // 语言设置：策略针对的语言版本
-  language: 'all' | 'zh' | 'en' | 'ja' | 'ko';
-  
-  startTime: string;
-  endTime: string;
-  isPermanent: boolean;
-  status: 'active' | 'paused' | 'expired';
-  contents: StrategyContentItem[];
-  contentCount: number;
-  totalViewCount: number;
-  totalClickCount: number;
-  avgCtr: number;
-  createdAt: string;
-  updatedAt: string;
-  operator: string;
-  remark: string;
-}
-
-/**
- * 内容库中的内容项
- */
-interface ContentItem {
-  id: number;
-  title: string;
-  image: string;
-  type: 'wallpaper' | 'category' | 'tag' | 'collection';
-  typeName: string;
-  views: number;
-  downloads: number;
-  createdAt: string;
-}
 
 const POSITION_CONFIG = {
   home: {
@@ -131,12 +93,19 @@ const POSITION_CONFIG = {
     maxContentPerStrategy: 50,
     description: '热门页内容推荐策略，每个策略最多50个内容',
   },
+  banner: {
+    name: '精选轮播图',
+    icon: <AppstoreAddOutlined />,
+    color: '#722ed1',
+    maxContentPerStrategy: 10,
+    description: '精选轮播图推荐策略，每个策略最多10个内容',
+  },
 };
 
 const RecommendationManagerV2: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [strategies, setStrategies] = useState<RecommendationStrategy[]>([]);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // 策略弹窗
   const [strategyModalVisible, setStrategyModalVisible] = useState(false);
@@ -163,65 +132,37 @@ const RecommendationManagerV2: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  // 模拟加载数据
+  // 分页
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  // 加载策略数据
+  const loadStrategies = async (page: number = currentPage) => {
+    setLoading(true);
+    try {
+      const strategyType = activeTab as 'home' | 'hot' | 'banner';
+      const response = await getStrategyList(page, pageSize, strategyType);
+      setStrategies(response.results || []);
+      setTotal(response.pagination?.total || 0);
+    } catch (error) {
+      console.error('加载策略列表失败:', error);
+      message.error('加载策略列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // 使用setTimeout避免同步调用setState
-    const timer = setTimeout(() => {
-    const mockStrategies: RecommendationStrategy[] = [
-      {
-        id: 1,
-        name: '首页主推策略',
-        position: 'home',
-        positionName: '首页推荐策略',
-        priority: 100,
-        language: 'all',
-        startTime: '2026-04-01 00:00:00',
-        endTime: '2026-06-01 23:59:59',
-        isPermanent: false,
-        status: 'active',
-        contents: [
-          { id: 1, contentId: 101, contentType: 'wallpaper', contentTitle: '4K星空夜景壁纸', contentImage: 'https://via.placeholder.com/150', sortOrder: 1 },
-          { id: 2, contentId: 102, contentType: 'wallpaper', contentTitle: '动漫风景高清壁纸', contentImage: 'https://via.placeholder.com/150', sortOrder: 2 },
-          { id: 3, contentId: 103, contentType: 'category', contentTitle: '极简主义壁纸合集', contentImage: 'https://via.placeholder.com/150', sortOrder: 3 },
-        ],
-        contentCount: 3,
-        totalViewCount: 25800,
-        totalClickCount: 5120,
-        avgCtr: 19.8,
-        createdAt: '2026-04-01 10:00:00',
-        updatedAt: '2026-04-17 15:30:00',
-        operator: '管理员',
-        remark: '首页主要推荐内容',
-      },
-      {
-        id: 2,
-        name: '热门精选策略',
-        position: 'hot',
-        positionName: '热门页推荐策略',
-        priority: 80,
-        language: 'en',
-        startTime: '',
-        endTime: '',
-        isPermanent: true,
-        status: 'active',
-        contents: [
-          { id: 4, contentId: 104, contentType: 'wallpaper', contentTitle: '赛博朋克风格壁纸', contentImage: 'https://via.placeholder.com/150', sortOrder: 1 },
-          { id: 5, contentId: 105, contentType: 'wallpaper', contentTitle: '唯美樱花壁纸', contentImage: 'https://via.placeholder.com/150', sortOrder: 2 },
-        ],
-        contentCount: 2,
-        totalViewCount: 15000,
-        totalClickCount: 3200,
-        avgCtr: 21.3,
-        createdAt: '2026-04-10 09:00:00',
-        updatedAt: '2026-04-17 14:20:00',
-        operator: '管理员',
-        remark: '长期热门推荐',
-      },
-    ];
-    setStrategies(mockStrategies);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+    loadStrategies(1);
+  }, [activeTab]);
+
+  // 切换标签页时重置分页
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    setSelectedStrategyIds([]);
+    setCurrentPage(1);
+  };
 
   // 策略列表列定义
   const strategyColumns = [
@@ -229,18 +170,36 @@ const RecommendationManagerV2: React.FC = () => {
       title: '策略名称',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
+      ellipsis: true,
       render: (name: string, record: RecommendationStrategy) => (
-        <div>
-          <div style={{ fontWeight: 500, fontSize: 16 }}>{name}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            ID: {record.id} | 优先级: {record.priority} | 
-            {record.language === 'all' ? '全语言' : 
-             record.language === 'zh' ? '中文' :
-             record.language === 'en' ? '英文' :
-             record.language === 'ja' ? '日文' : '韩文'}
-          </Text>
+        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 4 }}>{name}</div>
+          <Tooltip title={`ID: ${record.id} | 优先级: ${record.priority}`}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              ID: {record.id}
+            </Text>
+          </Tooltip>
         </div>
       ),
+    },
+    {
+      title: '应用区域',
+      dataIndex: 'apply_area',
+      key: 'apply_area',
+      width: 120,
+      render: (applyArea: string) => {
+        const areaMap: Record<string, { color: string; text: string }> = {
+          global: { color: 'blue', text: '全球' },
+          cn: { color: 'red', text: '中国大陆' },
+          overseas: { color: 'green', text: '海外' },
+          us: { color: 'orange', text: '美国' },
+          jp: { color: 'purple', text: '日本' },
+          kr: { color: 'cyan', text: '韩国' },
+        };
+        const config = areaMap[applyArea] || { color: 'default', text: applyArea || '未知' };
+        return <Tag color={config.color}>{config.text}</Tag>;
+      },
     },
     {
       title: '优先级',
@@ -257,32 +216,53 @@ const RecommendationManagerV2: React.FC = () => {
       title: '内容数量',
       key: 'contentCount',
       width: 120,
-      render: (_: unknown, record: RecommendationStrategy) => (
-        <Tag color={record.contentCount >= 50 ? 'red' : 'blue'}>
-          {record.contentCount} / 50
-        </Tag>
-      ),
+      render: (_: unknown, record: RecommendationStrategy) => {
+        const contentCount = record.wallpaper_ids?.length || 0;
+        const contentLimit = record.content_limit || POSITION_CONFIG[record.strategy_type]?.maxContentPerStrategy || 50;
+        const isNearLimit = contentCount >= contentLimit * 0.8; // 达到80%时显示警告色
+        
+        return (
+          <Tag color={isNearLimit ? 'orange' : 'blue'}>
+            {contentCount} / {contentLimit}
+          </Tag>
+        );
+      },
     },
     {
       title: '生效时间',
       key: 'time',
-      render: (_: unknown, record: RecommendationStrategy) => (
-        <div>
-          {record.isPermanent ? (
-            <Tag icon={<ClockCircleOutlined />} color="blue">永久有效</Tag>
-          ) : (
-            <>
-              <div style={{ fontSize: 12 }}>
-                <CalendarOutlined style={{ marginRight: 4 }} />
-                {record.startTime}
-              </div>
-              <div style={{ fontSize: 12, color: '#999' }}>
-                至 {record.endTime}
-              </div>
-            </>
-          )}
-        </div>
-      ),
+      width: 200,
+      render: (_: unknown, record: RecommendationStrategy) => {
+        const formatDate = (dateStr: string) => {
+          if (!dateStr) return '--';
+          try {
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            }).replace(/\//g, '-');
+          } catch {
+            return dateStr;
+          }
+        };
+        
+        return (
+          <div>
+            <div style={{ fontSize: 12 }}>
+              <CalendarOutlined style={{ marginRight: 4 }} />
+              {formatDate(record.start_time)}
+            </div>
+            <div style={{ fontSize: 12, color: '#999' }}>
+              至 {formatDate(record.end_time)}
+            </div>
+          </div>
+        );
+      },
     },
     {
       title: '状态',
@@ -291,11 +271,11 @@ const RecommendationManagerV2: React.FC = () => {
       width: 100,
       render: (status: string) => {
         const config: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
-          active: { color: 'success', text: '生效中', icon: <CheckCircleOutlined /> },
-          paused: { color: 'warning', text: '已暂停', icon: <CloseCircleOutlined /> },
-          expired: { color: 'error', text: '已过期', icon: <ClockCircleOutlined /> },
+          draft: { color: 'default', text: '草稿', icon: <ClockCircleOutlined /> },
+          active: { color: 'success', text: '激活', icon: <CheckCircleOutlined /> },
+          inactive: { color: 'warning', text: '未激活', icon: <CloseCircleOutlined /> },
         };
-        const { color, text, icon } = config[status];
+        const { color, text, icon } = config[status] || config.draft;
         return <Tag color={color} icon={icon}>{text}</Tag>;
       },
     },
@@ -305,9 +285,9 @@ const RecommendationManagerV2: React.FC = () => {
       width: 150,
       render: (_: unknown, record: RecommendationStrategy) => (
         <div style={{ fontSize: 12 }}>
-          <div>曝光: {record.totalViewCount.toLocaleString()}</div>
-          <div>点击: {record.totalClickCount.toLocaleString()}</div>
-          <div style={{ color: '#52c41a' }}>CTR: {record.avgCtr}%</div>
+          <div>曝光: {(record.total_view_count || 0).toLocaleString()}</div>
+          <div>点击: {(record.total_click_count || 0).toLocaleString()}</div>
+          <div style={{ color: '#52c41a' }}>CTR: {(record.avg_ctr || 0).toFixed(2)}%</div>
         </div>
       ),
     },
@@ -352,12 +332,12 @@ const RecommendationManagerV2: React.FC = () => {
     setEditingStrategy(null);
     setStrategyModalTitle('添加推荐策略');
     strategyForm.resetFields();
+    const defaultLimit = POSITION_CONFIG[activeTab as keyof typeof POSITION_CONFIG]?.maxContentPerStrategy || 50;
     strategyForm.setFieldsValue({
       position: activeTab,
       priority: 50,
-      language: 'all',
-      isPermanent: true,
-      status: 'active',
+      content_limit: defaultLimit,
+      status: 'draft',
     });
     setStrategyModalVisible(true);
   };
@@ -365,22 +345,20 @@ const RecommendationManagerV2: React.FC = () => {
   // 处理编辑策略
   const handleEditStrategy = (record: RecommendationStrategy) => {
     setEditingStrategy(record);
-    setStrategyModalTitle('编辑推荐策略');
+    setStrategyModalTitle(`编辑策略: ${record.name}`);
     
-    const formValues = {
+    strategyForm.setFieldsValue({
       name: record.name,
-      position: record.position,
+      position: record.strategy_type,
       priority: record.priority,
-      language: record.language,
-      isPermanent: record.isPermanent,
+      apply_area: record.apply_area,
+      content_limit: record.content_limit || POSITION_CONFIG[record.strategy_type as keyof typeof POSITION_CONFIG]?.maxContentPerStrategy || 50,
       status: record.status,
       remark: record.remark,
-      timeRange: record.isPermanent 
-        ? null 
-        : [dayjs(record.startTime), dayjs(record.endTime)],
-    };
-    
-    strategyForm.setFieldsValue(formValues);
+      timeRange: record.start_time && record.end_time
+        ? [dayjs(record.start_time), dayjs(record.end_time)]
+        : undefined,
+    });
     setStrategyModalVisible(true);
   };
 
@@ -391,70 +369,63 @@ const RecommendationManagerV2: React.FC = () => {
       
       let startTime = '';
       let endTime = '';
-      if (!values.isPermanent && values.timeRange) {
+      if (values.timeRange && values.timeRange.length === 2) {
         startTime = values.timeRange[0].format('YYYY-MM-DD HH:mm:ss');
         endTime = values.timeRange[1].format('YYYY-MM-DD HH:mm:ss');
       }
       
-      const positionConfig = POSITION_CONFIG[values.position as keyof typeof POSITION_CONFIG];
-      
+      setLoading(true);
       if (editingStrategy) {
-        const updated = strategies.map(s =>
-          s.id === editingStrategy.id
-            ? {
-                ...s,
-                name: values.name,
-                position: values.position,
-                positionName: positionConfig.name,
-                priority: values.priority,
-                language: values.language,
-                isPermanent: values.isPermanent,
-                startTime,
-                endTime,
-                status: values.status,
-                remark: values.remark,
-                updatedAt: new Date().toLocaleString(),
-              }
-            : s
-        );
-        setStrategies(updated);
+        await updateStrategy(editingStrategy.id, {
+          name: values.name,
+          strategy_type: values.position,
+          priority: values.priority,
+          apply_area: values.apply_area,
+          content_limit: values.content_limit,
+          start_time: startTime,
+          end_time: endTime,
+          status: values.status,
+          remark: values.remark,
+        });
         message.success('策略修改成功');
       } else {
-        const newStrategy: RecommendationStrategy = {
-          id: Date.now(),
+        await createStrategy({
           name: values.name,
-          position: values.position,
-          positionName: positionConfig.name,
+          strategy_type: values.position,
           priority: values.priority,
-          language: values.language,
-          isPermanent: values.isPermanent,
-          startTime,
-          endTime,
+          apply_area: values.apply_area,
+          content_limit: values.content_limit,
+          start_time: startTime,
+          end_time: endTime,
           status: values.status,
-          contents: [],
-          contentCount: 0,
-          totalViewCount: 0,
-          totalClickCount: 0,
-          avgCtr: 0,
-          createdAt: new Date().toLocaleString(),
-          updatedAt: new Date().toLocaleString(),
-          operator: '管理员',
-          remark: values.remark || '',
-        };
-        setStrategies([...strategies, newStrategy]);
+          remark: values.remark,
+        });
         message.success('策略添加成功');
       }
       
       setStrategyModalVisible(false);
+      loadStrategies(currentPage);
     } catch (error) {
-      console.error('表单验证失败:', error);
+      console.error('保存策略失败:', error);
+      message.error('保存策略失败');
+    } finally {
+      setLoading(false);
     }
   };
 
   // 处理删除策略
-  const handleDeleteStrategy = (id: number) => {
-    setStrategies(strategies.filter(s => s.id !== id));
-    message.success('策略删除成功');
+  const handleDeleteStrategy = async (id: number) => {
+    try {
+      setLoading(true);
+      await deleteStrategy(id);
+      message.success('策略删除成功');
+      loadStrategies(currentPage);
+    } catch (error) {
+      console.error('删除策略失败:', error);
+      message.error('删除策略失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 处理批量删除策略
@@ -470,10 +441,21 @@ const RecommendationManagerV2: React.FC = () => {
       okText: '确认删除',
       okType: 'danger',
       cancelText: '取消',
-      onOk: () => {
-        setStrategies(strategies.filter(s => !selectedStrategyIds.includes(s.id)));
-        setSelectedStrategyIds([]);
-        message.success(`成功删除 ${selectedStrategyIds.length} 个策略`);
+      onOk: async () => {
+        try {
+          setLoading(true);
+          // Assuming deleteStrategy can be called in parallel or there's a batch endpoint. 
+          // For now, calling individual deletes.
+          await Promise.all(selectedStrategyIds.map(id => deleteStrategy(id)));
+          setSelectedStrategyIds([]);
+          message.success(`成功删除 ${selectedStrategyIds.length} 个策略`);
+          loadStrategies(currentPage);
+        } catch (error) {
+          console.error('批量删除策略失败:', error);
+          message.error('批量删除策略失败');
+        } finally {
+          setLoading(false);
+        }
       },
     });
   };
@@ -485,12 +467,13 @@ const RecommendationManagerV2: React.FC = () => {
     setSelectedContentIds([]);
   };
 
-  // 处理从内容库添加
+  // 打开内容库弹窗
   const handleOpenContentLibrary = () => {
     if (!managingStrategy) return;
     
-    const maxCount = POSITION_CONFIG[managingStrategy.position].maxContentPerStrategy;
-    if (managingStrategy.contentCount >= maxCount) {
+    const maxCount = managingStrategy.content_limit || POSITION_CONFIG[managingStrategy.strategy_type]?.maxContentPerStrategy || 50;
+    const availableSlots = maxCount - (managingStrategy.content_count || 0);
+    if (availableSlots <= 0) {
       message.warning(`该策略已达到最大内容数量限制（${maxCount}个）`);
       return;
     }
@@ -501,106 +484,93 @@ const RecommendationManagerV2: React.FC = () => {
   };
 
   // 加载内容库
-  const loadContentList = () => {
+  const loadContentList = async () => {
     setContentLoading(true);
-    setTimeout(() => {
-      const mockContentList: ContentItem[] = [
-        { id: 201, title: '唯美樱花壁纸', image: 'https://via.placeholder.com/150', type: 'wallpaper', typeName: '壁纸', views: 15000, downloads: 3200, createdAt: '2026-04-15' },
-        { id: 202, title: '极简黑白壁纸', image: 'https://via.placeholder.com/150', type: 'wallpaper', typeName: '壁纸', views: 12000, downloads: 2800, createdAt: '2026-04-14' },
-        { id: 203, title: '动漫风景合集', image: 'https://via.placeholder.com/150', type: 'collection', typeName: '合集', views: 8500, downloads: 1500, createdAt: '2026-04-13' },
-        { id: 204, title: '4K游戏壁纸', image: 'https://via.placeholder.com/150', type: 'wallpaper', typeName: '壁纸', views: 22000, downloads: 5600, createdAt: '2026-04-12' },
-        { id: 205, title: '自然风光分类', image: 'https://via.placeholder.com/150', type: 'category', typeName: '分类', views: 18000, downloads: 0, createdAt: '2026-04-11' },
-        { id: 206, title: '赛博朋克风格', image: 'https://via.placeholder.com/150', type: 'tag', typeName: '标签', views: 9500, downloads: 2100, createdAt: '2026-04-10' },
-        { id: 207, title: '星空夜景壁纸', image: 'https://via.placeholder.com/150', type: 'wallpaper', typeName: '壁纸', views: 30000, downloads: 8900, createdAt: '2026-04-09' },
-        { id: 208, title: '城市建筑壁纸', image: 'https://via.placeholder.com/150', type: 'wallpaper', typeName: '壁纸', views: 11000, downloads: 2400, createdAt: '2026-04-08' },
-      ];
-      setContentList(mockContentList);
+    try {
+      const data = await getContentLibrary();
+      setContentList(data);
+    } catch (error) {
+      console.error('加载内容库失败:', error);
+      message.error('加载内容库失败');
+    } finally {
       setContentLoading(false);
-    }, 500);
+    }
   };
 
-  // 确认添加内容到策略
-  const handleAddContentToStrategy = () => {
+  // 处理添加内容
+  const handleAddContent = async () => {
     if (!managingStrategy) return;
     
-    if (selectedContentIds.length === 0) {
-      message.warning('请至少选择一项内容');
+    const maxCount = managingStrategy.content_limit || POSITION_CONFIG[managingStrategy.strategy_type]?.maxContentPerStrategy || 50;
+    if ((managingStrategy.content_count || 0) >= maxCount) {
+      message.warning(`该策略已达到最大内容数量限制（${maxCount}个）`);
       return;
     }
 
-    const maxCount = POSITION_CONFIG[managingStrategy.position].maxContentPerStrategy;
-    const availableSlots = maxCount - managingStrategy.contentCount;
+    const availableSlots = maxCount - (managingStrategy.content_count || 0);
     
     if (selectedContentIds.length > availableSlots) {
       message.error(`超出最大限制，最多还可添加${availableSlots}个内容`);
       return;
     }
 
-    const selectedItems = contentList.filter(item => selectedContentIds.includes(item.id));
-    const newContents: StrategyContentItem[] = selectedItems.map((item, index) => ({
-      id: Date.now() + index,
-      contentId: item.id,
-      contentType: item.type,
-      contentTitle: item.title,
-      contentImage: item.image,
-      sortOrder: managingStrategy.contentCount + index + 1,
-    }));
-
-    const updatedStrategies = strategies.map(s => {
-      if (s.id === managingStrategy.id) {
-        return {
-          ...s,
-          contents: [...s.contents, ...newContents],
-          contentCount: s.contentCount + newContents.length,
-          updatedAt: new Date().toLocaleString(),
-        };
+    try {
+      setLoading(true);
+      // Add all selected contents to the strategy in one batch call
+      await addContentToStrategy(managingStrategy.id, selectedContentIds);
+      
+      message.success(`成功添加${selectedContentIds.length}个内容到策略`);
+      setContentLibraryVisible(false);
+      setSelectedContentIds([]);
+      
+      // Refresh strategy list to update content counts
+      loadStrategies(currentPage);
+      
+      // Refresh managing strategy details if needed, or just close modal
+      // To keep UI consistent, we might want to re-fetch the specific strategy or just close
+      // For now, reloading is safer.
+      if (contentModalVisible) {
+         // Optionally refresh the managing strategy view if we had a getStrategyDetail API
+         // For now, we just close the library modal.
       }
-      return s;
-    });
-
-    setStrategies(updatedStrategies);
-    setManagingStrategy({
-      ...managingStrategy,
-      contents: [...managingStrategy.contents, ...newContents],
-      contentCount: managingStrategy.contentCount + newContents.length,
-    });
-    
-    message.success(`成功添加${selectedItems.length}个内容到策略`);
-    setContentLibraryVisible(false);
-    setSelectedContentIds([]);
+    } catch (error) {
+      console.error('添加内容失败:', error);
+      message.error('添加内容失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 处理从策略移除内容
-  const handleRemoveContent = (contentId: number) => {
+  const handleRemoveContent = async (strategyContentId: number, contentId: number) => {
     if (!managingStrategy) return;
     
-    const updatedContents = managingStrategy.contents.filter(c => c.id !== contentId);
-    
-    const updatedStrategies = strategies.map(s => {
-      if (s.id === managingStrategy.id) {
-        return {
-          ...s,
-          contents: updatedContents,
-          contentCount: updatedContents.length,
-          updatedAt: new Date().toLocaleString(),
-        };
-      }
-      return s;
-    });
-
-    setStrategies(updatedStrategies);
-    setManagingStrategy({
-      ...managingStrategy,
-      contents: updatedContents,
-      contentCount: updatedContents.length,
-    });
-    
-    message.success('内容已移除');
+    try {
+      setLoading(true);
+      await removeContentFromStrategy(managingStrategy.id, contentId);
+      message.success('内容已移除');
+      
+      // Refresh strategy list to update content counts
+      loadStrategies(currentPage);
+      
+      // Update local managing strategy state to reflect removal immediately in UI
+      const updatedContents = managingStrategy.contents.filter(c => c.id !== strategyContentId);
+      setManagingStrategy({
+        ...managingStrategy,
+        contents: updatedContents,
+        content_count: updatedContents.length,
+      });
+    } catch (error) {
+      console.error('移除内容失败:', error);
+      message.error('移除内容失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 筛选数据
   const filteredStrategies = strategies
-    .filter(s => s.position === activeTab)
+    .filter(s => s.strategy_type === activeTab)
     .filter(s => {
       if (filterStatus === 'all') return true;
       return s.status === filterStatus;
@@ -612,12 +582,12 @@ const RecommendationManagerV2: React.FC = () => {
 
   // 统计
   const stats = {
-    total: strategies.filter(s => s.position === activeTab).length,
-    active: strategies.filter(s => s.position === activeTab && s.status === 'active').length,
-    expired: strategies.filter(s => s.position === activeTab && s.status === 'expired').length,
+    total: strategies.filter(s => s.strategy_type === activeTab).length,
+    active: strategies.filter(s => s.strategy_type === activeTab && s.status === 'active').length,
+    expired: strategies.filter(s => s.strategy_type === activeTab && s.status === 'inactive').length,
     totalContents: strategies
-      .filter(s => s.position === activeTab)
-      .reduce((sum, s) => sum + s.contentCount, 0),
+      .filter(s => s.strategy_type === activeTab)
+      .reduce((sum, s) => sum + (s.content_count || 0), 0),
   };
 
   return (
@@ -636,10 +606,7 @@ const RecommendationManagerV2: React.FC = () => {
 
       <Tabs
         activeKey={activeTab}
-        onChange={(key) => {
-          setActiveTab(key);
-          setSelectedStrategyIds([]);
-        }}
+        onChange={handleTabChange}
         style={{ marginBottom: 24 }}
       >
         {Object.entries(POSITION_CONFIG).map(([key, config]) => (
@@ -649,7 +616,7 @@ const RecommendationManagerV2: React.FC = () => {
                 {config.icon}
                 {config.name}
                 <Badge
-                  count={strategies.filter(s => s.position === key && s.status === 'active').length}
+                  count={strategies.filter(s => s.strategy_type === key && s.status === 'active').length}
                   style={{ marginLeft: 8, backgroundColor: config.color }}
                 />
               </span>
@@ -710,9 +677,9 @@ const RecommendationManagerV2: React.FC = () => {
                   style={{ width: 120 }}
                 >
                   <Option value="all">全部状态</Option>
-                  <Option value="active">生效中</Option>
-                  <Option value="paused">已暂停</Option>
-                  <Option value="expired">已过期</Option>
+                  <Option value="draft">草稿</Option>
+                  <Option value="active">激活</Option>
+                  <Option value="inactive">未激活</Option>
                 </Select>
                 <span style={{ color: '#999' }}>
                   {config.description}
@@ -733,7 +700,15 @@ const RecommendationManagerV2: React.FC = () => {
                 dataSource={filteredStrategies}
                 rowKey="id"
                 loading={loading}
-                pagination={{ pageSize: 10 }}
+                scroll={{ x: 1400 }}
+                pagination={{
+                  current: currentPage,
+                  pageSize,
+                  total,
+                  onChange: setCurrentPage,
+                  showSizeChanger: false,
+                  showTotal: (total) => `共 ${total} 条`,
+                }}
                 locale={{ emptyText: '暂无策略，请点击"添加策略"' }}
               />
             </Card>
@@ -776,61 +751,52 @@ const RecommendationManagerV2: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="priority"
-                label="优先级"
-                rules={[{ required: true, message: '请输入优先级' }]}
-                tooltip="数字越大优先级越高，冲突时优先展示高优先级策略"
+                name="apply_area"
+                label="应用区域"
+                rules={[{ required: true, message: '请选择应用区域' }]}
+                tooltip="策略生效的地理区域"
               >
-                <InputNumber min={1} max={999} style={{ width: '100%' }} placeholder="例如：100" />
+                <Select placeholder="选择应用区域">
+                  <Option value="global">全球</Option>
+                  <Option value="cn">中国大陆</Option>
+                  <Option value="overseas">海外</Option>
+                  <Option value="us">美国</Option>
+                  <Option value="jp">日本</Option>
+                  <Option value="kr">韩国</Option>
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="language"
-                label="语言"
-                rules={[{ required: true, message: '请选择语言' }]}
-                tooltip="策略针对的语言版本，全语言表示所有版本都生效"
+                name="content_limit"
+                label="内容数量限制"
+                rules={[{ required: true, message: '请输入内容数量限制' }]}
+                tooltip="该策略下最多可添加的内容数量"
               >
-                <Select placeholder="选择语言">
-                  <Option value="all">全语言</Option>
-                  <Option value="zh">中文</Option>
-                  <Option value="en">英文</Option>
-                  <Option value="ja">日文</Option>
-                  <Option value="ko">韩文</Option>
-                </Select>
+                <InputNumber min={1} max={100} style={{ width: '100%' }} placeholder="例如：50" />
               </Form.Item>
             </Col>
           </Row>
 
           <Form.Item
-            name="isPermanent"
-            valuePropName="checked"
+            name="priority"
+            label="优先级"
+            rules={[{ required: true, message: '请输入优先级' }]}
+            tooltip="数字越大优先级越高，冲突时优先展示高优先级策略"
           >
-            <Switch checkedChildren="永久有效" unCheckedChildren="设置有效期" />
+            <InputNumber min={1} max={999} style={{ width: '100%' }} placeholder="例如：100" />
           </Form.Item>
 
           <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => 
-              prevValues.isPermanent !== currentValues.isPermanent
-            }
+            name="timeRange"
+            label="有效期"
+            rules={[{ required: true, message: '请选择有效期' }]}
           >
-            {({ getFieldValue }) => {
-              const isPermanent = getFieldValue('isPermanent');
-              return !isPermanent ? (
-                <Form.Item
-                  name="timeRange"
-                  label="有效期"
-                  rules={[{ required: true, message: '请选择有效期' }]}
-                >
-                  <RangePicker
-                    showTime
-                    format="YYYY-MM-DD HH:mm:ss"
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-              ) : null;
-            }}
+            <RangePicker
+              showTime
+              format="YYYY-MM-DD HH:mm:ss"
+              style={{ width: '100%' }}
+            />
           </Form.Item>
 
           <Form.Item
@@ -839,8 +805,9 @@ const RecommendationManagerV2: React.FC = () => {
             rules={[{ required: true, message: '请选择状态' }]}
           >
             <Select placeholder="选择状态">
-              <Option value="active">生效中</Option>
-              <Option value="paused">已暂停</Option>
+              <Option value="draft">草稿</Option>
+              <Option value="active">激活</Option>
+              <Option value="inactive">未激活</Option>
             </Select>
           </Form.Item>
 
@@ -874,7 +841,7 @@ const RecommendationManagerV2: React.FC = () => {
         {managingStrategy && (
           <>
             <Alert
-              message={`当前策略包含 ${managingStrategy.contentCount} 个内容，最多可添加 ${POSITION_CONFIG[managingStrategy.position].maxContentPerStrategy} 个`}
+              message={`当前策略包含 ${managingStrategy.content_count || 0} 个内容，最多可添加 ${managingStrategy.content_limit || POSITION_CONFIG[managingStrategy.strategy_type]?.maxContentPerStrategy || 50} 个`}
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -884,7 +851,7 @@ const RecommendationManagerV2: React.FC = () => {
                   size="small"
                   icon={<AppstoreAddOutlined />}
                   onClick={handleOpenContentLibrary}
-                  disabled={managingStrategy.contentCount >= POSITION_CONFIG[managingStrategy.position].maxContentPerStrategy}
+                  disabled={(managingStrategy.content_count || 0) >= (managingStrategy.content_limit || POSITION_CONFIG[managingStrategy.strategy_type]?.maxContentPerStrategy || 50)}
                 >
                   从内容库添加
                 </Button>
@@ -901,7 +868,7 @@ const RecommendationManagerV2: React.FC = () => {
                       danger
                       size="small"
                       icon={<DeleteOutlined />}
-                      onClick={() => handleRemoveContent(item.id)}
+                      onClick={() => handleRemoveContent(item.id, item.content_id)}
                     >
                       移除
                     </Button>,
@@ -910,15 +877,15 @@ const RecommendationManagerV2: React.FC = () => {
                   <List.Item.Meta
                     avatar={
                       <img
-                        src={item.contentImage}
-                        alt={item.contentTitle}
+                        src={item.content_image}
+                        alt={item.content_title}
                         style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4 }}
                       />
                     }
                     title={
                       <Space>
                         <Tag color="blue">{index + 1}</Tag>
-                        {item.contentTitle}
+                        {item.content_title}
                       </Space>
                     }
                     description={
@@ -941,7 +908,7 @@ const RecommendationManagerV2: React.FC = () => {
       <Modal
         title="从内容库选择"
         open={contentLibraryVisible}
-        onOk={handleAddContentToStrategy}
+        onOk={handleAddContent}
         onCancel={() => {
           setContentLibraryVisible(false);
           setSelectedContentIds([]);

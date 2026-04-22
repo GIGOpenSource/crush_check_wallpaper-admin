@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card, Form, Button, Tabs, message, Spin } from 'antd';
+import type { TabsProps } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { getAllPageContent, savePageContent } from '../../services/settingsApi';
 import type { PageContent } from '../../services/settingsApi';
@@ -114,14 +115,15 @@ const PageContent: React.FC = () => {
   const [htmlHelp, setHtmlHelp] = useState('');
   const [htmlAbout, setHtmlAbout] = useState('');
   const [htmlPrivacy, setHtmlPrivacy] = useState('');
-
-  // 编辑器实例
+  const [pageIdHelp, setPageIdHelp] = useState<number>();
+  const [pageIdAbout, setPageIdAbout] = useState<number>();
+  const [pageIdPrivacy, setPageIdPrivacy] = useState<number>();
   const [editorHelp, setEditorHelp] = useState<IDomEditor | null>(null);
   const [editorAbout, setEditorAbout] = useState<IDomEditor | null>(null);
   const [editorPrivacy, setEditorPrivacy] = useState<IDomEditor | null>(null);
 
   // 记录已激活的标签页（用于延迟渲染编辑器）
-  const [activatedTabs] = useState<Set<string>>(() => new Set(['help']));
+  const [activatedTabs, setActivatedTabs] = useState<Set<string>>(() => new Set(['help']));
 
   // 加载所有页面内容
   useEffect(() => {
@@ -132,9 +134,14 @@ const PageContent: React.FC = () => {
     setLoading(true);
     try {
       const data = await getAllPageContent();
+      
       setHtmlHelp(data.help || '');
       setHtmlAbout(data.about || '');
       setHtmlPrivacy(data.privacy || '');
+      
+      setPageIdHelp(data.help_id);
+      setPageIdAbout(data.about_id);
+      setPageIdPrivacy(data.privacy_id);
       
       // 更新表单值（用于提交时验证）
       form.setFieldsValue({
@@ -142,6 +149,9 @@ const PageContent: React.FC = () => {
         about: data.about || '',
         help: data.help || '',
       });
+      
+      // 激活所有标签页的编辑器
+      setActivatedTabs(new Set(['help', 'about', 'privacy']));
     } catch (error) {
       console.error('加载页面内容失败:', error);
       message.error('加载页面内容失败');
@@ -153,8 +163,12 @@ const PageContent: React.FC = () => {
   // 标签页切换处理
   const handleTabChange = useCallback((key: string) => {
     setActiveTab(key);
-    activatedTabs.add(key);
-  }, [activatedTabs]);
+    setActivatedTabs(prev => {
+      const newSet = new Set(prev);
+      newSet.add(key);
+      return newSet;
+    });
+  }, []);
 
   const onFinish = useCallback(async (values: PageContent) => {
     setSaving(true);
@@ -162,17 +176,21 @@ const PageContent: React.FC = () => {
       // 根据当前激活的标签页保存对应的内容
       const type = activeTab as 'help' | 'about' | 'privacy';
       let content = '';
+      let pageId: number | undefined;
       
       // 从富文本编辑器获取HTML内容
       switch (type) {
         case 'help':
           content = editorHelp?.getHtml() || '';
+          pageId = pageIdHelp;
           break;
         case 'about':
           content = editorAbout?.getHtml() || '';
+          pageId = pageIdAbout;
           break;
         case 'privacy':
           content = editorPrivacy?.getHtml() || '';
+          pageId = pageIdPrivacy;
           break;
       }
       
@@ -182,7 +200,7 @@ const PageContent: React.FC = () => {
         return;
       }
       
-      await savePageContent(type, content);
+      await savePageContent(type, content, pageId);
       message.success('保存成功');
       
       // 重新加载所有页面内容以保持数据同步
@@ -193,7 +211,7 @@ const PageContent: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [activeTab, editorHelp, editorAbout, editorPrivacy, loadPageContent]);
+  }, [activeTab, editorHelp, editorAbout, editorPrivacy, pageIdHelp, pageIdAbout, pageIdPrivacy, loadPageContent]);
 
   return (
     <div>
@@ -204,50 +222,63 @@ const PageContent: React.FC = () => {
             <Tabs 
               activeKey={activeTab}
               onChange={handleTabChange}
-            >
-              <TabPane tab="帮助与支持" key="help">
-                <Form.Item 
-                  name="help" 
-                  label="帮助与支持内容"
-                  style={{ marginBottom: 0 }}
-                >
-                  <EditorContainer
-                    html={htmlHelp}
-                    onCreated={setEditorHelp}
-                    onChange={setHtmlHelp}
-                    visible={activatedTabs.has('help')}
-                  />
-                </Form.Item>
-              </TabPane>
-              <TabPane tab="关于我们" key="about">
-                <Form.Item 
-                  name="about" 
-                  label="关于我们内容"
-                  style={{ marginBottom: 0 }}
-                >
-                  <EditorContainer
-                    html={htmlAbout}
-                    onCreated={setEditorAbout}
-                    onChange={setHtmlAbout}
-                    visible={activatedTabs.has('about')}
-                  />
-                </Form.Item>
-              </TabPane>
-              <TabPane tab="隐私政策" key="privacy">
-                <Form.Item 
-                  name="privacy" 
-                  label="隐私政策内容"
-                  style={{ marginBottom: 0 }}
-                >
-                  <EditorContainer
-                    html={htmlPrivacy}
-                    onCreated={setEditorPrivacy}
-                    onChange={setHtmlPrivacy}
-                    visible={activatedTabs.has('privacy')}
-                  />
-                </Form.Item>
-              </TabPane>
-            </Tabs>
+              items={[
+                {
+                  key: 'help',
+                  label: '帮助与支持',
+                  children: (
+                    <Form.Item 
+                      name="help" 
+                      label="帮助与支持内容"
+                      style={{ marginBottom: 0 }}
+                    >
+                      <EditorContainer
+                        html={htmlHelp}
+                        onCreated={setEditorHelp}
+                        onChange={setHtmlHelp}
+                        visible={activatedTabs.has('help')}
+                      />
+                    </Form.Item>
+                  ),
+                },
+                {
+                  key: 'about',
+                  label: '关于我们',
+                  children: (
+                    <Form.Item 
+                      name="about" 
+                      label="关于我们内容"
+                      style={{ marginBottom: 0 }}
+                    >
+                      <EditorContainer
+                        html={htmlAbout}
+                        onCreated={setEditorAbout}
+                        onChange={setHtmlAbout}
+                        visible={activatedTabs.has('about')}
+                      />
+                    </Form.Item>
+                  ),
+                },
+                {
+                  key: 'privacy',
+                  label: '隐私政策',
+                  children: (
+                    <Form.Item 
+                      name="privacy" 
+                      label="隐私政策内容"
+                      style={{ marginBottom: 0 }}
+                    >
+                      <EditorContainer
+                        html={htmlPrivacy}
+                        onCreated={setEditorPrivacy}
+                        onChange={setHtmlPrivacy}
+                        visible={activatedTabs.has('privacy')}
+                      />
+                    </Form.Item>
+                  ),
+                },
+              ]}
+            />
             <Form.Item style={{ marginTop: 24 }}>
               <Button 
                 type="primary" 
