@@ -31,6 +31,32 @@ export function savePageContent(type: PageContentType, content: string) {
   return http.post<{ content: string }>(`/site/${type}`, { content });
 }
 
+// 基础设置数据类型
+export interface BasicSettings {
+  site_name?: string;                // 站点名称
+  site_description?: string;         // 站点描述
+  icp_number?: string;               // 备案号
+  contact_email?: string;            // 联系邮箱
+  enable_wallpaper_audit?: boolean;  // 开启壁纸审核
+  enable_comment_audit?: boolean;    // 开启评论审核
+  allow_user_register?: boolean;     // 允许用户注册
+}
+
+/**
+ * 获取基础设置
+ */
+export function getBasicSettings() {
+  return http.get<BasicSettings>('/site/basic-settings/');
+}
+
+/**
+ * 更新基础设置
+ * @param data 基础设置数据
+ */
+export function updateBasicSettings(data: BasicSettings) {
+  return http.post<BasicSettings>('/site/update-basic-settings/', data);
+}
+
 /**
  * 批量获取所有页面内容
  */
