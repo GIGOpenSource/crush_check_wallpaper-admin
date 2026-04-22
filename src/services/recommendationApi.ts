@@ -27,6 +27,19 @@ export interface RecommendationStrategy {
   remark?: string;
 }
 
+// 标签信息
+export interface TagInfo {
+  id: number;
+  name: string;
+}
+
+// 壁纸信息
+export interface WallpaperInfo {
+  name: string;           // 壁纸名称
+  thumb_url: string;      // 壁纸缩略图
+  tags?: TagInfo[];       // 壁纸标签（对象数组）
+}
+
 // 策略中的内容项
 export interface StrategyContentItem {
   id?: number;
@@ -35,6 +48,7 @@ export interface StrategyContentItem {
   content_title: string;
   content_image: string;
   sort_order: number;
+  wallpaper_info?: WallpaperInfo;  // 壁纸详细信息
 }
 
 // 内容库中的内容项
@@ -79,6 +93,23 @@ export function getStrategyList(
 }
 
 /**
+ * 获取推荐策略统计数据
+ * @param strategy_type 策略类型：'home' 或 'hot' 或 'banner'
+ */
+export interface StrategyStatistics {
+  total: number;          // 策略总数
+  active: number;         // 生效中
+  expired: number;        // 已过期
+  total_contents: number; // 内容总数
+}
+
+export function getStrategyStatistics(strategy_type: 'home' | 'hot' | 'banner') {
+  return http.get<StrategyStatistics>('/strategy/strategies/statistics/', {
+    strategy_type,
+  });
+}
+
+/**
  * 创建推荐策略
  * @param data 策略数据
  */
@@ -111,6 +142,24 @@ export function getContentLibrary() {
 }
 
 /**
+ * 获取策略的内容列表
+ * @param currentPage 当前页码
+ * @param pageSize 每页条数
+ * @param strategy_id 策略ID
+ */
+export function getStrategyContents(
+  currentPage: number,
+  pageSize: number,
+  strategy_id: number
+) {
+  return http.get<PaginatedResponse<StrategyContentItem>>('/strategy/state_contents/', {
+    currentPage,
+    pageSize,
+    strategy_id,
+  });
+}
+
+/**
  * 向策略添加内容
  * @param strategyId 策略ID
  * @param contentIds 内容ID列表
@@ -121,9 +170,8 @@ export function addContentToStrategy(strategyId: number, contentIds: number[]) {
 
 /**
  * 从策略移除内容
- * @param strategyId 策略ID
- * @param contentId 内容ID
+ * @param id 策略内容项ID（state_contents 的 ID）
  */
-export function removeContentFromStrategy(strategyId: number, contentId: number) {
-  return http.delete(`/strategy/strategies/${strategyId}/contents/${contentId}/`);
+export function removeContentFromStrategy(id: number) {
+  return http.delete(`/strategy/state_contents/${id}/`);
 }

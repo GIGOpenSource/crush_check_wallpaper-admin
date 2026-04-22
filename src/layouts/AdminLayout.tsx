@@ -105,7 +105,7 @@ const AdminLayout: React.FC = () => {
       icon: <RiseOutlined />,
       label: 'SEO管理',
       children: [
-        { key: '/seo', label: 'SEO仪表盘' },
+        // { key: '/seo', label: 'SEO仪表盘' },
         { key: '/seo/technical', label: '技术优化' },
         { key: '/seo/tdk', label: 'TDK管理' },
         { key: '/seo/audit', label: '日常巡查' },

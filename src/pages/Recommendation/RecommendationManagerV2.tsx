@@ -56,6 +56,8 @@ import {
 } from '@ant-design/icons';
 import { 
   getStrategyList, 
+  getStrategyStatistics,
+  getStrategyContents,
   createStrategy, 
   updateStrategy, 
   deleteStrategy,
@@ -65,6 +67,7 @@ import {
   type RecommendationStrategy,
   type StrategyContentItem,
   type ContentItem,
+  type StrategyStatistics,
 } from '../../services/recommendationApi';
 
 const { TabPane } = Tabs;
@@ -137,17 +140,32 @@ const RecommendationManagerV2: React.FC = () => {
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
 
+  // 统计数据
+  const [statistics, setStatistics] = useState<StrategyStatistics>({
+    total: 0,
+    active: 0,
+    expired: 0,
+    total_contents: 0,
+  });
+
   // 加载策略数据
   const loadStrategies = async (page: number = currentPage) => {
     setLoading(true);
     try {
       const strategyType = activeTab as 'home' | 'hot' | 'banner';
-      const response = await getStrategyList(page, pageSize, strategyType);
+      
+      // 并行加载策略列表和统计数据
+      const [response, statsResponse] = await Promise.all([
+        getStrategyList(page, pageSize, strategyType),
+        getStrategyStatistics(strategyType),
+      ]);
+      
       setStrategies(response.results || []);
       setTotal(response.pagination?.total || 0);
+      setStatistics(statsResponse);
     } catch (error) {
-      console.error('加载策略列表失败:', error);
-      message.error('加载策略列表失败');
+      console.error('加载策略数据失败:', error);
+      message.error('加载策略数据失败');
     } finally {
       setLoading(false);
     }
@@ -461,10 +479,26 @@ const RecommendationManagerV2: React.FC = () => {
   };
 
   // 处理管理内容
-  const handleManageContent = (record: RecommendationStrategy) => {
+  const handleManageContent = async (record: RecommendationStrategy) => {
     setManagingStrategy(record);
     setContentModalVisible(true);
     setSelectedContentIds([]);
+    
+    // 加载策略内容列表
+    try {
+      const response = await getStrategyContents(1, 50, record.id);
+      const updatedContents = response.results || [];
+      
+      // 更新策略的内容列表
+      setManagingStrategy({
+        ...record,
+        contents: updatedContents,
+        content_count: updatedContents.length,
+      });
+    } catch (error) {
+      console.error('加载策略内容失败:', error);
+      message.error('加载策略内容失败');
+    }
   };
 
   // 打开内容库弹窗
@@ -542,24 +576,28 @@ const RecommendationManagerV2: React.FC = () => {
   };
 
   // 处理从策略移除内容
-  const handleRemoveContent = async (strategyContentId: number, contentId: number) => {
+  const handleRemoveContent = async (strategyContentId: number) => {
     if (!managingStrategy) return;
     
     try {
       setLoading(true);
-      await removeContentFromStrategy(managingStrategy.id, contentId);
+      await removeContentFromStrategy(strategyContentId);
       message.success('内容已移除');
       
-      // Refresh strategy list to update content counts
-      loadStrategies(currentPage);
+      // 重新加载策略内容列表
+      const response = await getStrategyContents(1, 50, managingStrategy.id);
+      const updatedContents = response.results || [];
       
-      // Update local managing strategy state to reflect removal immediately in UI
-      const updatedContents = managingStrategy.contents.filter(c => c.id !== strategyContentId);
+      // 更新策略的内容列表
       setManagingStrategy({
         ...managingStrategy,
         contents: updatedContents,
         content_count: updatedContents.length,
       });
+      
+      // 重新加载统计数据
+      const statsResponse = await getStrategyStatistics(managingStrategy.strategy_type);
+      setStatistics(statsResponse);
     } catch (error) {
       console.error('移除内容失败:', error);
       message.error('移除内容失败');
@@ -863,37 +901,49 @@ const RecommendationManagerV2: React.FC = () => {
               renderItem={(item, index) => (
                 <List.Item
                   actions={[
-                    <Button
-                      type="text"
-                      danger
-                      size="small"
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleRemoveContent(item.id, item.content_id)}
+                    <Popconfirm
+                      title="确认移除"
+                      description="确定要从策略中移除该内容吗？"
+                      onConfirm={() => handleRemoveContent(item.id)}
+                      okText="确认"
+                      cancelText="取消"
                     >
-                      移除
-                    </Button>,
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                      >
+                        移除
+                      </Button>
+                    </Popconfirm>,
                   ]}
                 >
                   <List.Item.Meta
                     avatar={
                       <img
-                        src={item.content_image}
-                        alt={item.content_title}
+                        src={item.wallpaper_info?.thumb_url || item.content_image}
+                        alt={item.wallpaper_info?.name || item.content_title}
                         style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4 }}
                       />
                     }
                     title={
                       <Space>
                         <Tag color="blue">{index + 1}</Tag>
-                        {item.content_title}
+                        {item.wallpaper_info?.name || item.content_title}
                       </Space>
                     }
                     description={
-                      <Tag style={{ fontSize: 12 }}>
-                        {item.contentType === 'wallpaper' ? '壁纸' : 
-                         item.contentType === 'category' ? '分类' : 
-                         item.contentType === 'tag' ? '标签' : '合集'}
-                      </Tag>
+                      item.wallpaper_info?.tags && item.wallpaper_info.tags.length > 0 && (
+                        <Space size={[0, 4]} wrap>
+                          {item.wallpaper_info.tags.slice(0, 3).map((tag, tagIndex) => (
+                            <Tag key={tagIndex} style={{ fontSize: 12 }}>{tag.name}</Tag>
+                          ))}
+                          {item.wallpaper_info.tags.length > 3 && (
+                            <Tag style={{ fontSize: 12 }}>+{item.wallpaper_info.tags.length - 3}</Tag>
+                          )}
+                        </Space>
+                      )
                     }
                   />
                 </List.Item>
@@ -968,7 +1018,7 @@ const RecommendationManagerV2: React.FC = () => {
                   />
                   <div>
                     <div style={{ fontWeight: 500 }}>{record.title}</div>
-                    <Tag style={{ fontSize: 12 }}>{record.typeName}</Tag>
+                    <Tag style={{ fontSize: 12 }}>{record.type_name}</Tag>
                   </div>
                 </Space>
               ),
