@@ -42,13 +42,15 @@ export interface WallpaperInfo {
 
 // 策略中的内容项
 export interface StrategyContentItem {
-  id?: number;
+  id?: number;                    // 策略内容项ID（state_contents的ID）
   content_id: number;
   content_type: 'wallpaper' | 'category' | 'tag' | 'collection';
   content_title: string;
   content_image: string;
   sort_order: number;
-  wallpaper_info?: WallpaperInfo;  // 壁纸详细信息
+  wallpaper?: number;             // 壁纸ID
+  wallpaper_info?: WallpaperInfo; // 壁纸详细信息
+  strategy?: number;              // 策略ID
 }
 
 // 内容库中的内容项
@@ -135,10 +137,21 @@ export function deleteStrategy(id: number) {
 }
 
 /**
- * 获取内容库列表
+ * 获取内容库列表（壁纸列表）
+ * @param currentPage 当前页码
+ * @param pageSize 每页条数
+ * @param name 搜索关键词
  */
-export function getContentLibrary() {
-  return http.get<ContentItem[]>('/strategy/content-library/');
+export function getContentLibrary(
+  currentPage: number = 1,
+  pageSize: number = 20,
+  name?: string
+) {
+  return http.get<any>('/wallpapers/wallpaper/', {
+    currentPage,
+    pageSize,
+    name,
+  });
 }
 
 /**
@@ -160,12 +173,15 @@ export function getStrategyContents(
 }
 
 /**
- * 向策略添加内容
+ * 向策略添加壁纸内容
  * @param strategyId 策略ID
- * @param contentIds 内容ID列表
+ * @param wallpaperIds 壁纸ID列表
  */
-export function addContentToStrategy(strategyId: number, contentIds: number[]) {
-  return http.post(`/strategy/strategies/${strategyId}/contents/`, { content_ids: contentIds });
+export function addContentToStrategy(strategyId: number, wallpaperIds: number[]) {
+  return http.post('/strategy/state_contents/', {
+    strategy_id: strategyId,
+    wallpaper_ids: wallpaperIds,
+  });
 }
 
 /**
