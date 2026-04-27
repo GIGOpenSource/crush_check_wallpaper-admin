@@ -40,6 +40,7 @@ import {
   Typography,
   Empty,
   Tooltip,
+  Image,
 } from 'antd';
 import {
   PlusOutlined,
@@ -150,10 +151,10 @@ const RecommendationManagerV2: React.FC = () => {
 
   // 统计数据
   const [statistics, setStatistics] = useState<StrategyStatistics>({
-    total: 0,
-    active: 0,
-    expired: 0,
-    total_contents: 0,
+    total_count: 0,
+    active_count: 0,
+    expired_count: 0,
+    total_content_count: 0,
   });
 
   // 加载策略数据
@@ -349,6 +350,76 @@ const RecommendationManagerV2: React.FC = () => {
             </Button>
           </Popconfirm>
         </Space>
+      ),
+    },
+  ];
+
+  // 内容列表列定义
+  const contentColumns = [
+    {
+      title: '壁纸',
+      key: 'wallpaper',
+      width: 300,
+      render: (_: unknown, record: StrategyContentItem) => (
+        <Space>
+          <Image
+            src={record.content_image}
+            width={60}
+            height={60}
+            style={{ objectFit: 'cover', borderRadius: 4 }}
+            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+          />
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.content_title || record.wallpaper_info?.name || '--'}</div>
+            <Tag color="blue">壁纸</Tag>
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: '排序',
+      dataIndex: 'sort_order',
+      key: 'sort_order',
+      width: 80,
+      render: (sortOrder: number) => (
+        <Tag color="purple">{sortOrder}</Tag>
+      ),
+    },
+    {
+      title: '添加时间',
+      key: 'createdAt',
+      width: 180,
+      render: (_: unknown, record: StrategyContentItem) => {
+        const createdAt = (record as any).created_at;
+        if (!createdAt) return '--';
+        return new Date(createdAt).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).replace(/\//g, '-');
+      },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_: unknown, record: StrategyContentItem) => (
+        <Popconfirm
+          title="确定移除此壁纸吗？"
+          description="移除后该壁纸将不再在此策略中推荐"
+          onConfirm={() => handleRemoveContent(record.id || 0)}
+          okText="移除"
+          okType="danger"
+          cancelText="取消"
+        >
+          <Button type="text" danger icon={<DeleteOutlined />}>
+            移除
+          </Button>
+        </Popconfirm>
       ),
     },
   ];
@@ -662,6 +733,39 @@ const RecommendationManagerV2: React.FC = () => {
     }
   };
 
+  // 处理批量移除内容
+  const handleBatchRemoveContents = async () => {
+    if (!managingStrategy || selectedContentIds.length === 0) return;
+    
+    try {
+      setLoading(true);
+      // 批量移除选中的内容
+      await Promise.all(selectedContentIds.map(id => removeContentFromStrategy(id)));
+      message.success(`成功移除 ${selectedContentIds.length} 个内容`);
+      setSelectedContentIds([]);
+      
+      // 重新加载策略内容列表
+      const response = await getStrategyContents(1, 50, managingStrategy.id);
+      const updatedContents = response.results || [];
+      
+      // 更新策略的内容列表
+      setManagingStrategy({
+        ...managingStrategy,
+        contents: updatedContents,
+        content_count: updatedContents.length,
+      });
+      
+      // 重新加载统计数据
+      const statsResponse = await getStrategyStatistics(managingStrategy.strategy_type);
+      setStatistics(statsResponse);
+    } catch (error) {
+      console.error('批量移除内容失败:', error);
+      message.error('批量移除内容失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 筛选数据
   const filteredStrategies = strategies
     .filter(s => s.strategy_type === activeTab)
@@ -733,18 +837,32 @@ const RecommendationManagerV2: React.FC = () => {
         <TabPane tab={<span><HomeOutlined /> 首页推荐策略</span>} key="home">
           <Card>
             <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
+              <Col span={6}>
                 <Statistic
-                  title="总策略数"
-                  value={stats.total}
+                  title="策略总数"
+                  value={statistics.total_count}
                   valueStyle={{ color: '#1890ff' }}
                 />
               </Col>
-              <Col span={12}>
+              <Col span={6}>
                 <Statistic
-                  title="激活策略数"
-                  value={stats.active}
+                  title="生效中"
+                  value={statistics.active_count}
                   valueStyle={{ color: '#52c41a' }}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="已过期"
+                  value={statistics.expired_count}
+                  valueStyle={{ color: '#999' }}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="内容总数"
+                  value={statistics.total_content_count}
+                  valueStyle={{ color: '#722ed1' }}
                 />
               </Col>
             </Row>
@@ -775,21 +893,35 @@ const RecommendationManagerV2: React.FC = () => {
             />
           </Card>
         </TabPane>
-        <TabPane tab={<span><FireOutlined /> 热门页推荐策略</span>} key="hot">
+        <TabPane tab={<span><FireOutlined /> 热门推荐</span>} key="hot">
           <Card>
             <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
+              <Col span={6}>
                 <Statistic
-                  title="总策略数"
-                  value={stats.total}
+                  title="策略总数"
+                  value={statistics.total_count}
                   valueStyle={{ color: '#1890ff' }}
                 />
               </Col>
-              <Col span={12}>
+              <Col span={6}>
                 <Statistic
-                  title="激活策略数"
-                  value={stats.active}
+                  title="生效中"
+                  value={statistics.active_count}
                   valueStyle={{ color: '#52c41a' }}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="已过期"
+                  value={statistics.expired_count}
+                  valueStyle={{ color: '#999' }}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="内容总数"
+                  value={statistics.total_content_count}
+                  valueStyle={{ color: '#722ed1' }}
                 />
               </Col>
             </Row>
@@ -823,46 +955,35 @@ const RecommendationManagerV2: React.FC = () => {
         <TabPane tab={<span><AppstoreAddOutlined /> 精选轮播图</span>} key="banner">
           <Card>
             <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
+              <Col span={6}>
                 <Statistic
-                  title="总策略数"
-                  value={stats.total}
+                  title="策略总数"
+                  value={statistics.total_count}
                   valueStyle={{ color: '#1890ff' }}
                 />
               </Col>
-              <Col span={12}>
+              <Col span={6}>
                 <Statistic
-                  title="激活策略数"
-                  value={stats.active}
+                  title="生效中"
+                  value={statistics.active_count}
                   valueStyle={{ color: '#52c41a' }}
                 />
               </Col>
+              <Col span={6}>
+                <Statistic
+                  title="已过期"
+                  value={statistics.expired_count}
+                  valueStyle={{ color: '#999' }}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="内容总数"
+                  value={statistics.total_content_count}
+                  valueStyle={{ color: '#722ed1' }}
+                />
+              </Col>
             </Row>
-            <Table
-              rowSelection={{
-                type: 'checkbox',
-                selectedRowKeys: selectedStrategyIds,
-                onChange: (selectedRowKeys) => {
-                  setSelectedStrategyIds(selectedRowKeys as number[]);
-                },
-              }}
-              columns={strategyColumns}
-              dataSource={filteredStrategies}
-              rowKey="id"
-              loading={loading}
-              pagination={{
-                current: currentPage,
-                pageSize: pageSize,
-                total: total,
-                onChange: (page) => {
-                  setCurrentPage(page);
-                  loadStrategies(page);
-                },
-                showSizeChanger: false,
-                showTotal: (total) => `共 ${total} 条`,
-              }}
-              locale={{ emptyText: '暂无策略数据' }}
-            />
           </Card>
         </TabPane>
       </Tabs>
@@ -891,8 +1012,8 @@ const RecommendationManagerV2: React.FC = () => {
             rules={[{ required: true, message: '请选择应用位置' }]}
           >
             <Select placeholder="请选择应用位置">
-              <Option value="home">首页</Option>
-              <Option value="hot">热门页</Option>
+              <Option value="home">首页推荐</Option>
+              <Option value="hot">热门推荐</Option>
               <Option value="banner">精选轮播图</Option>
             </Select>
           </Form.Item>
@@ -901,41 +1022,48 @@ const RecommendationManagerV2: React.FC = () => {
             name="priority"
             rules={[{ required: true, message: '请输入优先级' }]}
           >
-            <InputNumber placeholder="请输入优先级" min={1} max={100} />
+            <InputNumber
+              min={0}
+              max={100}
+              style={{ width: '100%' }}
+              placeholder="数值越大优先级越高（0-100）"
+            />
           </Form.Item>
           <Form.Item
             label="应用区域"
             name="apply_area"
-            rules={[{ required: true, message: '请选择应用区域' }]}
           >
-            <Select placeholder="请选择应用区域">
-              <Option value="global">全球</Option>
-              <Option value="cn">中国大陆</Option>
-              <Option value="overseas">海外</Option>
-              <Option value="us">美国</Option>
-              <Option value="jp">日本</Option>
-              <Option value="kr">韩国</Option>
-            </Select>
+            <Input placeholder="请输入应用区域，如：首页顶部、热门页面等" />
           </Form.Item>
           <Form.Item
             label="内容数量限制"
             name="content_limit"
             rules={[{ required: true, message: '请输入内容数量限制' }]}
           >
-            <InputNumber placeholder="请输入内容数量限制" min={1} max={100} />
+            <InputNumber
+              min={1}
+              max={100}
+              style={{ width: '100%' }}
+              placeholder="该策略最多可添加的内容数量"
+            />
           </Form.Item>
           <Form.Item
             label="生效时间"
             name="timeRange"
           >
-            <RangePicker showTime />
+            <RangePicker
+              showTime
+              format="YYYY-MM-DD HH:mm:ss"
+              style={{ width: '100%' }}
+              placeholder={['开始时间', '结束时间']}
+            />
           </Form.Item>
           <Form.Item
-            label="状态"
+            label="策略状态"
             name="status"
-            rules={[{ required: true, message: '请选择状态' }]}
+            rules={[{ required: true, message: '请选择策略状态' }]}
           >
-            <Select placeholder="请选择状态">
+            <Select placeholder="请选择策略状态">
               <Option value="draft">草稿</Option>
               <Option value="active">激活</Option>
               <Option value="inactive">未激活</Option>
@@ -945,88 +1073,69 @@ const RecommendationManagerV2: React.FC = () => {
             label="备注"
             name="remark"
           >
-            <TextArea placeholder="请输入备注" rows={4} />
+            <TextArea
+              rows={4}
+              placeholder="请输入备注信息"
+            />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* 内容管理弹窗 */}
       <Modal
-        title={`管理策略内容 - ${managingStrategy?.name}`}
+        title={`管理策略内容: ${managingStrategy?.name || ''}`}
         open={contentModalVisible}
-        onCancel={() => setContentModalVisible(false)}
-        width={900}
+        onCancel={() => {
+          setContentModalVisible(false);
+          setManagingStrategy(null);
+        }}
+        width={1200}
         footer={null}
       >
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={12}>
-            <Button type="primary" onClick={handleOpenContentLibrary} icon={<PlusOutlined />}>
-              从内容库选择
+        <Alert
+          message="内容管理说明"
+          description={`当前策略已添加 ${managingStrategy?.content_count || 0} 个内容。点击"从内容库添加"可以从壁纸库中选择新的壁纸添加到策略中。`}
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        
+        <Space style={{ marginBottom: 16 }}>
+          <Button type="primary" onClick={handleOpenContentLibrary} icon={<PlusOutlined />}>
+            从内容库添加
+          </Button>
+          <Popconfirm
+            title="确定批量移除吗？"
+            description="移除后这些壁纸将不再在此策略中推荐"
+            onConfirm={handleBatchRemoveContents}
+            okText="移除"
+            okType="danger"
+            cancelText="取消"
+            disabled={selectedContentIds.length === 0}
+          >
+            <Button danger icon={<DeleteOutlined />} disabled={selectedContentIds.length === 0}>
+              批量移除 ({selectedContentIds.length})
             </Button>
-          </Col>
-          <Col span={12}>
-            <Space style={{ justifyContent: 'flex-end' }}>
-              <Input
-                placeholder="搜索内容名称"
-                value={contentSearchText}
-                onChange={(e) => setContentSearchText(e.target.value)}
-                onPressEnter={handleContentSearch}
-                style={{ width: 200 }}
-                allowClear
-              />
-              <Select
-                value={contentTypeFilter}
-                onChange={(value) => setContentTypeFilter(value)}
-                style={{ width: 120 }}
-              >
-                <Option value="all">全部类型</Option>
-                <Option value="wallpaper">壁纸</Option>
-                <Option value="video">视频</Option>
-              </Select>
-              <Button type="primary" onClick={handleContentSearch}>搜索</Button>
-            </Space>
-          </Col>
-        </Row>
-        <List
-          grid={{ gutter: 16, column: 4 }}
+          </Popconfirm>
+        </Space>
+
+        <Table
+          rowSelection={{
+            type: 'checkbox',
+            selectedRowKeys: selectedContentIds,
+            onChange: (selectedRowKeys) => {
+              setSelectedContentIds(selectedRowKeys as number[]);
+            },
+          }}
+          columns={contentColumns}
           dataSource={managingStrategy?.contents || []}
-          renderItem={(item) => (
-            <List.Item>
-              <Card
-                cover={
-                  <img
-                    src={item.wallpaper_info?.thumb_url}
-                    alt={item.wallpaper_info?.name}
-                    style={{ width: '100%', height: 150, objectFit: 'cover' }}
-                  />
-                }
-                actions={[
-                  <Popconfirm
-                    title="确定移除此内容吗？"
-                    description="移除后内容将不再显示在策略中"
-                    onConfirm={() => handleRemoveContent(item.id)}
-                    okText="移除"
-                    cancelText="取消"
-                  >
-                    <Button type="text" danger icon={<DeleteOutlined />}>
-                      移除
-                    </Button>
-                  </Popconfirm>,
-                ]}
-              >
-                <Card.Meta
-                  title={item.wallpaper_info?.name}
-                  description={
-                    <Space size={4}>
-                      <Tag color="blue" style={{ fontSize: 12 }}>壁纸</Tag>
-                      <Tag color="green" style={{ fontSize: 12 }}>已添加</Tag>
-                    </Space>
-                  }
-                />
-              </Card>
-            </List.Item>
-          )}
-          locale={{ emptyText: '暂无内容数据' }}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            pageSize: 20,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
+          locale={{ emptyText: '暂无内容数据，请从内容库添加' }}
         />
       </Modal>
 
@@ -1073,7 +1182,6 @@ const RecommendationManagerV2: React.FC = () => {
               setSelectedContentIds(selectedRowKeys as number[]);
             },
             onSelectAll: (selected, selectedRows, changeRows) => {
-              // 全选/取消全选当前页
               if (selected) {
                 // 全选：添加当前页所有未禁用的项
                 const selectableIds = contentList
@@ -1098,23 +1206,23 @@ const RecommendationManagerV2: React.FC = () => {
           columns={[
             {
               title: '壁纸',
-              key: 'content',
+              key: 'wallpaper',
               width: 300,
-              render: (_: unknown, record: ContentItem) => (
+              render: (_, record: ContentItem) => (
                 <Space>
-                  <img
+                  <Image
                     src={record.image}
-                    alt={record.title}
-                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4 }}
+                    width={60}
+                    height={60}
+                    style={{ objectFit: 'cover', borderRadius: 4 }}
+                    fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
                   />
                   <div>
                     <div style={{ fontWeight: 500 }}>{record.title}</div>
-                    <Space size={4}>
-                      <Tag color="blue" style={{ fontSize: 12 }}>{record.type_name}</Tag>
-                      {existingWallpaperIds.includes(record.id) && (
-                        <Tag color="green" style={{ fontSize: 12 }}>已添加</Tag>
-                      )}
-                    </Space>
+                    <Tag color="blue">{record.type_name}</Tag>
+                    {existingWallpaperIds.includes(record.id) && (
+                      <Tag color="green" style={{ fontSize: 12 }}>已添加</Tag>
+                    )}
                   </div>
                 </Space>
               ),
@@ -1137,8 +1245,19 @@ const RecommendationManagerV2: React.FC = () => {
               title: '创建时间',
               dataIndex: 'createdAt',
               key: 'createdAt',
-              width: 150,
-              render: (date: string) => date ? new Date(date).toLocaleString('zh-CN') : '--',
+              width: 180,
+              render: (createdAt: string) => {
+                if (!createdAt) return '--';
+                return new Date(createdAt).toLocaleString('zh-CN', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false,
+                }).replace(/\//g, '-');
+              },
             },
           ]}
           dataSource={contentList}

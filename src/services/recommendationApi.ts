@@ -99,10 +99,10 @@ export function getStrategyList(
  * @param strategy_type 策略类型：'home' 或 'hot' 或 'banner'
  */
 export interface StrategyStatistics {
-  total: number;          // 策略总数
-  active: number;         // 生效中
-  expired: number;        // 已过期
-  total_contents: number; // 内容总数
+  total_count: number;          // 策略总数
+  active_count: number;         // 生效中
+  expired_count: number;        // 已过期
+  total_content_count: number;  // 内容总数
 }
 
 export function getStrategyStatistics(strategy_type: 'home' | 'hot' | 'banner') {
