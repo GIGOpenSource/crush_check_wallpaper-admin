@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react'
 const MARK_WALLPAPERS_ORIGIN = 'https://www.markwallpapers.com'
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/enhance/',
+   build: {
+      outDir: 'enhance',
+    },
   plugins: [react()],
   server: {
     port: 5176,

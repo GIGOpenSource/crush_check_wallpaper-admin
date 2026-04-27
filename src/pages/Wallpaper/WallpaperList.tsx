@@ -50,6 +50,9 @@ const WallpaperList: React.FC = () => {
   const [hasMoreTags, setHasMoreTags] = useState(true);
   const [currentEditingTagMap, setCurrentEditingTagMap] = useState<Record<number, string>>({}); // 当前编辑壁纸的标签ID->名称映射
   const [originalCategoryIds, setOriginalCategoryIds] = useState<number[]>([]); // 原始分类ID（用于保留其他分类）
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
 
   // 加载壁纸列表
   useEffect(() => {
@@ -136,7 +139,9 @@ const WallpaperList: React.FC = () => {
   };
 
   const handlePreview = (record: Wallpaper) => {
-    message.info(`预览: ${record.name}`);
+    // 直接显示图片预览，使用Ant Design Image的内置预览效果
+    setPreviewWallpaper(record);
+    setShowImagePreview(true);
   };
 
   const handleEdit = (record: Wallpaper) => {
@@ -851,6 +856,22 @@ const WallpaperList: React.FC = () => {
 
   return (
     <div>
+      {/* 隐藏的图片预览组件 - 用于触发Ant Design的内置预览效果 */}
+      {showImagePreview && previewWallpaper && (
+        <div style={{ display: 'none' }}>
+          <Image
+            src={previewWallpaper.url || previewWallpaper.thumb_url}
+            alt={previewWallpaper.name}
+            preview={{
+              visible: true,
+              onVisibleChange: (visible) => {
+                setShowImagePreview(visible);
+              },
+            }}
+          />
+        </div>
+      )}
+
       <h2 style={{ marginBottom: 24 }}>壁纸管理</h2>
       
       <Card style={{ marginBottom: 24 }}>
@@ -1365,26 +1386,6 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
