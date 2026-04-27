@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Card, Button, Input, Form, Alert, Tag, Space, Table, Modal, message, Tabs, Row, Col, Statistic, Breadcrumb, Select } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Button, Input, Form, Alert, Tag, Space, Table, Modal, message, Tabs, Row, Col, Statistic, Breadcrumb, Select, Spin } from 'antd';
 import { SaveOutlined, EyeOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, ArrowLeftOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { seoApi } from '../../services/seoApi';
+import { getRobotsContent, updateRobotsContent } from '../../services/robotsApi';
 
 const { TabPane } = Tabs;
 const { TextArea } = Input;
@@ -51,6 +51,11 @@ const RobotsManager: React.FC = () => {
   ]);
   const [addRuleForm] = Form.useForm();
   
+  // 加载状态
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [robotsContent, setRobotsContent] = useState('');
+  
   // 规则验证状态
   const [validationResults, setValidationResults] = useState<{
     type: 'success' | 'warning' | 'error';
@@ -95,22 +100,46 @@ const RobotsManager: React.FC = () => {
     },
   ];
 
-  const handleSave = () => {
+  // 加载Robots内容
+  const loadRobotsContent = async () => {
+    setLoading(true);
+    try {
+      const response = await getRobotsContent();
+      const content = response.content || '';
+      setRobotsContent(content);
+      form.setFieldsValue({ content });
+    } catch (error) {
+      console.error('加载Robots内容失败:', error);
+      message.error('加载Robots内容失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRobotsContent();
+  }, []);
+
+  const handleSave = async () => {
     const content = form.getFieldValue('content');
-    // 模拟保存到服务器
-    console.log('Saving robots.txt:', content);
-    message.success('Robots.txt 保存成功');
     
-    // 下载文件
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'robots.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (!content || !content.trim()) {
+      message.error('Robots.txt内容不能为空');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateRobotsContent(content);
+      message.success('Robots.txt 保存成功');
+      // 刷新内容
+      await loadRobotsContent();
+    } catch (error: any) {
+      console.error('保存失败:', error);
+      message.error(error?.message || '保存失败');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAddRule = () => {
@@ -211,24 +240,55 @@ const RobotsManager: React.FC = () => {
       message.warning('请输入要测试的URL');
       return;
     }
-    try {
-      const res = await seoApi.testRobotsRule({
-        userAgent: testUserAgent,
-        url: testUrl,
-        rules: generateRobotsContent(),
-      });
-      if (res.code === 200) {
-        setTestResults([{
-          userAgent: res.data.userAgent,
-          result: res.data.result,
-          rule: res.data.matchedRule,
-          explanation: res.data.explanation,
-        }]);
-        setTestModalVisible(true);
+    
+    // 本地解析robots规则
+    const content = form.getFieldValue('content') || '';
+    const lines = content.split('\n');
+    const results: any[] = [];
+    
+    // 简单的robots规则解析
+    let currentUserAgent = '';
+    let matched = false;
+    let result = 'Allow';
+    let matchedRule = '';
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      
+      if (trimmed.toLowerCase().startsWith('user-agent:')) {
+        currentUserAgent = trimmed.substring(11).trim();
+        // 检查是否匹配当前测试的User-Agent
+        if (currentUserAgent === testUserAgent || currentUserAgent === '*') {
+          matched = true;
+        } else {
+          matched = false;
+        }
+      } else if (matched) {
+        if (trimmed.toLowerCase().startsWith('disallow:')) {
+          const path = trimmed.substring(9).trim();
+          if (testUrl.startsWith(path)) {
+            result = 'Disallow';
+            matchedRule = `Disallow: ${path}`;
+          }
+        } else if (trimmed.toLowerCase().startsWith('allow:')) {
+          const path = trimmed.substring(6).trim();
+          if (testUrl.startsWith(path)) {
+            result = 'Allow';
+            matchedRule = `Allow: ${path}`;
+          }
+        }
       }
-    } catch (_err) {
-      message.error('测试失败');
     }
+    
+    setTestResults([{
+      userAgent: testUserAgent,
+      result,
+      rule: matchedRule || '无匹配规则',
+      explanation: result === 'Allow' ? '搜索引擎可以抓取此URL' : '搜索引擎禁止抓取此URL',
+    }]);
+    
+    message.success('测试完成');
   };
 
   const generateRobotsContent = () => {
@@ -335,20 +395,23 @@ const RobotsManager: React.FC = () => {
                 <Button icon={<EyeOutlined />} onClick={() => setPreviewModalVisible(true)}>
                   预览
                 </Button>
-                <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
+                <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
                   保存
                 </Button>
               </Space>
             }
           >
-            <Form form={form}>
-              <Form.Item name="content" initialValue={generateRobotsContent()}>
-                <TextArea
-                  rows={20}
-                  style={{ fontFamily: 'monospace' }}
-                />
-              </Form.Item>
-            </Form>
+            <Spin spinning={loading} tip="加载中...">
+              <Form form={form}>
+                <Form.Item name="content">
+                  <TextArea
+                    rows={20}
+                    style={{ fontFamily: 'monospace', fontSize: 14 }}
+                    placeholder="请输入Robots.txt内容..."
+                  />
+                </Form.Item>
+              </Form>
+            </Spin>
           </Card>
         </TabPane>
 

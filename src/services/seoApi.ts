@@ -5,7 +5,6 @@
  */
 
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
-import { message } from 'antd';
 import { API_CONFIG, API_CODE, type ApiResponse, type PaginatedResponse } from '../config/api.config';
 import { seoMockApi } from './seoMockApi';
 
@@ -26,6 +25,7 @@ const createAxiosInstance = (): AxiosInstance => {
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        config.headers.Token = `${token}`;
       }
       return config;
     },
@@ -39,7 +39,8 @@ const createAxiosInstance = (): AxiosInstance => {
     (response: AxiosResponse<ApiResponse>) => {
       const { data } = response;
       if (data.code !== API_CODE.SUCCESS) {
-        message.error(data.message || '请求失败');
+        // 不在API层显示错误提示，由业务层自行处理
+        console.error('API Error:', data.message);
         return Promise.reject(new Error(data.message));
       }
       return response;
@@ -48,22 +49,16 @@ const createAxiosInstance = (): AxiosInstance => {
       const { response } = error;
       if (response) {
         const { status } = response;
-        switch (status) {
-          case API_CODE.UNAUTHORIZED:
-            message.error('登录已过期，请重新登录');
-            // 可以在这里处理登出逻辑
-            break;
-          case API_CODE.FORBIDDEN:
-            message.error('没有权限执行此操作');
-            break;
-          case API_CODE.NOT_FOUND:
-            message.error('请求的资源不存在');
-            break;
-          default:
-            message.error('服务器错误，请稍后重试');
+        // 只记录错误日志，不显示UI提示
+        console.error('HTTP Error:', status, error.message);
+        
+        // 401 特殊处理：清除token并跳转登录
+        if (status === API_CODE.UNAUTHORIZED) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
         }
       } else {
-        message.error('网络错误，请检查网络连接');
+        console.error('Network Error:', error.message);
       }
       return Promise.reject(error);
     }
@@ -139,34 +134,84 @@ export const getSEOHealthScore = async (): Promise<ApiResponse<HealthScoreData>>
   });
 };
 
-export const getPendingIssues = async (): Promise<ApiResponse<PendingIssue[]>> => {
-  if (API_CONFIG.USE_MOCK) {
-    return seoMockApi.getPendingIssues() as Promise<ApiResponse<PendingIssue[]>>;
-  }
-  return request<PendingIssue[]>({
-    url: `${API_CONFIG.SEO_PREFIX}/issues`,
+/**
+ * SEO仪表盘数据接口
+ */
+export interface SEODashboardData {
+  health_score: number;
+  // 其他字段根据实际返回添加
+}
+
+/**
+ * 获取SEO仪表盘数据
+ * @returns SEO仪表盘数据
+ */
+export const getSEODashboard = async (): Promise<ApiResponse<SEODashboardData>> => {
+  return request<SEODashboardData>({
+    url: `${API_CONFIG.SEO_PREFIX}/seo_view/dashboard/`,
     method: 'GET',
+    params: {
+      site_url: 'https://www.markwallpapers.com',
+      days: 30,
+    },
   });
+};
+
+export const getPendingIssues = async (): Promise<ApiResponse<PendingIssue[]>> => {
+  // TODO: 后端接口尚未就绪，暂时使用 Mock 数据
+  // if (API_CONFIG.USE_MOCK) {
+  //   return seoMockApi.getPendingIssues() as Promise<ApiResponse<PendingIssue[]>>;
+  // }
+  // try {
+  //   return request<PendingIssue[]>({
+  //     url: `${API_CONFIG.SEO_PREFIX}/issues`,
+  //     method: 'GET',
+  //   });
+  // } catch (error) {
+  //   console.warn('getPendingIssues API failed, falling back to mock data:', error);
+  //   return seoMockApi.getPendingIssues() as Promise<ApiResponse<PendingIssue[]>>;
+  // }
+  
+  // 直接使用 Mock 数据
+  return seoMockApi.getPendingIssues() as Promise<ApiResponse<PendingIssue[]>>;
 };
 
 export const getCoreMetrics = async (): Promise<ApiResponse<CoreMetric[]>> => {
-  if (API_CONFIG.USE_MOCK) {
-    return seoMockApi.getCoreMetrics() as Promise<ApiResponse<CoreMetric[]>>;
-  }
-  return request<CoreMetric[]>({
-    url: `${API_CONFIG.SEO_PREFIX}/metrics`,
-    method: 'GET',
-  });
+  // TODO: 后端接口尚未就绪，暂时使用 Mock 数据
+  // if (API_CONFIG.USE_MOCK) {
+  //   return seoMockApi.getCoreMetrics() as Promise<ApiResponse<CoreMetric[]>>;
+  // }
+  // try {
+  //   return request<CoreMetric[]>({
+  //     url: `${API_CONFIG.SEO_PREFIX}/metrics`,
+  //     method: 'GET',
+  //   });
+  // } catch (error) {
+  //   console.warn('getCoreMetrics API failed, falling back to mock data:', error);
+  //   return seoMockApi.getCoreMetrics() as Promise<ApiResponse<CoreMetric[]>>;
+  // }
+  
+  // 直接使用 Mock 数据
+  return seoMockApi.getCoreMetrics() as Promise<ApiResponse<CoreMetric[]>>;
 };
 
 export const getTechChecks = async (): Promise<ApiResponse<TechCheck[]>> => {
-  if (API_CONFIG.USE_MOCK) {
-    return seoMockApi.getTechChecks() as Promise<ApiResponse<TechCheck[]>>;
-  }
-  return request<TechCheck[]>({
-    url: `${API_CONFIG.SEO_PREFIX}/tech-checks`,
-    method: 'GET',
-  });
+  // TODO: 后端接口尚未就绪，暂时使用 Mock 数据
+  // if (API_CONFIG.USE_MOCK) {
+  //   return seoMockApi.getTechChecks() as Promise<ApiResponse<TechCheck[]>>;
+  // }
+  // try {
+  //   return request<TechCheck[]>({
+  //     url: `${API_CONFIG.SEO_PREFIX}/tech-checks`,
+  //     method: 'GET',
+  //   });
+  // } catch (error) {
+  //   console.warn('getTechChecks API failed, falling back to mock data:', error);
+  //   return seoMockApi.getTechChecks() as Promise<ApiResponse<TechCheck[]>>;
+  // }
+  
+  // 直接使用 Mock 数据
+  return seoMockApi.getTechChecks() as Promise<ApiResponse<TechCheck[]>>;
 };
 
 export const getOperationLogs = async (params: {
@@ -338,6 +383,38 @@ export const downloadSitemap = async (sitemapId: number): Promise<Blob> => {
     responseType: 'blob',
   });
   return response.data;
+};
+
+/**
+ * Sitemap提交历史记录接口类型
+ */
+export interface SitemapSubmissionRecord {
+  path: string;
+  type: string;
+  is_sitemap_index: boolean;
+  last_submitted: string;
+  is_pending: boolean;
+  errors: string;
+  warnings: string;
+}
+
+/**
+ * 获取Sitemap提交历史记录
+ * @returns 提交历史记录列表
+ */
+export const getSitemapSubmissionHistory = async (): Promise<ApiResponse<SitemapSubmissionRecord[]>> => {
+  const token = localStorage.getItem('token');
+  return request<SitemapSubmissionRecord[]>({
+    url: `${API_CONFIG.SEO_PREFIX}/seo_view/sitemap-status/`,
+    method: 'GET',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+      'Token': token ? `${token}` : '',
+    },
+    params: {
+      site_url: 'https://www.markwallpapers.com',
+    },
+  });
 };
 
 export const submitToSearchEngines = async (sitemapIds: number[]): Promise<ApiResponse<{
@@ -710,6 +787,7 @@ export const seoApi = {
   
   // 仪表盘
   getSEOHealthScore,
+  getSEODashboard,
   getPendingIssues,
   getCoreMetrics,
   getTechChecks,
@@ -728,7 +806,8 @@ export const seoApi = {
   generateSitemap,
   downloadSitemap,
   submitToSearchEngines,
-  
+  getSitemapSubmissionHistory,
+
   // 外链
   getBacklinks,
   checkBacklink,

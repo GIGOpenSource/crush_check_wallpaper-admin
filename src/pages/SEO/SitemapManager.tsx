@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, Input, Switch, message, Timeline, Statistic, Row, Col, Select, Breadcrumb } from 'antd';
+import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, Input, Switch, message, Timeline, Statistic, Row, Col, Select, Breadcrumb, Spin } from 'antd';
 import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
@@ -28,6 +28,16 @@ interface SitemapUrl {
   status: 'indexed' | 'pending' | 'error';
 }
 
+interface SitemapHistory {
+  path: string;
+  type: string;
+  is_sitemap_index: boolean;
+  last_submitted: string;
+  is_pending: boolean;
+  errors: string;
+  warnings: string;
+}
+
 const SitemapManager: React.FC = () => {
   const navigate = useNavigate();
   const [viewModalVisible, setViewModalVisible] = useState(false);
@@ -45,9 +55,14 @@ const SitemapManager: React.FC = () => {
   const [autoUpdateForm] = Form.useForm();
   const [savingAutoUpdate, setSavingAutoUpdate] = useState(false);
 
+  // 提交历史记录
+  const [sitemapHistory, setSitemapHistory] = useState<SitemapHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   // 加载Sitemap列表
   useEffect(() => {
     loadSitemaps();
+    loadSitemapHistory();
   }, []);
 
   const loadSitemaps = async () => {
@@ -61,6 +76,22 @@ const SitemapManager: React.FC = () => {
       message.error('加载Sitemap列表失败');
     } finally {
       setSitemapLoading(false);
+    }
+  };
+
+  // 加载提交历史记录
+  const loadSitemapHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await seoApi.getSitemapSubmissionHistory();
+      if (res.code === 200 && res.data) {
+        setSitemapHistory(res.data);
+      }
+    } catch (err: any) {
+      console.error('加载提交历史失败:', err);
+      message.error(err?.message || '加载提交历史失败');
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -376,15 +407,103 @@ const SitemapManager: React.FC = () => {
         </TabPane>
 
         <TabPane tab="提交历史" key="history">
-          <Card>
-            <Timeline
-              items={[
-                { color: 'green', children: <><strong>2026-04-17 10:00</strong><p>Successfully submitted to Google Search Console</p></> },
-                { color: 'green', children: <><strong>2026-04-17 09:45</strong><p>Googlebot fetched sitemap.xml (200 OK)</p></> },
-                { color: 'blue', children: <><strong>2026-04-17 09:30</strong><p>Auto-generated sitemap-posts.xml with 50 new URLs</p></> },
-                { color: 'blue', children: <><strong>2026-04-16 08:00</strong><p>Auto-generated sitemap-categories.xml</p></> },
-              ]}
-            />
+          <Card title="Sitemap提交状态">
+            <Spin spinning={historyLoading} tip="加载中...">
+              {sitemapHistory.length > 0 ? (
+                <Table
+                  columns={[
+                    {
+                      title: '类型',
+                      dataIndex: 'type',
+                      key: 'type',
+                      width: 120,
+                      render: (type: string) => {
+                        if (!type || type.trim() === '') {
+                          return <Tag color="default">未知</Tag>;
+                        }
+                        return (
+                          <Tag color={type === 'sitemap_index' ? 'blue' : 'default'}>
+                            {type === 'sitemap_index' ? '索引' : '地图'}
+                          </Tag>
+                        );
+                      },
+                    },
+                    {
+                      title: 'Sitemap路径',
+                      dataIndex: 'path',
+                      key: 'path',
+                      ellipsis: true,
+                      render: (path: string) => path || '--',
+                    },
+                    {
+                      title: '最后提交时间',
+                      dataIndex: 'last_submitted',
+                      key: 'last_submitted',
+                      width: 180,
+                      render: (time: string) => time ? new Date(time).toLocaleString('zh-CN') : '--',
+                    },
+                    // {
+                    //   title: '状态',
+                    //   dataIndex: 'is_pending',
+                    //   key: 'is_pending',
+                    //   width: 100,
+                    //   render: (isPending: boolean) => (
+                    //     <Tag color={isPending ? 'processing' : 'success'}>
+                    //       {isPending ? '待处理' : '已处理'}
+                    //     </Tag>
+                    //   ),
+                    // },
+                    {
+                      title: '状态',
+                      key: 'status',
+                      width: 100,
+                      render: (_: any, record: SitemapHistory) => {
+                        const hasErrors = record.errors && parseInt(record.errors) > 0;
+                        return (
+                          <Tag color={hasErrors ? 'error' : 'success'}>
+                            {hasErrors ? '失败' : '成功'}
+                          </Tag>
+                        );
+                      },
+                    },
+                    {
+                      title: '错误数',
+                      dataIndex: 'errors',
+                      key: 'errors',
+                      width: 80,
+                      render: (errors: string) => (
+                        <Tag color={errors && parseInt(errors) > 0 ? 'error' : 'default'}>
+                          {errors || '0'}
+                        </Tag>
+                      ),
+                    },
+                    {
+                      title: '警告数',
+                      dataIndex: 'warnings',
+                      key: 'warnings',
+                      width: 80,
+                      render: (warnings: string) => (
+                        <Tag color={warnings && parseInt(warnings) > 0 ? 'warning' : 'default'}>
+                          {warnings || '0'}
+                        </Tag>
+                      ),
+                    },
+                  ]}
+                  dataSource={sitemapHistory}
+                  rowKey="path"
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                  }}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+                  <div>暂无Sitemap提交记录</div>
+                </div>
+              )}
+            </Spin>
           </Card>
         </TabPane>
       </Tabs>

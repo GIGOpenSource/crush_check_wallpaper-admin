@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Progress, List, Tag, Button, Alert, Modal, Timeline, Badge, Space, message, Table, DatePicker, Select, Input, Tooltip } from 'antd';
+import { Card, Row, Col, Statistic, Progress, List, Tag, Button, Alert, Modal, Timeline, Badge, Space, message, Table, DatePicker, Select, Input, Tooltip, App } from 'antd';
 import {
   CheckCircleOutlined,
   WarningOutlined,
@@ -19,6 +19,17 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { seoApi } from '../../services/seoApi';
 import { useSEOBatchCache } from '../../hooks/useSEOCache';
+
+// 图标映射表：将字符串转换为实际的图标组件
+const iconMap: Record<string, React.ReactNode> = {
+  'WarningOutlined': <WarningOutlined />,
+  'CloseCircleOutlined': <CloseCircleOutlined />,
+  'FileTextOutlined': <FileTextOutlined />,
+  'ToolOutlined': <ToolOutlined />,
+  'CheckCircleOutlined': <CheckCircleOutlined />,
+  'SafetyOutlined': <SafetyOutlined />,
+  'ThunderboltOutlined': <ThunderboltOutlined />,
+};
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -55,7 +66,7 @@ const SEODashboard: React.FC = () => {
     refreshAll,
     clearAllCache,
   } = useSEOBatchCache({
-    healthScore: () => seoApi.getSEOHealthScore().then(res => res.data),
+    seoDashboard: () => seoApi.getSEODashboard().then(res => res.data),
     pendingIssues: () => seoApi.getPendingIssues().then(res => res.data),
     coreMetrics: () => seoApi.getCoreMetrics().then(res => res.data),
     techChecks: () => seoApi.getTechChecks().then(res => res.data),
@@ -65,16 +76,132 @@ const SEODashboard: React.FC = () => {
   });
 
   // 从缓存数据中提取状态
-  const healthScore = cachedData.healthScore?.score || 0;
-  const pendingIssues = cachedData.pendingIssues || [];
-  const coreMetrics = cachedData.coreMetrics || [];
-  const techChecks = cachedData.techChecks || [];
-  const _loading = cacheLoading.healthScore || cacheLoading.pendingIssues || 
+  // 确保 healthScore 是数字类型
+  const rawHealthScore = cachedData.seoDashboard?.health_score;
+  const healthScore = typeof rawHealthScore === 'number' 
+    ? rawHealthScore 
+    : typeof rawHealthScore === 'object' && rawHealthScore !== null && (rawHealthScore as any).score !== undefined
+      ? (rawHealthScore as any).score
+      : 0;
+  
+  // 调试日志
+  console.log('rawHealthScore:', rawHealthScore, 'type:', typeof rawHealthScore);
+  console.log('healthScore:', healthScore);
+  
+  // 严格的数据类型检查和空值保护
+  // 如果后端返回的是对象而不是数组，需要特殊处理
+  const pendingIssuesRaw = cachedData.pendingIssues;
+  const coreMetricsRaw = cachedData.coreMetrics;
+  const techChecksRaw = cachedData.techChecks;
+  
+  // 调试日志：检查原始数据结构
+  console.log('=== SEO Dashboard 数据调试 ===');
+  console.log('pendingIssuesRaw:', pendingIssuesRaw);
+  console.log('coreMetricsRaw:', coreMetricsRaw);
+  console.log('techChecksRaw:', techChecksRaw);
+  
+  // 检查数据类型并记录警告
+  if (pendingIssuesRaw && typeof pendingIssuesRaw === 'object' && !Array.isArray(pendingIssuesRaw)) {
+    console.warn('pendingIssues 不是数组:', pendingIssuesRaw);
+  }
+  if (coreMetricsRaw && typeof coreMetricsRaw === 'object' && !Array.isArray(coreMetricsRaw)) {
+    console.warn('coreMetrics 不是数组:', coreMetricsRaw);
+  }
+  if (techChecksRaw && typeof techChecksRaw === 'object' && !Array.isArray(techChecksRaw)) {
+    console.warn('techChecks 不是数组:', techChecksRaw);
+  }
+  
+  const pendingIssues = Array.isArray(pendingIssuesRaw) ? pendingIssuesRaw : [];
+  const coreMetrics = Array.isArray(coreMetricsRaw) ? coreMetricsRaw : [];
+  const techChecks = Array.isArray(techChecksRaw) ? techChecksRaw : [];
+  
+  // 对待处理问题进行数据清洗，确保所有字段都是基本类型
+  const cleanedPendingIssues = pendingIssues.map((issue: any) => {
+    if (!issue || typeof issue !== 'object') {
+      return {
+        type: 'warning' as const,
+        title: '',
+        count: 0,
+        icon: <WarningOutlined />,
+      };
+    }
+    
+    // 将字符串图标转换为实际的图标组件
+    const iconComponent = typeof issue.icon === 'string' 
+      ? (iconMap[issue.icon] || <WarningOutlined />)
+      : (issue.icon || <WarningOutlined />);
+    
+    return {
+      ...issue,
+      // 确保 icon 是 React 组件
+      icon: iconComponent,
+      // 确保 count 是数字或字符串
+      count: typeof issue.count === 'number' || typeof issue.count === 'string' ? issue.count : 0,
+      // 确保 title 是字符串
+      title: typeof issue.title === 'string' ? issue.title : '',
+      // 确保 type 是有效值
+      type: issue.type === 'error' || issue.type === 'warning' ? issue.type : 'warning',
+    };
+  });
+  
+  // 对核心指标数据进行深度清洗，确保所有字段都是基本类型
+  const cleanedCoreMetrics = coreMetrics.map((metric: any) => {
+    // 如果 metric 不是有效对象，返回默认结构
+    if (!metric || typeof metric !== 'object') {
+      return {
+        title: '',
+        value: 0,
+        change: 0,
+        changeType: 'up' as const,
+      };
+    }
+    
+    return {
+      ...metric,
+      // 确保 value 是基本类型
+      value: typeof metric.value === 'number' || typeof metric.value === 'string' 
+        ? metric.value 
+        : typeof metric.value === 'object' && metric.value !== null
+          ? (metric.value as any).score !== undefined 
+            ? (metric.value as any).score 
+            : 0
+          : 0,
+      // 确保 change 是数字
+      change: typeof metric.change === 'number' ? metric.change : 0,
+      // 确保 title 是字符串
+      title: typeof metric.title === 'string' ? metric.title : '',
+      // 确保 changeType 是有效值
+      changeType: metric.changeType === 'up' || metric.changeType === 'down' ? metric.changeType : 'up',
+    };
+  });
+  
+  // 对技术检查结果进行数据清洗
+  const cleanedTechChecks = techChecks.map((check: any) => {
+    if (!check || typeof check !== 'object') {
+      return {
+        name: '',
+        status: 'success' as const,
+        count: '0',
+      };
+    }
+    
+    return {
+      ...check,
+      // 确保 name 是字符串
+      name: typeof check.name === 'string' ? check.name : '',
+      // 确保 status 是有效值
+      status: ['success', 'warning', 'error'].includes(check.status) ? check.status : 'success',
+      // 确保 count 是字符串或数字
+      count: typeof check.count === 'string' || typeof check.count === 'number' ? check.count : '0',
+    };
+  });
+  
+  const _loading = cacheLoading.seoDashboard || cacheLoading.pendingIssues || 
                    cacheLoading.coreMetrics || cacheLoading.techChecks;
 
   // 更新最后更新时间
   useEffect(() => {
-    if (cachedData.healthScore) {
+    if (cachedData.seoDashboard) {
       setLastUpdateTime(dayjs().format('HH:mm:ss'));
     }
   }, [cachedData]);
@@ -293,14 +420,14 @@ const SEODashboard: React.FC = () => {
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <div>加载中...</div>
               </div>
-            ) : pendingIssues.length === 0 ? (
+            ) : cleanedPendingIssues.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 16 }} />
                 <div>太好了！当前没有待处理问题</div>
               </div>
             ) : (
               <Row gutter={[16, 16]}>
-                {pendingIssues.map((issue, index) => (
+                {cleanedPendingIssues.map((issue, index) => (
                   <Col xs={12} sm={6} key={index}>
                     <div
                       style={{
@@ -333,30 +460,32 @@ const SEODashboard: React.FC = () => {
               <div style={{ textAlign: 'center', padding: '20px 0' }}>加载核心指标...</div>
             </Card>
           </Col>
-        ) : coreMetrics.length === 0 ? (
+        ) : cleanedCoreMetrics.length === 0 ? (
           <Col span={24}>
             <Card>
               <div style={{ textAlign: 'center', padding: '20px 0', color: '#999' }}>暂无核心指标数据</div>
             </Card>
           </Col>
         ) : (
-          coreMetrics.map((metric, index) => (
-            <Col xs={12} lg={6} key={index}>
-              <Card>
-                <Statistic
-                  title={metric.title}
-                  value={metric.value}
-                  suffix={metric.changeType === 'up' ? <ArrowUpOutlined style={{ color: '#52c41a' }} /> : <ArrowDownOutlined style={{ color: '#cf1322' }} />}
-                />
-                <div style={{ marginTop: 8 }}>
-                  <Tag color={metric.changeType === 'up' ? 'success' : 'error'}>
-                    {metric.changeType === 'up' ? '+' : ''}{metric.change} {metric.changeType === 'up' ? '↑' : '↓'}
-                  </Tag>
-                  <span style={{ color: '#999', fontSize: 12 }}>较昨日</span>
-                </div>
-              </Card>
-            </Col>
-          ))
+          cleanedCoreMetrics.map((metric: any, index: number) => {
+            return (
+              <Col xs={12} lg={6} key={index}>
+                <Card>
+                  <Statistic
+                    title={metric.title}
+                    value={metric.value}
+                    suffix={metric.changeType === 'up' ? <ArrowUpOutlined style={{ color: '#52c41a' }} /> : <ArrowDownOutlined style={{ color: '#cf1322' }} />}
+                  />
+                  <div style={{ marginTop: 8 }}>
+                    <Tag color={metric.changeType === 'up' ? 'success' : 'error'}>
+                      {metric.changeType === 'up' ? '+' : ''}{metric.change} {metric.changeType === 'up' ? '↑' : '↓'}
+                    </Tag>
+                    <span style={{ color: '#999', fontSize: 12 }}>较昨日</span>
+                  </div>
+                </Card>
+              </Col>
+            );
+          })
         )}
       </Row>
 
@@ -365,7 +494,7 @@ const SEODashboard: React.FC = () => {
         <Col xs={24} lg={12}>
           <Card title="技术优化检查" extra={<Button icon={<ReloadOutlined />} onClick={handleQuickCheck}>快速检查</Button>}>
             <List
-              dataSource={techChecks}
+              dataSource={cleanedTechChecks}
               renderItem={(item) => (
                 <List.Item
                   actions={[
