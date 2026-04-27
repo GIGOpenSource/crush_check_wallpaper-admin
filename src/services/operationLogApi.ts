@@ -9,11 +9,14 @@ import http from './request';
 export interface OperationLog {
   id: number;
   operator: string;
-  operator_name?: string;
+  operator_info?: {
+    username?: string;
+    email?: string;
+  };
   module: string;
-  action: string;
+  operation_type_display?: string;
   target?: string;
-  ip: string;
+  ip_address?: string;
   user_agent?: string;
   created_at: string;
   request_method?: string;

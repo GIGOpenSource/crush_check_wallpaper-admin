@@ -116,7 +116,8 @@ export function useSEOCache<T>(
       load();
     }, 0);
     return () => clearTimeout(timer);
-  }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在组件挂载时加载一次
 
   return {
     data,
@@ -270,7 +271,8 @@ export function useSEOBatchCache<T extends Record<string, any>>(
       loadAll();
     }, 0);
     return () => clearTimeout(timer);
-  }, [loadAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在组件挂载时加载一次
 
   return {
     data,

@@ -132,26 +132,29 @@ const OperationLog: React.FC = () => {
     },
     { 
       title: '操作类型', 
-      dataIndex: 'action', 
-      key: 'action',
+      dataIndex: 'operation_type_display', 
+      key: 'operation_type_display',
       width: 120,
-      render: (action: string) => (
-        <Tag color={getActionColor(action)}>{action}</Tag>
+      render: (type: string) => (
+        <Tag color={getActionColor(type || '')}>{type || '--'}</Tag>
       ),
     },
     { 
       title: '操作对象', 
-      dataIndex: 'target', 
-      key: 'target',
+      key: 'operator_info',
       width: 150,
       ellipsis: true,
-      render: (target: string) => target || '--',
+      render: (_: unknown, record: OperationLog) => {
+        const username = record.operator_info?.username;
+        return username || '--';
+      },
     },
     { 
       title: 'IP地址', 
-      dataIndex: 'ip', 
-      key: 'ip',
+      dataIndex: 'ip_address', 
+      key: 'ip_address',
       width: 140,
+      render: (ip: string) => ip || '--',
     },
     { 
       title: '请求方式', 
@@ -362,7 +365,7 @@ const OperationLog: React.FC = () => {
                   }}>
                     <div style={{ color: '#999', marginBottom: 6, fontSize: 12 }}>操作人</div>
                     <div style={{ fontSize: 14, fontWeight: 500 }}>
-                      {currentLog.operator_name || currentLog.operator || '--'}
+                      {currentLog.operator_info?.username || currentLog.operator || '--'}
                     </div>
                   </div>
                 </Col>
@@ -388,8 +391,8 @@ const OperationLog: React.FC = () => {
                   }}>
                     <div style={{ color: '#999', marginBottom: 6, fontSize: 12 }}>操作类型</div>
                     <div>
-                      <Tag color={getActionColor(currentLog.action)} style={{ fontSize: 14 }}>
-                        {currentLog.action}
+                      <Tag color={getActionColor(currentLog.operation_type_display || '')} style={{ fontSize: 14 }}>
+                        {currentLog.operation_type_display || '--'}
                       </Tag>
                     </div>
                   </div>
@@ -410,7 +413,7 @@ const OperationLog: React.FC = () => {
                     border: '1px solid #e8e8e8'
                   }}>
                     <div style={{ color: '#999', marginBottom: 6, fontSize: 12 }}>操作对象</div>
-                    <div style={{ fontSize: 14 }}>{currentLog.target || '--'}</div>
+                    <div style={{ fontSize: 14 }}>{currentLog.operator_info?.username || '--'}</div>
                   </div>
                 </Col>
                 <Col span={6}>
@@ -421,7 +424,7 @@ const OperationLog: React.FC = () => {
                     border: '1px solid #e8e8e8'
                   }}>
                     <div style={{ color: '#999', marginBottom: 6, fontSize: 12 }}>IP地址</div>
-                    <div style={{ fontSize: 14, fontFamily: 'monospace' }}>{currentLog.ip}</div>
+                    <div style={{ fontSize: 14, fontFamily: 'monospace' }}>{currentLog.ip_address || '--'}</div>
                   </div>
                 </Col>
                 <Col span={6}>
