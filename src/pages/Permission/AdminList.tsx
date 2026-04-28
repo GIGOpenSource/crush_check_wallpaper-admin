@@ -265,39 +265,36 @@ const AdminList: React.FC = () => {
       <h2 style={{ marginBottom: 24 }}>管理员管理</h2>
       <Card>
         {/* 搜索区域 */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={12}>
-            <Space>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={handleAddAdmin}
-              >
-                新增管理员
-              </Button>
-            </Space>
-          </Col>
-          <Col span={12}>
-            <Space style={{ justifyContent: 'flex-end' }}>
-              <Input
-                placeholder="搜索用户名"
-                value={searchUsername}
-                onChange={(e) => setSearchUsername(e.target.value)}
-                onPressEnter={handleSearch}
-                style={{ width: 200 }}
-                allowClear
-              />
-              <Button 
-                type="primary" 
-                icon={<SearchOutlined />}
-                onClick={handleSearch}
-              >
-                搜索
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Col>
-        </Row>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          {/* 左侧：新增按钮 */}
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            onClick={handleAddAdmin}
+          >
+            新增管理员
+          </Button>
+          
+          {/* 右侧：搜索框 */}
+          <Space>
+            <Input
+              placeholder="搜索用户名"
+              value={searchUsername}
+              onChange={(e) => setSearchUsername(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <Button 
+              type="primary" 
+              icon={<SearchOutlined />}
+              onClick={handleSearch}
+            >
+              搜索
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </div>
 
         {/* 表格 */}
         <Table

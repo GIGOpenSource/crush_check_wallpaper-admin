@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Tag, Space, Modal, Form, Input, Select, message, Popconfirm, Row, Col } from 'antd';
+import { Table, Card, Button, Tag, Space, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import { 
   getRoleList, 
@@ -230,39 +230,36 @@ const RoleList: React.FC = () => {
       <h2 style={{ marginBottom: 24 }}>角色管理</h2>
       <Card>
         {/* 搜索区域 */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={12}>
-            <Space>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={handleAddRole}
-              >
-                新增角色
-              </Button>
-            </Space>
-          </Col>
-          <Col span={12}>
-            <Space style={{ justifyContent: 'flex-end' }}>
-              <Input
-                placeholder="搜索角色名称"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                onPressEnter={handleSearch}
-                style={{ width: 200 }}
-                allowClear
-              />
-              <Button 
-                type="primary" 
-                icon={<SearchOutlined />}
-                onClick={handleSearch}
-              >
-                搜索
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Col>
-        </Row>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          {/* 左侧：新增按钮 */}
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            onClick={handleAddRole}
+          >
+            新增角色
+          </Button>
+          
+          {/* 右侧：搜索框 */}
+          <Space>
+            <Input
+              placeholder="搜索角色名称"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <Button 
+              type="primary" 
+              icon={<SearchOutlined />}
+              onClick={handleSearch}
+            >
+              搜索
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </div>
 
         {/* 表格 */}
         <Table

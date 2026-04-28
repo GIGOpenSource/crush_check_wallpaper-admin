@@ -240,6 +240,7 @@ const OperationLog: React.FC = () => {
             display: 'flex', 
             flexWrap: 'wrap', 
             gap: '16px',
+            alignItems: 'flex-end',
             marginBottom: '16px'
           }}>
             <div style={{ flex: '0 0 auto', minWidth: 240 }}>
@@ -293,19 +294,20 @@ const OperationLog: React.FC = () => {
                 />
               </Form.Item>
             </div>
-          </div>
-          
-          <div style={{ textAlign: 'right' }}>
-            <Space>
-              <Button 
-                type="primary" 
-                icon={<SearchOutlined />}
-                onClick={handleSearch}
-              >
-                搜索
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
+            
+            {/* 搜索和重置按钮 */}
+            <div style={{ flex: '0 0 auto' }}>
+              <Space>
+                <Button 
+                  type="primary" 
+                  icon={<SearchOutlined />}
+                  onClick={handleSearch}
+                >
+                  搜索
+                </Button>
+                <Button onClick={handleReset}>重置</Button>
+              </Space>
+            </div>
           </div>
         </Form>
 
