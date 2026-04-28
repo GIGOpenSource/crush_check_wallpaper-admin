@@ -1,5 +1,5 @@
 import { ConfigProvider, theme } from 'antd';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import zhCN from 'antd/locale/zh_CN';
 import AdminLayout from './layouts/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -51,7 +51,7 @@ function App() {
         },
       }}
     >
-      <BrowserRouter>
+      <HashRouter>
         {/* 初始化全局导航函数 */}
         <NavigateInitializer />
         
@@ -123,7 +123,7 @@ function App() {
           {/* 捕获未匹配的路由，重定向到登录页 */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </ConfigProvider>
   );
 }
