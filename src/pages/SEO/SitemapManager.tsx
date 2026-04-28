@@ -637,13 +637,13 @@ const SitemapManager: React.FC = () => {
         <TabPane tab="Sitemap文件" key="files">
           <Card>
             <Alert
-              message={sitemapStatus?.is_valid ? 'Sitemap状态正常' : 'Sitemap状态异常'}
+              message={sitemapStatus?.status ? 'Sitemap状态正常' : 'Sitemap状态异常'}
               description={
                 sitemapStatus 
-                  ? `所有sitemap文件均可正常访问，最后更新时间为 ${formatDateTime(sitemapStatus.updated_at)}`
+                  ? `所有sitemap文件均可正常访问，最后更新时间为 ${formatDateTime(sitemapStatus.time)}`
                   : '正在加载Sitemap状态...'
               }
-              type={sitemapStatus?.is_valid ? 'success' : 'error'}
+              type={sitemapStatus?.status ? 'success' : 'error'}
               showIcon
               style={{ marginBottom: 16 }}
             />
