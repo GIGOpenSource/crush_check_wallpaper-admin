@@ -3,7 +3,7 @@ import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, In
 
 import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { getSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory } from '../../services/seoApi';
+import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory } from '../../services/seoApi';
 import type { SitemapFile, SitemapUrl, SitemapHistory, SitemapStatistics as SitemapStatisticsType } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
@@ -22,7 +22,10 @@ const SitemapManager: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);  // 保存 URL 加载状态
   const [sitemapFiles, setSitemapFiles] = useState<SitemapFile[]>([]);
-  const [_sitemapLoading, setSitemapLoading] = useState(false);
+  const [sitemapLoading, setSitemapLoading] = useState(false);
+  const [sitemapTotal, setSitemapTotal] = useState(0);
+  const [sitemapPage, setSitemapPage] = useState(1);
+  const [sitemapPageSize] = useState(10);
   
   // 自动更新配置弹窗
   const [autoUpdateModalVisible, setAutoUpdateModalVisible] = useState(false);
@@ -59,15 +62,58 @@ const SitemapManager: React.FC = () => {
     loadStatistics();
   }, []);
 
-  const loadSitemaps = async () => {
+  // 格式化日期时间
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr || dateStr === '-') return '-';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).replace(/\//g, '-');
+    } catch (_err) {
+      return dateStr;
+    }
+  };
+
+  // 加载Sitemap文件列表
+  const loadSitemaps = async (page: number = sitemapPage) => {
     setSitemapLoading(true);
     try {
-      const res = await getSitemaps();
+      const res = await listSitemaps({
+        currentPage: page,
+        pageSize: sitemapPageSize,
+      });
       if (res.code === 200) {
-        setSitemapFiles(res.data);
+        // 后端返回分页结构：data.results 是数组，data.pagination 是分页信息
+        const data = res.data as any;
+        const results = Array.isArray(data?.results) ? data.results : [];
+        const pagination = data?.pagination || {};
+        
+        // 字段映射：将后端返回的字段映射为前端期望的格式
+        const mappedResults = results.map((item: any) => ({
+          id: item.id,
+          name: item.title || `sitemap_${item.id}.xml`,          // title -> name
+          type: item.type || 'sitemap',
+          urls: item.url_count || 0,                             // url_count -> urls
+          size: item.file_size || '0KB',                         // file_size -> size
+          lastUpdate: formatDateTime(item.updated_at),           // updated_at -> lastUpdate (格式化)
+          status: item.is_active ? 'valid' : 'invalid',          // is_active -> status
+          autoUpdate: item.auto_update ?? false,
+        }));
+        
+        setSitemapFiles(mappedResults);
+        setSitemapTotal(pagination.total || 0);
+        setSitemapPage(page);
       }
     } catch (_err) {
       message.error('加载Sitemap列表失败');
+      setSitemapFiles([]);
     } finally {
       setSitemapLoading(false);
     }
@@ -173,24 +219,27 @@ const SitemapManager: React.FC = () => {
   };
 
   const columns = [
-    { title: '文件名', dataIndex: 'name', key: 'name', width: 180 },
-    { title: '类型', dataIndex: 'type', key: 'type', width: 100, render: (type: string) => <Tag color={type === 'index' ? 'blue' : 'default'}>{type === 'index' ? '索引' : '地图'}</Tag> },
-    { title: 'URL数量', dataIndex: 'urls', key: 'urls', width: 100 },
-    { title: '文件大小', dataIndex: 'size', key: 'size', width: 100 },
-    { title: '最后更新', dataIndex: 'lastUpdate', key: 'lastUpdate', width: 150 },
+    { title: '文件名', dataIndex: 'name', key: 'name', width: 180, ellipsis: true },
+    { title: '类型', dataIndex: 'type', key: 'type', width: 100, ellipsis: true, render: (type: string) => <Tag color={type === 'index' ? 'blue' : 'default'}>{type === 'index' ? '索引' : '地图'}</Tag> },
+    { title: 'URL数量', dataIndex: 'urls', key: 'urls', width: 100, ellipsis: true },
+    { title: '文件大小', dataIndex: 'size', key: 'size', width: 100, ellipsis: true },
+    { title: '最后更新', dataIndex: 'lastUpdate', key: 'lastUpdate', width: 180, ellipsis: true },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
+      ellipsis: true,
       render: (status: string) => {
         const config: Record<string, { color: string; icon: React.ReactNode; text: string }> = {
           valid: { color: 'success', icon: <CheckCircleOutlined />, text: '有效' },
           invalid: { color: 'warning', icon: <CloseCircleOutlined />, text: '无效' },
           error: { color: 'error', icon: <CloseCircleOutlined />, text: '错误' },
+          active: { color: 'success', icon: <CheckCircleOutlined />, text: '活跃' },
+          inactive: { color: 'default', icon: <CloseCircleOutlined />, text: '非活跃' },
         };
-        const { color, icon, text } = config[status];
-        return <Tag color={color} icon={icon}>{text}</Tag>;
+        const item = config[status] || { color: 'default', icon: null, text: status || '未知' };
+        return <Tag color={item.color} icon={item.icon}>{item.text}</Tag>;
       },
     },
     {
@@ -198,6 +247,7 @@ const SitemapManager: React.FC = () => {
       dataIndex: 'autoUpdate',
       key: 'autoUpdate',
       width: 100,
+      ellipsis: true,
       render: (auto: boolean, record: SitemapFile) => (
         <Switch 
           checked={auto} 
@@ -210,11 +260,12 @@ const SitemapManager: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
+      ellipsis: true,
       render: (_: unknown, record: SitemapFile) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => handleView(record)}>查看</Button>
           <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Button type="link" icon={<DownloadOutlined />} onClick={() => handleDownload(record)}>下载</Button>
+          {/* <Button type="link" icon={<DownloadOutlined />} onClick={() => handleDownload(record)}>下载</Button> */}
         </Space>
       ),
     },
@@ -485,7 +536,7 @@ const SitemapManager: React.FC = () => {
           <Button icon={<GlobalOutlined />} onClick={handleSubmitToSearchEngines}>
             提交到搜索引擎
           </Button>
-          <Button icon={<DownloadOutlined />} onClick={handleDownloadAll}>下载全部</Button>
+          {/* <Button icon={<DownloadOutlined />} onClick={handleDownloadAll}>下载全部</Button> */}
         </Space>
       </Card>
 
@@ -499,7 +550,22 @@ const SitemapManager: React.FC = () => {
               showIcon
               style={{ marginBottom: 16 }}
             />
-            <Table columns={columns} dataSource={sitemapFiles} rowKey="id" />
+            <Table 
+              columns={columns} 
+              dataSource={sitemapFiles} 
+              rowKey="id" 
+              loading={sitemapLoading}
+              scroll={{ x: 'max-content' }}
+              pagination={{
+                current: sitemapPage,
+                pageSize: sitemapPageSize,
+                total: sitemapTotal,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (page) => loadSitemaps(page),
+              }}
+            />
           </Card>
         </TabPane>
 
@@ -667,8 +733,8 @@ const SitemapManager: React.FC = () => {
         {selectedSitemap && (
           <div>
             <p><strong>文件名:</strong> {selectedSitemap.name}</p>
-            <p><strong>URL:</strong> {selectedSitemap.url}</p>
-            <p><strong>包含URL数:</strong> {selectedSitemap.urls}</p>
+            {/* <p><strong>URL:</strong> {selectedSitemap.url}</p>
+            <p><strong>包含URL数:</strong> {selectedSitemap.urls}</p> */}
             <TextArea
               rows={15}
               value={`<?xml version="1.0" encoding="UTF-8"?>

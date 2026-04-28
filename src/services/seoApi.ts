@@ -383,18 +383,22 @@ export const getSitemaps = async (): Promise<ApiResponse<SitemapFile[]>> => {
     return seoMockApi.getSitemaps() as Promise<ApiResponse<SitemapFile[]>>;
   }
   return request<SitemapFile[]>({
-    url: `${API_CONFIG.SEO_PREFIX}/sitemaps`,
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/list-sitemaps/`,
     method: 'GET',
   });
 };
 
-export const listSitemaps = async (): Promise<ApiResponse<SitemapFile[]>> => {
+export const listSitemaps = async (params?: { currentPage?: number; pageSize?: number }): Promise<ApiResponse<any>> => {
   if (API_CONFIG.USE_MOCK) {
-    return seoMockApi.getSitemaps() as Promise<ApiResponse<SitemapFile[]>>;
+    return seoMockApi.getSitemaps() as Promise<ApiResponse<any>>;
   }
-  return request<SitemapFile[]>({
-    url: `${API_CONFIG.SEO_PREFIX}/sitemaps`,
+  return request({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/list-sitemaps/`,
     method: 'GET',
+    params: {
+      currentPage: params?.currentPage,
+      pageSize: params?.pageSize,
+    },
   });
 };
 
