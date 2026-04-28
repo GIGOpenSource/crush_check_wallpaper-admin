@@ -490,6 +490,26 @@ const SitemapManager: React.FC = () => {
     }
   };
 
+  // 刷新所有数据
+  const handleRefreshAll = async () => {
+    message.loading('正在刷新数据...', 0);
+    try {
+      await Promise.all([
+        loadSitemaps(),
+        loadSitemapHistory(),
+        loadUrls(),
+        loadStatistics(),
+        loadSitemapStatus(),
+      ]);
+      message.destroy();
+      message.success('数据刷新成功');
+    } catch (err: any) {
+      message.destroy();
+      console.error('刷新数据失败:', err);
+      message.error('刷新数据失败，请稍后重试');
+    }
+  };
+
   // 搜索功能
   const handleSearch = () => {
     loadUrls(1);
@@ -508,9 +528,14 @@ const SitemapManager: React.FC = () => {
         <Breadcrumb.Item><a onClick={() => navigate('/seo')}>SEO管理</a></Breadcrumb.Item>
         <Breadcrumb.Item>Sitemap管理</Breadcrumb.Item>
       </Breadcrumb>
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
-        Sitemap管理
+      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>
+          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
+          Sitemap管理
+        </span>
+        <Button icon={<ReloadOutlined />} onClick={handleRefreshAll}>
+          刷新数据
+        </Button>
       </h2>
 
       {/* 统计卡片 */}
