@@ -139,7 +139,7 @@ const WallpaperList: React.FC = () => {
   };
 
   const handlePreview = (record: Wallpaper) => {
-    // 直接显示图片预览，使用Ant Design Image的内置预览效果
+    // 设置预览的壁纸并显示预览
     setPreviewWallpaper(record);
     setShowImagePreview(true);
   };
@@ -856,20 +856,23 @@ const WallpaperList: React.FC = () => {
 
   return (
     <div>
-      {/* 隐藏的图片预览组件 - 用于触发Ant Design的内置预览效果 */}
+      {/* 图片预览组件 - 使用key确保每次显示正确的图片 */}
       {showImagePreview && previewWallpaper && (
-        <div style={{ display: 'none' }}>
-          <Image
-            src={previewWallpaper.url || previewWallpaper.thumb_url}
-            alt={previewWallpaper.name}
-            preview={{
-              visible: true,
-              onVisibleChange: (visible) => {
-                setShowImagePreview(visible);
-              },
-            }}
-          />
-        </div>
+        <Image
+          key={previewWallpaper.id}  // 使用壁纸ID作为key，确保切换图片时重新渲染
+          src={previewWallpaper.thumb_url}  // 直接使用 thumb_url
+          alt={previewWallpaper.name}
+          style={{ display: 'none' }}
+          preview={{
+            visible: true,
+            onVisibleChange: (visible) => {
+              setShowImagePreview(visible);
+              if (!visible) {
+                setPreviewWallpaper(null);
+              }
+            },
+          }}
+        />
       )}
 
       <h2 style={{ marginBottom: 24 }}>壁纸管理</h2>
@@ -1386,6 +1389,10 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
+
+
 
 
 

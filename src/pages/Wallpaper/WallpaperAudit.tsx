@@ -19,8 +19,8 @@ const WallpaperAudit: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [previewVisible, setPreviewVisible] = useState(false);
-  const [previewImage, setPreviewImage] = useState('');
+  const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
   const [searchParams, setSearchParams] = useState<GetWallpaperListParams>({});
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   
@@ -72,9 +72,10 @@ const WallpaperAudit: React.FC = () => {
     loadAuditList();
   };
 
-  const handlePreview = (url: string) => {
-    setPreviewImage(url);
-    setPreviewVisible(true);
+  const handlePreview = (record: Wallpaper) => {
+    // 设置预览的壁纸并显示预览
+    setPreviewWallpaper(record);
+    setShowImagePreview(true);
   };
 
   // 格式化时间
@@ -197,8 +198,10 @@ const WallpaperAudit: React.FC = () => {
     const wallpaperIds = selectedRowKeys.map(key => Number(key));
     batchAuditWallpaper({
       wallpaper_ids: wallpaperIds,
+      remark: '',
       action: 'approve',
     })
+
       .then(() => {
         message.success(`已通过 ${selectedRowKeys.length} 个壁纸`);
         setSelectedRowKeys([]);
@@ -232,14 +235,14 @@ const WallpaperAudit: React.FC = () => {
       dataIndex: 'thumb_url',
       key: 'thumb_url',
       width: 120,
-      render: (url: string, record: Wallpaper) => (
+      render: (_url: string, record: Wallpaper) => (
         <Image
-          src={url}
+          src={record.thumb_url}
           width={100}
           height={60}
           style={{ objectFit: 'cover', cursor: 'pointer', borderRadius: 4 }}
           preview={false}
-          onClick={() => handlePreview(record.url)}
+          onClick={() => handlePreview(record)}
         />
       ),
     },
@@ -356,7 +359,7 @@ const WallpaperAudit: React.FC = () => {
             type="primary"
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => handlePreview(record.url)}
+            onClick={() => handlePreview(record)}
           >
             预览
           </Button>
@@ -468,18 +471,24 @@ const WallpaperAudit: React.FC = () => {
         />
       </Card>
 
-      <Modal
-        open={previewVisible}
-        footer={null}
-        onCancel={() => setPreviewVisible(false)}
-        width={1000}
-      >
-        <img
-          alt="preview"
-          style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-          src={previewImage}
+      {/* 图片预览组件 - 使用key确保每次显示正确的图片 */}
+      {showImagePreview && previewWallpaper && (
+        <Image
+          key={previewWallpaper.id}  // 使用壁纸ID作为key，确保切换图片时重新渲染
+          src={previewWallpaper.thumb_url}  // 直接使用 thumb_url
+          alt={previewWallpaper.name}
+          style={{ display: 'none' }}
+          preview={{
+            visible: true,
+            onVisibleChange: (visible) => {
+              setShowImagePreview(visible);
+              if (!visible) {
+                setPreviewWallpaper(null);
+              }
+            },
+          }}
         />
-      </Modal>
+      )}
 
       {/* 单个拒绝弹窗 */}
       <Modal
