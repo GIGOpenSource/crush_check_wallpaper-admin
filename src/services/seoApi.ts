@@ -38,7 +38,8 @@ const createAxiosInstance = (): AxiosInstance => {
   instance.interceptors.response.use(
     (response: AxiosResponse<ApiResponse>) => {
       const { data } = response;
-      if (data.code !== API_CODE.SUCCESS) {
+      // 支持 200 和 201 状态码都视为成功
+      if (data.code !== API_CODE.SUCCESS && data.code !== 201) {
         // 不在API层显示错误提示，由业务层自行处理
         console.error('API Error:', data.message);
         return Promise.reject(new Error(data.message));
@@ -348,12 +349,131 @@ export interface SitemapConfig {
   compress: boolean;
 }
 
+// Sitemap URL 类型
+export interface SitemapUrl {
+  id: number;
+  loc: string;
+  lastmod: string;
+  changefreq: string;
+  priority: number;
+  status: 'indexed' | 'pending' | 'error';
+}
+
+// Sitemap 统计类型
+export interface SitemapStatistics {
+  total_urls: number;      // 总URL数
+  indexed_count: number;   // 已索引数
+  pending_count: number;   // 待索引数
+  index_rate: number;      // 索引率
+}
+
+// Sitemap 提交历史类型
+export interface SitemapHistory {
+  path: string;
+  type: string;
+  is_sitemap_index: boolean;
+  last_submitted: string;
+  is_pending: boolean;
+  errors: string;
+  warnings: string;
+}
+
 export const getSitemaps = async (): Promise<ApiResponse<SitemapFile[]>> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.getSitemaps() as Promise<ApiResponse<SitemapFile[]>>;
   }
   return request<SitemapFile[]>({
     url: `${API_CONFIG.SEO_PREFIX}/sitemaps`,
+    method: 'GET',
+  });
+};
+
+// 创建 Sitemap URL
+export const createSitemapUrl = async (data: {
+  content: string;
+  index_status: 'pending' | 'indexed' | 'excluded';
+  changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+  priority: number;
+  title: 'article' | 'category' | 'tag' | 'page';
+}): Promise<ApiResponse<SitemapUrl>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockResult: SitemapUrl = {
+      id: Date.now(),
+      loc: data.content,
+      lastmod: new Date().toISOString(),
+      changefreq: data.changefreq,
+      priority: data.priority,
+      status: data.index_status === 'excluded' ? 'error' : data.index_status,
+    };
+    return Promise.resolve({
+      code: 201,
+      data: mockResult,
+      message: '创建成功',
+    }) as Promise<ApiResponse<SitemapUrl>>;
+  }
+  return request<SitemapUrl>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/`,
+    method: 'POST',
+    data,
+  });
+};
+
+// 获取 Sitemap URL 列表
+export const getSitemapUrls = async (params?: {
+  currentPage?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+}): Promise<ApiResponse<PaginatedResponse<SitemapUrl>>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockUrls: SitemapUrl[] = [
+      { id: 1, loc: 'https://example.com/wallpaper/4k-star-sky', lastmod: '2026-04-17', changefreq: 'weekly', priority: 0.8, status: 'indexed' },
+      { id: 2, loc: 'https://example.com/wallpaper/anime-girl', lastmod: '2026-04-17', changefreq: 'weekly', priority: 0.8, status: 'indexed' },
+      { id: 3, loc: 'https://example.com/category/nature', lastmod: '2026-04-16', changefreq: 'daily', priority: 0.9, status: 'indexed' },
+      { id: 4, loc: 'https://example.com/tag/4k', lastmod: '2026-04-15', changefreq: 'daily', priority: 0.7, status: 'pending' },
+      { id: 5, loc: 'https://example.com/about', lastmod: '2026-04-10', changefreq: 'monthly', priority: 0.5, status: 'indexed' },
+    ];
+    return Promise.resolve({
+      code: 200,
+      data: {
+        results: mockUrls,
+        pagination: {
+          total: mockUrls.length,
+          currentPage: params?.currentPage || 1,
+          pageSize: params?.pageSize || 10,
+          totalPages: 1,
+        },
+      },
+      message: 'success',
+    }) as Promise<ApiResponse<PaginatedResponse<SitemapUrl>>>;
+  }
+  return request<PaginatedResponse<SitemapUrl>>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/`,
+    method: 'GET',
+    params,
+  });
+};
+
+// 获取 Sitemap URL 统计
+export const getSitemapStatistics = async (): Promise<ApiResponse<SitemapStatistics>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockStats: SitemapStatistics = {
+      total_urls: 1627,
+      indexed_count: 1580,
+      pending_count: 45,
+      index_rate: 97.2,
+    };
+    return Promise.resolve({
+      code: 200,
+      data: mockStats,
+      message: 'success',
+    }) as Promise<ApiResponse<SitemapStatistics>>;
+  }
+  return request<SitemapStatistics>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/statistics/`,
     method: 'GET',
   });
 };
@@ -803,6 +923,9 @@ export const seoApi = {
   
   // Sitemap
   getSitemaps,
+  getSitemapUrls,
+  getSitemapStatistics,
+  createSitemapUrl,
   generateSitemap,
   downloadSitemap,
   submitToSearchEngines,
