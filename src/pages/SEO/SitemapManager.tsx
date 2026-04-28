@@ -3,7 +3,7 @@ import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, In
 
 import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory } from '../../services/seoApi';
+import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory, getSitemapStatus } from '../../services/seoApi';
 import type { SitemapFile, SitemapUrl, SitemapHistory, SitemapStatistics as SitemapStatisticsType } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
@@ -247,20 +247,20 @@ const SitemapManager: React.FC = () => {
         return <Tag color={item.color} icon={item.icon}>{item.text}</Tag>;
       },
     },
-    {
-      title: '自动更新',
-      dataIndex: 'autoUpdate',
-      key: 'autoUpdate',
-      width: 100,
-      ellipsis: true,
-      render: (auto: boolean, record: SitemapFile) => (
-        <Switch 
-          checked={auto} 
-          size="small" 
-          onChange={(checked) => handleToggleAutoUpdate(record, checked)}
-        />
-      ),
-    },
+    // {
+    //   title: '自动更新',
+    //   dataIndex: 'autoUpdate',
+    //   key: 'autoUpdate',
+    //   width: 100,
+    //   ellipsis: true,
+    //   render: (auto: boolean, record: SitemapFile) => (
+    //     <Switch 
+    //       checked={auto} 
+    //       size="small" 
+    //       onChange={(checked) => handleToggleAutoUpdate(record, checked)}
+    //     />
+    //   ),
+    // },
     {
       title: '操作',
       key: 'action',
@@ -821,9 +821,9 @@ const SitemapManager: React.FC = () => {
           <Form.Item name="name" label="文件名" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="autoUpdate" label="自动更新" valuePropName="checked">
+          {/* <Form.Item name="autoUpdate" label="自动更新" valuePropName="checked">
             <Switch />
-          </Form.Item>
+          </Form.Item> */}
         </Form>
       </Modal>
 

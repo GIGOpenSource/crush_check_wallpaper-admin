@@ -595,6 +595,31 @@ export const submitToSearchEngines = async (sitemapIds: number[]): Promise<ApiRe
   });
 };
 
+/**
+ * 检查 Sitemap 状态
+ * @returns 状态信息
+ */
+export const getSitemapStatus = async (): Promise<ApiResponse<{
+  is_valid: boolean;
+  updated_at: string;
+}>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    return Promise.resolve({
+      code: 200,
+      data: {
+        is_valid: true,
+        updated_at: new Date().toISOString(),
+      },
+      message: 'success',
+    }) as Promise<ApiResponse<{ is_valid: boolean; updated_at: string }>>;
+  }
+  return request({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/check-status/`,
+    method: 'POST',
+  });
+};
+
 // ==================== 4. 外链管理 API ====================
 
 export interface Backlink {
@@ -975,6 +1000,7 @@ export const seoApi = {
   downloadSitemap,
   submitToSearchEngines,
   getSitemapSubmissionHistory,
+  getSitemapStatus,
 
   // 外链
   getBacklinks,
