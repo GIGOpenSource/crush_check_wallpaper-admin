@@ -891,7 +891,8 @@ export const createTDKTemplate = async (data: {
   description?: string;
   keywords?: string;
   is_template?: boolean;
-  url_content?: string;  // 页面URL（仅页面TDK需要）
+  url_content?: string;  // 页面URL地址（仅页面TDK需要）
+  url?: number;  // 选中的URL ID（仅页面TDK需要）
 }): Promise<ApiResponse<TDKTemplate>> => {
   if (API_CONFIG.USE_MOCK) {
     // Mock 数据

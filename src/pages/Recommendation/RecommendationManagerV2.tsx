@@ -363,7 +363,7 @@ const RecommendationManagerV2: React.FC = () => {
       render: (_: unknown, record: StrategyContentItem) => (
         <Space>
           <Image
-            src={record.content_image}
+            src={record.wallpaper_info.thumb_url}
             width={60}
             height={60}
             style={{ objectFit: 'cover', borderRadius: 4 }}

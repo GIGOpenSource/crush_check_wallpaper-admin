@@ -61,6 +61,20 @@ const TDKManager: React.FC = () => {
     total: 0,
   });
 
+  // 页面TDK搜索状态
+  const [pageSearchForm] = Form.useForm();
+  const [pageSearchParams, setPageSearchParams] = useState({
+    search: '',
+    page_type: '',
+  });
+
+  // Sitemap URL列表状态
+  const [sitemapUrls, setSitemapUrls] = useState<any[]>([]);
+  const [sitemapUrlLoading, setSitemapUrlLoading] = useState(false);
+  const [sitemapUrlPage, setSitemapUrlPage] = useState(1);
+  const [sitemapUrlPageSize] = useState(50);
+  const [hasMoreSitemapUrls, setHasMoreSitemapUrls] = useState(true);
+
   // 获取TDK模板列表
   useEffect(() => {
     fetchTemplates();
@@ -363,22 +377,78 @@ const TDKManager: React.FC = () => {
     setPageTDKModalVisible(true);
   };
 
-  const handleAddPageTDK = () => {
+  const handleAddPageTDK = async () => {
     setIsCreatingPageTDK(true);
     setEditingPageTDK(null);
     pageTDKForm.resetFields();
+    // 加载Sitemap URL列表
+    await loadSitemapUrls();
     setPageTDKModalVisible(true);
+  };
+
+  // 加载Sitemap URL列表
+  const loadSitemapUrls = async (page = 1, append = false) => {
+    try {
+      setSitemapUrlLoading(true);
+      const res = await seoApi.getSitemapUrls({
+        currentPage: page,
+        pageSize: sitemapUrlPageSize,
+      });
+      console.log('API返回的Sitemap数据:', res);
+      
+      if (res.code === 200 && res.data) {
+        const urls = (res.data as any).results || (res.data as any).items || [];
+        console.log('提取的urls数组:', urls);
+        console.log('第一条url数据:', urls[0]);
+        
+        if (append) {
+          // 追加模式
+          setSitemapUrls(prev => [...prev, ...urls]);
+        } else {
+          // 重置模式
+          setSitemapUrls(urls);
+        }
+        
+        // 判断是否还有更多数据
+        const total = (res.data as any).pagination?.total || (res.data as any).total || 0;
+        setHasMoreSitemapUrls(urls.length > 0 && (append ? sitemapUrls.length + urls.length < total : urls.length < total));
+        setSitemapUrlPage(page);
+      }
+    } catch (err) {
+      console.error('加载Sitemap URL列表失败:', err);
+      message.error('加载Sitemap URL列表失败');
+    } finally {
+      setSitemapUrlLoading(false);
+    }
+  };
+
+  // 加载更多Sitemap URL
+  const loadMoreSitemapUrls = async () => {
+    if (!hasMoreSitemapUrls || sitemapUrlLoading) return;
+    await loadSitemapUrls(sitemapUrlPage + 1, true);
   };
 
   const handleSavePageTDK = async () => {
     try {
+      console.log('开始保存页面TDK...');
       const values = await pageTDKForm.validateFields();
-      const keywordsArray = values.keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k);
+      console.log('表单验证通过，values:', values);
+      
+      const keywordsArray = values.keywords ? values.keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k) : [];
       
       if (isCreatingPageTDK) {
-        // 新增页面TDK
+        // 新增页面TDK - 从选中的ID找到对应的URL地址
+        console.log('sitemapUrls:', sitemapUrls);
+        console.log('选中的url_content:', values.url_content);
+        
+        const selectedUrl = sitemapUrls.find((url: any) => url.id === values.url_content);
+        const urlAddress = selectedUrl ? selectedUrl.loc : '';
+        
+        console.log('找到的URL地址:', urlAddress);
+        
         await seoApi.createTDKTemplate({
-          url_content: values.url_content,
+          url: values.url_content, // 传递选中的URL ID
+          url_content: urlAddress, // 传递实际的URL地址
           page_type: values.page_type,
           title: values.title,
           description: values.description,
@@ -400,8 +470,15 @@ const TDKManager: React.FC = () => {
       setEditingPageTDK(null);
       setIsCreatingPageTDK(false);
       fetchPageTDKs(); // 重新加载页面TDK列表
-    } catch (_err) {
-      message.error(isCreatingPageTDK ? '页面TDK创建失败' : '页面TDK保存失败');
+    } catch (err: any) {
+      console.error('保存页面TDK失败:', err);
+      // 如果是表单验证错误，显示具体的错误信息
+      if (err.errorFields && err.errorFields.length > 0) {
+        const firstError = err.errorFields[0];
+        message.error(firstError.errors[0]);
+      } else {
+        message.error(isCreatingPageTDK ? '页面TDK创建失败: ' + (err.message || '') : '页面TDK保存失败: ' + (err.message || ''));
+      }
     }
   };
 
@@ -592,20 +669,20 @@ const TDKManager: React.FC = () => {
             }
           >
             <Space style={{ marginBottom: 16 }}>
-              <Select placeholder="页面类型" style={{ width: 120 }} allowClear>
+              {/* <Select placeholder="页面类型" style={{ width: 120 }} allowClear>
                   <Option value="article">文章页</Option>
               <Option value="category">分类页</Option>
               <Option value="tag">标签页</Option>
               <Option value="detail">详情页</Option>
               <Option value="search">搜索页</Option>
               <Option value="custom">自定义页</Option>
-              </Select>
+              </Select> */}
               {/* <Select placeholder="字符长度" style={{ width: 120 }} allowClear>
                 <Option value="title_long">Title超长</Option>
                 <Option value="desc_long">Desc超长</Option>
                 <Option value="title_short">Title过短</Option>
               </Select> */}
-              <Input.Search placeholder="搜索URL/标题" style={{ width: 250 }} />
+              {/* <Input.Search placeholder="搜索URL/标题" style={{ width: 250 }} /> */}
             </Space>
             {selectedRowKeys.length > 0 && (
               <Alert
@@ -737,12 +814,37 @@ const TDKManager: React.FC = () => {
           <Form.Item
             name="url_content"
             label="页面URL"
-            rules={[{ required: true, message: '请输入页面URL' }]}
+            rules={[{ required: true, message: '请选择页面URL' }]}
           >
-            <Input 
-              placeholder="例如：/wallpaper/4k-star-sky" 
+            <Select
+              placeholder="选择Sitemap中的URL"
+              loading={sitemapUrlLoading}
               disabled={!isCreatingPageTDK}
-            />
+              showSearch
+              optionFilterProp="label"
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {hasMoreSitemapUrls && (
+                    <div style={{ padding: '8px', textAlign: 'center', borderTop: '1px solid #f0f0f0' }}>
+                      <Button
+                        type="link"
+                        loading={sitemapUrlLoading}
+                        onClick={loadMoreSitemapUrls}
+                      >
+                        加载更多
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            >
+              {sitemapUrls.map((url: any) => (
+                <Option key={url.id} value={url.content} label={url.loc}>
+                  {url.loc}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
           <Form.Item
             name="page_type"
@@ -889,7 +991,7 @@ const TDKManager: React.FC = () => {
           <div>
             <Alert
               message="搜索引擎展示效果预览"
-              description="以下是在Google和Bing搜索结果中的展示效果预览"
+              description="以下是在Google和Bing搜索结果中的展示效果"
               type="info"
               showIcon
               style={{ marginBottom: 24 }}
