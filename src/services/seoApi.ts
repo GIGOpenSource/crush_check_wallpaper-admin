@@ -388,6 +388,16 @@ export const getSitemaps = async (): Promise<ApiResponse<SitemapFile[]>> => {
   });
 };
 
+export const listSitemaps = async (): Promise<ApiResponse<SitemapFile[]>> => {
+  if (API_CONFIG.USE_MOCK) {
+    return seoMockApi.getSitemaps() as Promise<ApiResponse<SitemapFile[]>>;
+  }
+  return request<SitemapFile[]>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemaps`,
+    method: 'GET',
+  });
+};
+
 // 创建 Sitemap URL
 export const createSitemapUrl = async (data: {
   content: string;
@@ -490,6 +500,35 @@ export const generateSitemap = async (data: SitemapConfig): Promise<ApiResponse<
   }
   return request({
     url: `${API_CONFIG.SEO_PREFIX}/sitemap/generate`,
+    method: 'POST',
+    data,
+  });
+};
+
+// 重新生成 Sitemap XML
+export const generateSitemapXml = async (data: {
+  changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+  priority: number;
+  content_type: 'article' | 'category' | 'tag' | 'page';
+}): Promise<ApiResponse<{
+  success: boolean;
+  message: string;
+  generated_count?: number;
+}>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    return Promise.resolve({
+      code: 200,
+      data: {
+        success: true,
+        message: 'Sitemap XML 生成成功',
+        generated_count: Math.floor(Math.random() * 100) + 50,
+      },
+      message: 'success',
+    }) as Promise<ApiResponse<{ success: boolean; message: string; generated_count?: number }>>;
+  }
+  return request({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/generate-xml/`,
     method: 'POST',
     data,
   });
@@ -923,10 +962,12 @@ export const seoApi = {
   
   // Sitemap
   getSitemaps,
+  listSitemaps,
   getSitemapUrls,
   getSitemapStatistics,
   createSitemapUrl,
   generateSitemap,
+  generateSitemapXml,
   downloadSitemap,
   submitToSearchEngines,
   getSitemapSubmissionHistory,

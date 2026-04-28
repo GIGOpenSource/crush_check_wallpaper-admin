@@ -3,7 +3,7 @@ import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, In
 
 import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { getSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, generateSitemap, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory } from '../../services/seoApi';
+import { getSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory } from '../../services/seoApi';
 import type { SitemapFile, SitemapUrl, SitemapHistory, SitemapStatistics as SitemapStatisticsType } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
@@ -353,20 +353,19 @@ const SitemapManager: React.FC = () => {
     generateForm.validateFields().then(async (values) => {
       setLoading(true);
       try {
-        const res = await generateSitemap({
-          types: values.types || ['posts', 'categories'],
-          changefreq: values.changefreq || 'weekly',
-          priority: values.priority || 0.8,
-          includeImages: values.includeImages || false,
-          compress: values.compress || false,
+        const res = await generateSitemapXml({
+          changefreq: values.changefreq,
+          priority: values.priority,
+          content_type: values.content_type,
         });
-        if (res.code === 200 || res.code == 201) {
-          message.success('Sitemap生成成功');
+        if (res.code === 200 || res.code === 201) {
+          message.success(`Sitemap生成成功！${res.data.generated_count ? `共生成 ${res.data.generated_count} 个URL` : ''}`);
           setGenerateModalVisible(false);
+          generateForm.resetFields();
           loadSitemaps(); // 刷新列表
         }
-      } catch (_err) {
-        message.error('Sitemap生成失败');
+      } catch (err: any) {
+        message.error(err?.message || 'Sitemap生成失败');
       } finally {
         setLoading(false);
       }
@@ -716,35 +715,52 @@ const SitemapManager: React.FC = () => {
         title="生成Sitemap"
         open={generateModalVisible}
         onOk={handleGenerate}
-        onCancel={() => setGenerateModalVisible(false)}
+        onCancel={() => {
+          setGenerateModalVisible(false);
+          generateForm.resetFields();
+        }}
         confirmLoading={loading}
       >
         <Form form={generateForm} layout="vertical">
-          <Form.Item name="types" label="包含内容类型" rules={[{ required: true }]}>
-            <Select mode="multiple" placeholder="选择要包含的内容类型">
-              <Select.Option value="posts">文章</Select.Option>
-              <Select.Option value="categories">分类</Select.Option>
-              <Select.Option value="tags">标签</Select.Option>
-              <Select.Option value="pages">页面</Select.Option>
+          <Form.Item 
+            name="content_type" 
+            label="包含内容类型" 
+            rules={[{ required: true, message: '请选择内容类型' }]}
+            initialValue="article"
+          >
+            <Select placeholder="选择要生成的内容类型">
+              <Select.Option value="article">文章</Select.Option>
+              <Select.Option value="category">分类</Select.Option>
+              <Select.Option value="tag">标签</Select.Option>
+              <Select.Option value="page">页面</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="changefreq" label="默认更新频率" initialValue="daily">
+          <Form.Item 
+            name="changefreq" 
+            label="更新频率" 
+            rules={[{ required: true, message: '请选择更新频率' }]}
+            initialValue="daily"
+          >
             <Select>
               <Select.Option value="always">总是</Select.Option>
               <Select.Option value="hourly">每小时</Select.Option>
               <Select.Option value="daily">每天</Select.Option>
               <Select.Option value="weekly">每周</Select.Option>
               <Select.Option value="monthly">每月</Select.Option>
+              <Select.Option value="yearly">每年</Select.Option>
+              <Select.Option value="never">从不</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="priority" label="默认优先级" initialValue={0.5}>
-            <Select>
-              <Select.Option value={1.0}>1.0 (最高)</Select.Option>
-              <Select.Option value={0.8}>0.8</Select.Option>
-              <Select.Option value={0.5}>0.5 (默认)</Select.Option>
-              <Select.Option value={0.3}>0.3</Select.Option>
-              <Select.Option value={0.1}>0.1 (最低)</Select.Option>
-            </Select>
+          <Form.Item 
+            name="priority" 
+            label="优先级" 
+            rules={[
+              { required: true, message: '请输入优先级' },
+              { type: 'number', min: 0.1, max: 1, message: '优先级范围是 0.1 ~ 1' }
+            ]}
+            initialValue={0.5}
+          >
+            <Input type="number" min={0.1} max={1} step={0.1} placeholder="请输入优先级 (0.1 ~ 1)" />
           </Form.Item>
         </Form>
       </Modal>
