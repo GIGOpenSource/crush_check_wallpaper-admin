@@ -984,6 +984,31 @@ const RecommendationManagerV2: React.FC = () => {
                 />
               </Col>
             </Row>
+            <Table
+              rowSelection={{
+                type: 'checkbox',
+                selectedRowKeys: selectedStrategyIds,
+                onChange: (selectedRowKeys) => {
+                  setSelectedStrategyIds(selectedRowKeys as number[]);
+                },
+              }}
+              columns={strategyColumns}
+              dataSource={filteredStrategies}
+              rowKey="id"
+              loading={loading}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: total,
+                onChange: (page) => {
+                  setCurrentPage(page);
+                  loadStrategies(page);
+                },
+                showSizeChanger: false,
+                showTotal: (total) => `共 ${total} 条`,
+              }}
+              locale={{ emptyText: '暂无策略数据' }}
+            />
           </Card>
         </TabPane>
       </Tabs>
