@@ -120,7 +120,6 @@ const SitemapManager: React.FC = () => {
           lastUpdate: formatDateTime(item.updated_at),           // updated_at -> lastUpdate (格式化)
           status: item.is_active ? 'valid' : 'invalid',          // is_active -> status
           autoUpdate: item.auto_update ?? false,
-          content: item.content || '',                           // content 字段
         }));
         
         setSitemapFiles(mappedResults);

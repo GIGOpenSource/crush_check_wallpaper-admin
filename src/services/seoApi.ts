@@ -482,16 +482,14 @@ export const getSitemapUrls = async (params?: {
     return Promise.resolve({
       code: 200,
       data: {
-        results: mockUrls,
-        pagination: {
-          total: mockUrls.length,
-          currentPage: params?.currentPage || 1,
-          pageSize: params?.pageSize || 10,
-          totalPages: 1,
-        },
+        items: mockUrls,
+        total: mockUrls.length,
+        page: params?.currentPage || 1,
+        pageSize: params?.pageSize || 10,
       },
       message: 'success',
-    }) as Promise<ApiResponse<PaginatedResponse<SitemapUrl>>>;
+      success: true,
+    }) as unknown as Promise<ApiResponse<PaginatedResponse<SitemapUrl>>>;
   }
   return request<PaginatedResponse<SitemapUrl>>({
     url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/`,
@@ -727,6 +725,235 @@ export const scanBacklinks = async (): Promise<ApiResponse<{
 };
 
 // ==================== 5. TDK管理 API ====================
+
+// TDK模板类型定义
+export interface TDKTemplate {
+  id: number;
+  page_type: string;                 // 页面类型标识（如article, category, tag, home）
+  page_type_display: string;         // 页面类型显示名称（如文章页、分类页）
+  title?: string;                    // title模板（可选）
+  description?: string;              // description模板（可选）
+  keywords?: string;                 // keywords关键词（可选）
+  updated_at?: string;               // 最后更新（可选）
+  applied_count?: number;            // 应用页面数（可选）
+  is_template?: boolean;
+}
+
+// 页面TDK类型定义
+export interface PageTDK {
+  id: number;
+  page_type: string;                 // 页面类型标识
+  page_type_display: string;         // 页面类型显示名称
+  url_content?: string;              // 页面URL（可选）
+  title?: string;                    // 标题（可选）
+  description?: string;              // 描述（可选）
+  keywords?: string[];               // 关键词数组（可选）
+  char_count?: { title: number; desc: number };
+}
+
+/**
+ * 获取TDK列表（模板或页面）
+ * @param params - 请求参数
+ * @param params.currentPage - 当前页码
+ * @param params.pageSize - 每页数量
+ * @param params.is_template - 是否为模板（true: 模板，false: 页面）
+ */
+export const getTDKList = async (params: {
+  currentPage?: number;
+  pageSize?: number;
+  is_template: boolean;
+}): Promise<ApiResponse<{
+  pagination: {
+    page: number;
+    page_size: number;
+    total: number;
+  };
+  results: (TDKTemplate | PageTDK)[];
+}>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据 - 匹配实际后端返回结构
+    if (params.is_template) {
+      const mockTemplates: TDKTemplate[] = [
+        {
+          id: 1,
+          page_type: 'article',
+          page_type_display: '文章页',
+          title: '{标题前50字}-{分类词}-{品牌词}',
+          description: '前150字符+相关标签词',
+          keywords: '{分类词},{标签1},{标签2},{标签3}',
+          applied_count: 856,
+          updated_at: '2026-04-15',
+          is_template: true,
+        },
+        {
+          id: 2,
+          page_type: 'category',
+          page_type_display: '分类页',
+          title: '{分类名}-{相关词}-{品牌词}',
+          description: '分类描述+热门标签',
+          keywords: '{分类词},壁纸,高清壁纸',
+          applied_count: 24,
+          updated_at: '2026-04-14',
+          is_template: true,
+        },
+      ];
+      return Promise.resolve({
+        code: 200,
+        data: {
+          pagination: {
+            page: params.currentPage || 1,
+            page_size: params.pageSize || 10,
+            total: mockTemplates.length,
+          },
+          results: mockTemplates,
+        },
+        message: 'success',
+        success: true,
+      }) as unknown as Promise<ApiResponse<{
+        pagination: { page: number; page_size: number; total: number };
+        results: (TDKTemplate | PageTDK)[];
+      }>>;
+    } else {
+      const mockPages: PageTDK[] = [
+        {
+          id: 1,
+          url_content: '/wallpaper/4k-star-sky',
+          title: '4K星空壁纸-夜景壁纸-壁纸大全',
+          description: '精选4K超高清星空壁纸，3840x2160分辨率，完美适配电脑桌面，免费下载使用',
+          keywords: ['4K壁纸', '星空壁纸', '夜景壁纸', '高清壁纸'],
+          page_type: 'article',
+          page_type_display: '文章页',
+          char_count: { title: 24, desc: 52 },
+        },
+        {
+          id: 2,
+          url_content: '/category/anime',
+          title: '动漫壁纸-二次元高清壁纸-壁纸大全',
+          description: '海量动漫壁纸，二次元风格，高清分辨率，适配手机和电脑',
+          keywords: ['动漫壁纸', '二次元', '高清壁纸'],
+          page_type: 'category',
+          page_type_display: '分类页',
+          char_count: { title: 23, desc: 38 },
+        },
+      ];
+      return Promise.resolve({
+        code: 200,
+        data: {
+          pagination: {
+            page: params.currentPage || 1,
+            page_size: params.pageSize || 10,
+            total: mockPages.length,
+          },
+          results: mockPages,
+        },
+        message: 'success',
+        success: true,
+      }) as unknown as Promise<ApiResponse<{
+        pagination: { page: number; page_size: number; total: number };
+        results: (TDKTemplate | PageTDK)[];
+      }>>;
+    }
+  }
+  return request({
+    url: `${API_CONFIG.SEO_PREFIX}/tdk/`,
+    method: 'GET',
+    params,
+  });
+};
+
+/**
+ * 删除TDK记录
+ * @param id - TDK记录ID
+ */
+export const deleteTDK = async (id: number): Promise<ApiResponse<void>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    return Promise.resolve({
+      code: 200,
+      data: undefined,
+      message: '删除成功',
+      success: true,
+    }) as unknown as Promise<ApiResponse<void>>;
+  }
+  return request<void>({
+    url: `${API_CONFIG.SEO_PREFIX}/tdk/${id}/`,
+    method: 'DELETE',
+  });
+};
+
+/**
+ * 创建TDK模板
+ * @param data - TDK模板数据
+ */
+export const createTDKTemplate = async (data: {
+  page_type: string;
+  title?: string;
+  description?: string;
+  keywords?: string;
+  is_template?: boolean;
+}): Promise<ApiResponse<TDKTemplate>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    return Promise.resolve({
+      code: 201,
+      data: {
+        id: Date.now(),
+        page_type: data.page_type,
+        page_type_display: data.page_type,
+        title: data.title || '',
+        description: data.description || '',
+        keywords: data.keywords || '',
+        updated_at: new Date().toISOString(),
+        applied_count: 0,
+        is_template: true,
+      },
+      message: '创建成功',
+      success: true,
+    }) as unknown as Promise<ApiResponse<TDKTemplate>>;
+  }
+  return request<TDKTemplate>({
+    url: `${API_CONFIG.SEO_PREFIX}/tdk/`,
+    method: 'POST',
+    data,
+  });
+};
+
+/**
+ * 更新TDK模板
+ * @param id - 模板ID
+ * @param data - 更新的数据
+ */
+export const updateTDKTemplate = async (id: number, data: {
+  page_type?: string;
+  title?: string;
+  description?: string;
+  keywords?: string;
+}): Promise<ApiResponse<TDKTemplate>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    return Promise.resolve({
+      code: 200,
+      data: {
+        id,
+        page_type: data.page_type || 'article',
+        page_type_display: data.page_type || '文章页',
+        title: data.title || '',
+        description: data.description || '',
+        keywords: data.keywords || '',
+        updated_at: new Date().toISOString(),
+        applied_count: 0,
+        is_template: true,
+      },
+      message: '更新成功',
+      success: true,
+    }) as unknown as Promise<ApiResponse<TDKTemplate>>;
+  }
+  return request<TDKTemplate>({
+    url: `${API_CONFIG.SEO_PREFIX}/tdk/${id}/`,
+    method: 'PUT',
+    data,
+  });
+};
 
 export const exportTDKReport = async (): Promise<Blob> => {
   if (API_CONFIG.USE_MOCK) {
@@ -1039,6 +1266,10 @@ export const seoApi = {
   scanBacklinks,
   
   // TDK
+  getTDKList,
+  deleteTDK,
+  createTDKTemplate,
+  updateTDKTemplate,
   exportTDKReport,
   importTDKData,
   

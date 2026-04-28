@@ -1,86 +1,35 @@
-import React, { useState } from 'react';
-import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tabs, message, Breadcrumb, Upload } from 'antd';
-import { EditOutlined, EyeOutlined, CopyOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tabs, message, Breadcrumb, Upload, Popconfirm } from 'antd';
+import { EditOutlined, EyeOutlined, CopyOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { seoApi } from '../../services/seoApi';
+import { seoApi, type TDKTemplate as ApiTDKTemplate, type PageTDK as ApiPageTDK } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
 const { TextArea } = Input;
 const { Option } = Select;
-
-interface TDKTemplate {
-  id: number;
-  pageType: string;
-  titleTemplate: string;
-  descriptionTemplate: string;
-  keywordsTemplate: string;
-  applyCount: number;
-  lastUpdate: string;
-}
-
-interface PageTDK {
-  id: number;
-  url: string;
-  title: string;
-  description: string;
-  keywords: string[];
-  pageType: string;
-  charCount: { title: number; desc: number };
-}
 
 const TDKManager: React.FC = () => {
   const navigate = useNavigate();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
-  const [, setEditingRecord] = useState<PageTDK | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<TDKTemplate | null>(null);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false); // 是否为新增模式
+  const [, setEditingRecord] = useState<ApiPageTDK | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<ApiTDKTemplate | null>(null);
   // 文件输入引用（预留）
-  const [templates, setTemplates] = useState<TDKTemplate[]>([
-    {
-      id: 1,
-      pageType: '文章页',
-      titleTemplate: '{标题前50字}-{分类词}-{品牌词}',
-      descriptionTemplate: '前150字符+相关标签词',
-      keywordsTemplate: '{分类词},{标签1},{标签2},{标签3}',
-      applyCount: 856,
-      lastUpdate: '2026-04-15',
-    },
-    {
-      id: 2,
-      pageType: '分类页',
-      titleTemplate: '{分类名}-{相关词}-{品牌词}',
-      descriptionTemplate: '分类描述+热门标签',
-      keywordsTemplate: '{分类词},壁纸,高清壁纸',
-      applyCount: 24,
-      lastUpdate: '2026-04-14',
-    },
-    {
-      id: 3,
-      pageType: '标签页',
-      titleTemplate: '{标签词}:最新{标签词}壁纸下载-{品牌词}',
-      descriptionTemplate: '精选{标签词}壁纸，高清4K分辨率，免费下载',
-      keywordsTemplate: '{标签词},壁纸,4K壁纸',
-      applyCount: 156,
-      lastUpdate: '2026-04-13',
-    },
-    {
-      id: 4,
-      pageType: '首页',
-      titleTemplate: '{品牌词}-高清4K壁纸免费下载平台',
-      descriptionTemplate: '提供海量高清4K壁纸、手机壁纸、动态壁纸，免费下载使用',
-      keywordsTemplate: '壁纸,4K壁纸,高清壁纸,手机壁纸',
-      applyCount: 1,
-      lastUpdate: '2026-04-10',
-    },
-  ]);
+  const [templates, setTemplates] = useState<ApiTDKTemplate[]>([]);
+  const [pageTDKs, setPageTDKs] = useState<ApiPageTDK[]>([]);
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
   const [templateForm] = Form.useForm();
   
+  // 加载状态
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [loadingPages, setLoadingPages] = useState(false);
+  
   // 预览弹窗状态
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
-  const [previewRecord, setPreviewRecord] = useState<PageTDK | null>(null);
+  const [previewRecord, setPreviewRecord] = useState<ApiPageTDK | null>(null);
   const [previewData, setPreviewData] = useState({
     googleTitle: '',
     googleDesc: '',
@@ -96,114 +45,230 @@ const TDKManager: React.FC = () => {
   const [batchEditForm] = Form.useForm();
   const [batchEditing, setBatchEditing] = useState(false);
 
+  // 分页状态
+  const [templatePagination, setTemplatePagination] = useState({
+    currentPage: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  const [pagePagination, setPagePagination] = useState({
+    currentPage: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
+  // 获取TDK模板列表
+  useEffect(() => {
+    fetchTemplates();
+  }, [templatePagination.currentPage, templatePagination.pageSize]);
 
-  // 页面TDK数据
-  const pageTDKs: PageTDK[] = [
-    {
-      id: 1,
-      url: '/wallpaper/4k-star-sky',
-      title: '4K星空壁纸-夜景壁纸-壁纸大全',
-      description: '精选4K超高清星空壁纸，3840x2160分辨率，完美适配电脑桌面，免费下载使用',
-      keywords: ['4K壁纸', '星空壁纸', '夜景壁纸', '高清壁纸'],
-      pageType: '文章页',
-      charCount: { title: 24, desc: 52 },
-    },
-    {
-      id: 2,
-      url: '/category/anime',
-      title: '动漫壁纸-二次元高清壁纸-壁纸大全',
-      description: '海量动漫壁纸，二次元风格，高清分辨率，适配手机和电脑',
-      keywords: ['动漫壁纸', '二次元', '高清壁纸'],
-      pageType: '分类页',
-      charCount: { title: 23, desc: 38 },
-    },
-    {
-      id: 3,
-      url: '/tag/nature',
-      title: '自然风景:最新自然风景壁纸下载-壁纸大全',
-      description: '精选自然风景壁纸，山川湖海，高清4K分辨率，免费下载',
-      keywords: ['自然风景', '壁纸', '4K壁纸'],
-      pageType: '标签页',
-      charCount: { title: 30, desc: 37 },
-    },
-  ];
+  // 获取页面TDK列表
+  useEffect(() => {
+    fetchPageTDKs();
+  }, [pagePagination.currentPage, pagePagination.pageSize]);
 
-  const handleEditTemplate = (record: TDKTemplate) => {
+  const fetchTemplates = async () => {
+    try {
+      setLoadingTemplates(true);
+      const res = await seoApi.getTDKList({
+        currentPage: templatePagination.currentPage,
+        pageSize: templatePagination.pageSize,
+        is_template: true,
+      });
+      if (res.code === 200 && res.data) {
+        setTemplates(res.data.results as ApiTDKTemplate[]);
+        setTemplatePagination(prev => ({
+          ...prev,
+          total: res.data.pagination?.total || 0,
+        }));
+      }
+    } catch (_err) {
+      message.error('获取TDK模板失败');
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const fetchPageTDKs = async () => {
+    try {
+      setLoadingPages(true);
+      const res = await seoApi.getTDKList({
+        currentPage: pagePagination.currentPage,
+        pageSize: pagePagination.pageSize,
+        is_template: false,
+      });
+      if (res.code === 200 && res.data) {
+        setPageTDKs(res.data.results as ApiPageTDK[]);
+        setPagePagination(prev => ({
+          ...prev,
+          total: res.data.pagination?.total || 0,
+        }));
+      }
+    } catch (_err) {
+      message.error('获取页面TDK失败');
+    } finally {
+      setLoadingPages(false);
+    }
+  };
+
+  const handleEditTemplate = (record: ApiTDKTemplate) => {
+    setIsCreatingTemplate(false);
     setEditingTemplate(record);
     templateForm.setFieldsValue({
-      pageType: record.pageType,
-      titleTemplate: record.titleTemplate,
-      descriptionTemplate: record.descriptionTemplate,
-      keywordsTemplate: record.keywordsTemplate,
+      pageType: record.page_type,
+      titleTemplate: record.title,
+      descriptionTemplate: record.description,
+      keywordsTemplate: record.keywords,
     });
     setTemplateModalVisible(true);
   };
 
-  const handleSaveTemplate = () => {
-    templateForm.validateFields().then((values) => {
-      if (editingTemplate) {
-        setTemplates((prev) =>
-          prev.map((t) =>
-            t.id === editingTemplate.id
-              ? { ...t, ...values, lastUpdate: new Date().toISOString().split('T')[0] }
-              : t
-          )
-        );
-        message.success('模板保存成功');
-        setTemplateModalVisible(false);
-        setEditingTemplate(null);
-      }
-    });
+  const handleAddTemplate = () => {
+    setIsCreatingTemplate(true);
+    setEditingTemplate(null);
+    templateForm.resetFields();
+    setTemplateModalVisible(true);
   };
 
-  const handleCopyTemplate = (record: TDKTemplate) => {
-    const newTemplate: TDKTemplate = {
-      ...record,
-      id: Date.now(),
-      pageType: `${record.pageType} (复制)`,
-      applyCount: 0,
-      lastUpdate: new Date().toISOString().split('T')[0],
-    };
-    setTemplates((prev) => [...prev, newTemplate]);
-    message.success('模板复制成功');
+  const handleSaveTemplate = async () => {
+    try {
+      const values = await templateForm.validateFields();
+      if (isCreatingTemplate) {
+        // 新增模板
+        await seoApi.createTDKTemplate({
+          page_type: values.pageType,
+          title: values.titleTemplate,
+          description: values.descriptionTemplate,
+          keywords: values.keywordsTemplate,
+          is_template: true,
+        });
+        message.success('模板创建成功');
+      } else if (editingTemplate) {
+        // 更新模板
+        await seoApi.updateTDKTemplate(editingTemplate.id, {
+          page_type: values.pageType,
+          title: values.titleTemplate,
+          description: values.descriptionTemplate,
+          keywords: values.keywordsTemplate,
+        });
+        message.success('模板保存成功');
+      }
+      setTemplateModalVisible(false);
+      setEditingTemplate(null);
+      setIsCreatingTemplate(false);
+      fetchTemplates(); // 重新加载模板列表
+    } catch (_err) {
+      message.error(isCreatingTemplate ? '模板创建失败' : '模板保存失败');
+    }
+  };
+
+  const handleCopyTemplate = async (record: ApiTDKTemplate) => {
+    try {
+      // 提取当前模板的页面类型、Title模板、Description模板、Keywords模板字段，并固定is_template为true
+      await seoApi.createTDKTemplate({
+        page_type: record.page_type,
+        title: record.title,
+        description: record.description,
+        keywords: record.keywords,
+        is_template: true,
+      });
+      message.success('模板复制成功');
+      fetchTemplates(); // 重新加载模板列表
+    } catch (_err) {
+      message.error('模板复制失败');
+    }
+  };
+
+  const handleDeleteTemplate = async (record: ApiTDKTemplate) => {
+    try {
+      await seoApi.deleteTDK(record.id);
+      message.success('模板删除成功');
+      fetchTemplates(); // 重新加载模板列表
+    } catch (_err) {
+      message.error('模板删除失败');
+    }
   };
 
   const templateColumns = [
-    { title: '页面类型', dataIndex: 'pageType', key: 'pageType', width: 120 },
-    { title: 'Title模板', dataIndex: 'titleTemplate', key: 'titleTemplate', ellipsis: true },
-    { title: 'Description模板', dataIndex: 'descriptionTemplate', key: 'descriptionTemplate', ellipsis: true },
-    { title: 'Keywords模板', dataIndex: 'keywordsTemplate', key: 'keywordsTemplate', ellipsis: true },
-    { title: '应用页面数', dataIndex: 'applyCount', key: 'applyCount', width: 100 },
-    { title: '最后更新', dataIndex: 'lastUpdate', key: 'lastUpdate', width: 120 },
+    { title: '页面类型', dataIndex: 'page_type_display', key: 'page_type_display', width: 120 },
+    { title: 'Title模板', dataIndex: 'title', key: 'title', ellipsis: true },
+    { title: 'Description模板', dataIndex: 'description', key: 'description', ellipsis: true },
+    { title: 'Keywords模板', dataIndex: 'keywords', key: 'keywords', ellipsis: true },
+    { 
+      title: <span style={{ whiteSpace: 'nowrap' }}>应用页面数</span>, 
+      dataIndex: 'applied_count', 
+      key: 'applied_count', 
+      width: 100 
+    },
+    { 
+      title: '最后更新', 
+      dataIndex: 'updated_at', 
+      key: 'updated_at', 
+      width: 160,
+      render: (text: string) => {
+        if (!text) return '--';
+        try {
+          const date = new Date(text);
+          return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          }).replace(/\//g, '-');
+        } catch (_err) {
+          return text;
+        }
+      }
+    },
     {
       title: '操作',
       key: 'action',
-      width: 180,
-      render: (_: unknown, record: TDKTemplate) => (
-        <Space>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEditTemplate(record)}>
+      width: 200,
+      render: (_: unknown, record: ApiTDKTemplate) => (
+        <Space size={4}>
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEditTemplate(record)} style={{ padding: '0 4px' }}>
             编辑
           </Button>
-          <Button type="link" icon={<CopyOutlined />} onClick={() => handleCopyTemplate(record)}>
+          <Button type="link" icon={<CopyOutlined />} onClick={() => handleCopyTemplate(record)} style={{ padding: '0 4px' }}>
             复制
           </Button>
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除这个模板吗？"
+            onConfirm={() => handleDeleteTemplate(record)}
+            okText="确定"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button 
+              type="link" 
+              size="small" 
+              danger
+              icon={<DeleteOutlined />}
+              style={{ padding: '0 4px' }}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
   const pageColumns = [
-    { title: '页面URL', dataIndex: 'url', key: 'url', width: 200 },
+    { title: '页面URL', dataIndex: 'url_content', key: 'url_content', width: 200 },
     {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
-      render: (text: string, record: PageTDK) => (
+      render: (text: string, record: ApiPageTDK) => (
         <div>
           <div>{text}</div>
-          <Tag color={record.charCount.title > 60 ? 'error' : record.charCount.title > 55 ? 'warning' : 'success'}>
-            {record.charCount.title} 字符
+          <Tag color={record.char_count?.title && record.char_count.title > 60 ? 'error' : record.char_count?.title && record.char_count.title > 55 ? 'warning' : 'success'}>
+            {record.char_count?.title || 0} 字符
           </Tag>
         </div>
       ),
@@ -213,11 +278,11 @@ const TDKManager: React.FC = () => {
       dataIndex: 'description',
       key: 'description',
       width: 300,
-      render: (text: string, record: PageTDK) => (
+      render: (text: string, record: ApiPageTDK) => (
         <div>
           <div style={{ fontSize: 12, color: '#666' }}>{text}</div>
-          <Tag color={record.charCount.desc > 160 ? 'error' : record.charCount.desc > 150 ? 'warning' : 'success'}>
-            {record.charCount.desc} 字符
+          <Tag color={record.char_count?.desc && record.char_count.desc > 160 ? 'error' : record.char_count?.desc && record.char_count.desc > 150 ? 'warning' : 'success'}>
+            {record.char_count?.desc || 0} 字符
           </Tag>
         </div>
       ),
@@ -232,12 +297,12 @@ const TDKManager: React.FC = () => {
         </Space>
       ),
     },
-    { title: '页面类型', dataIndex: 'pageType', key: 'pageType', width: 100 },
+    { title: '页面类型', dataIndex: 'page_type_display', key: 'page_type_display', width: 100 },
     {
       title: '操作',
       key: 'action',
       width: 120,
-      render: (_: unknown, record: PageTDK) => (
+      render: (_: unknown, record: ApiPageTDK) => (
         <Space>
           <Button
             type="link"
@@ -252,7 +317,7 @@ const TDKManager: React.FC = () => {
     },
   ];
 
-  const handleEdit = (record: PageTDK) => {
+  const handleEdit = (record: ApiPageTDK) => {
     setEditingRecord(record);
     form.setFieldsValue({
       title: record.title,
@@ -305,13 +370,13 @@ const TDKManager: React.FC = () => {
       const affectedCount = values.pageType === 'all' ? 1200 : 300;
       
       // 找到选中的模板
-      const selectedTemplate = templates.find(t => t.pageType === values.pageType) || templates[0];
+      const selectedTemplate = templates.find(t => t.page_type_display === values.pageType) || templates[0];
       
       // 模拟批量应用过程
       message.loading(`正在应用模板到 ${affectedCount} 个页面...`, 2);
       
       setTimeout(() => {
-        message.success(`批量应用成功！共影响 ${affectedCount} 个页面，模板：${selectedTemplate.pageType}`);
+        message.success(`批量应用成功！共影响 ${affectedCount} 个页面，模板：${selectedTemplate?.page_type_display}`);
         setBatchModalVisible(false);
         batchForm.resetFields();
       }, 2000);
@@ -350,17 +415,17 @@ const TDKManager: React.FC = () => {
   };
 
   // 预览功能
-  const handlePreview = (record: PageTDK) => {
+  const handlePreview = (record: ApiPageTDK) => {
     setPreviewRecord(record);
     
     // 模拟不同搜索引擎的展示效果
     setPreviewData({
       googleTitle: record.title.length > 60 ? record.title.substring(0, 57) + '...' : record.title,
       googleDesc: record.description.length > 160 ? record.description.substring(0, 157) + '...' : record.description,
-      googleUrl: `https://example.com${record.url}`,
+      googleUrl: `https://example.com${record.url_content}`,
       bingTitle: record.title.length > 65 ? record.title.substring(0, 62) + '...' : record.title,
       bingDesc: record.description.length > 170 ? record.description.substring(0, 167) + '...' : record.description,
-      bingUrl: `https://example.com${record.url}`,
+      bingUrl: `https://example.com${record.url_content}`,
     });
     
     setPreviewModalVisible(true);
@@ -397,24 +462,46 @@ const TDKManager: React.FC = () => {
 
       <Tabs defaultActiveKey="templates">
         <TabPane tab="TDK模板" key="templates">
-          <Card>
-            <Alert
+          <Card
+            title="TDK模板管理"
+            extra={
+              <Button type="primary" onClick={handleAddTemplate}>
+                新增模板
+              </Button>
+            }
+          >
+            {/* <Alert
               message="模板变量说明"
               description="{标题前50字} - 自动提取文章前50字符 | {分类词} - 文章所属分类 | {标签1/2/3} - 文章标签 | {品牌词} - 站点品牌名称"
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
-            />
+            /> */}
             <Table
               columns={templateColumns}
               dataSource={templates}
               rowKey="id"
-              pagination={false}
+              loading={loadingTemplates}
+              pagination={{
+                current: templatePagination.currentPage,
+                pageSize: templatePagination.pageSize,
+                total: templatePagination.total,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (page, pageSize) => {
+                  setTemplatePagination(prev => ({
+                    ...prev,
+                    currentPage: page,
+                    pageSize: pageSize || prev.pageSize,
+                  }));
+                },
+              }}
             />
           </Card>
         </TabPane>
 
-        <TabPane tab="页面TDK" key="pages">
+        <TabPane tab="页面TDK" key="pageType">
           <Card>
             <Space style={{ marginBottom: 16 }}>
               <Select placeholder="页面类型" style={{ width: 120 }} allowClear>
@@ -451,15 +538,25 @@ const TDKManager: React.FC = () => {
               columns={pageColumns}
               dataSource={pageTDKs}
               rowKey="id"
+              loading={loadingPages}
               rowSelection={{
                 selectedRowKeys,
                 onChange: (keys) => setSelectedRowKeys(keys),
               }}
               pagination={{
-                pageSize: 10,
+                current: pagePagination.currentPage,
+                pageSize: pagePagination.pageSize,
+                total: pagePagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
                 showTotal: (total) => `共 ${total} 条`,
+                onChange: (page, pageSize) => {
+                  setPagePagination(prev => ({
+                    ...prev,
+                    currentPage: page,
+                    pageSize: pageSize || prev.pageSize,
+                  }));
+                },
               }}
             />
           </Card>
@@ -567,7 +664,7 @@ const TDKManager: React.FC = () => {
           >
             <Select placeholder="选择TDK模板">
               {templates.map((t) => (
-                <Option key={t.id} value={t.id}>{t.pageType}模板</Option>
+                <Option key={t.id} value={t.id}>{t.page_type_display}模板</Option>
               ))}
             </Select>
           </Form.Item>
@@ -580,14 +677,15 @@ const TDKManager: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* 编辑模板弹窗 */}
+      {/* 编辑/新增模板弹窗 */}
       <Modal
-        title={editingTemplate ? `编辑模板 - ${editingTemplate.pageType}` : '编辑模板'}
+        title={isCreatingTemplate ? '新增TDK模板' : (editingTemplate ? `编辑模板 - ${editingTemplate.page_type_display}` : '编辑模板')}
         open={templateModalVisible}
         onOk={handleSaveTemplate}
         onCancel={() => {
           setTemplateModalVisible(false);
           setEditingTemplate(null);
+          setIsCreatingTemplate(false);
         }}
         width={700}
       >
@@ -597,7 +695,14 @@ const TDKManager: React.FC = () => {
             label="页面类型"
             rules={[{ required: true }]}
           >
-            <Input placeholder="如：文章页、分类页、标签页" />
+            <Select placeholder="选择页面类型">
+              <Option value="article">文章页</Option>
+              <Option value="category">分类页</Option>
+              <Option value="tag">标签页</Option>
+              <Option value="detail">详情页</Option>
+              <Option value="search">搜索页</Option>
+              <Option value="custom">自定义页</Option>
+            </Select>
           </Form.Item>
           <Form.Item
             name="titleTemplate"
