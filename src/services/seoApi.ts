@@ -339,6 +339,7 @@ export interface SitemapFile {
   lastUpdate: string;
   status: 'valid' | 'invalid' | 'error';
   autoUpdate: boolean;
+  content?: string;  // Sitemap内容
 }
 
 export interface SitemapConfig {
@@ -428,6 +429,35 @@ export const createSitemapUrl = async (data: {
   }
   return request<SitemapUrl>({
     url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/`,
+    method: 'POST',
+    data,
+  });
+};
+
+// 更新 Sitemap URL
+export const updateSitemapUrl = async (data: {
+  id: number;
+  title: string;
+  content: string;
+}): Promise<ApiResponse<SitemapUrl>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockResult: SitemapUrl = {
+      id: data.id,
+      loc: data.content,
+      lastmod: new Date().toISOString(),
+      changefreq: 'weekly',
+      priority: 0.5,
+      status: 'indexed',
+    };
+    return Promise.resolve({
+      code: 200,
+      data: mockResult,
+      message: '更新成功',
+    }) as Promise<ApiResponse<SitemapUrl>>;
+  }
+  return request<SitemapUrl>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/update-sitemap-xml/`,
     method: 'POST',
     data,
   });

@@ -3,7 +3,7 @@ import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, In
 
 import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory, getSitemapStatus } from '../../services/seoApi';
+import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, updateSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory, getSitemapStatus } from '../../services/seoApi';
 import type { SitemapFile, SitemapUrl, SitemapHistory, SitemapStatistics as SitemapStatisticsType } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
@@ -15,12 +15,14 @@ const SitemapManager: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [generateModalVisible, setGenerateModalVisible] = useState(false);
   const [addUrlModalVisible, setAddUrlModalVisible] = useState(false);  // 新增 URL 弹窗
+  const [editingSitemap, setEditingSitemap] = useState<SitemapFile | null>(null);  // 正在编辑的Sitemap
   const [selectedSitemap, setSelectedSitemap] = useState<SitemapFile | null>(null);
   const [form] = Form.useForm();
   const [generateForm] = Form.useForm();
   const [addUrlForm] = Form.useForm();  // 新增 URL 表单
   const [loading, setLoading] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);  // 保存 URL 加载状态
+  const [savingEdit, setSavingEdit] = useState(false);  // 保存编辑加载状态
   const [sitemapFiles, setSitemapFiles] = useState<SitemapFile[]>([]);
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapTotal, setSitemapTotal] = useState(0);
@@ -59,12 +61,20 @@ const SitemapManager: React.FC = () => {
   });
   const [statsLoading, setStatsLoading] = useState(false);
 
+  // Sitemap状态
+  const [sitemapStatus, setSitemapStatus] = useState<{
+    is_valid: boolean;
+    updated_at: string;
+  } | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+
   // 加载Sitemap列表
   useEffect(() => {
     loadSitemaps();
     loadSitemapHistory();
     loadUrls();
     loadStatistics();
+    loadSitemapStatus();
   }, []);
 
   // 格式化日期时间
@@ -110,6 +120,7 @@ const SitemapManager: React.FC = () => {
           lastUpdate: formatDateTime(item.updated_at),           // updated_at -> lastUpdate (格式化)
           status: item.is_active ? 'valid' : 'invalid',          // is_active -> status
           autoUpdate: item.auto_update ?? false,
+          content: item.content || '',                           // content 字段
         }));
         
         setSitemapFiles(mappedResults);
@@ -190,6 +201,22 @@ const SitemapManager: React.FC = () => {
       message.error(err?.message || '加载统计数据失败');
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  // 加载Sitemap状态
+  const loadSitemapStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const res = await getSitemapStatus();
+      if ((res.code === 200 || res.code === 201) && res.data) {
+        setSitemapStatus(res.data);
+      }
+    } catch (err: any) {
+      console.error('加载Sitemap状态失败:', err);
+      message.error(err?.message || '加载Sitemap状态失败');
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -327,19 +354,42 @@ const SitemapManager: React.FC = () => {
   };
 
   const handleEdit = (record: SitemapFile) => {
-    setSelectedSitemap(record);
+    setEditingSitemap(record);
     form.setFieldsValue({
-      name: record.name,
-      autoUpdate: record.autoUpdate,
+      title: record.name,
+      content: record.content,  // 如果需要编辑内容,可以从record获取
     });
     setEditModalVisible(true);
   };
 
-  const handleSave = () => {
-    form.validateFields().then(() => {
-      message.success('保存成功');
-      setEditModalVisible(false);
-    });
+  const handleSaveEdit = async () => {
+    try {
+      const values = await form.validateFields();
+      setSavingEdit(true);
+      
+      if (!editingSitemap) {
+        message.error('编辑对象不存在');
+        return;
+      }
+      
+      const res = await updateSitemapUrl({
+        id: editingSitemap.id,
+        title: values.title,
+        content: values.content,
+      });
+      
+      if (res.code === 200 || res.code === 201) {
+        message.success('保存成功');
+        setEditModalVisible(false);
+        form.resetFields();
+        loadSitemaps();  // 刷新列表
+      }
+    } catch (err: any) {
+      console.error('保存失败:', err);
+      message.error(err?.message || '保存失败');
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   // 打开自动更新配置
@@ -587,9 +637,13 @@ const SitemapManager: React.FC = () => {
         <TabPane tab="Sitemap文件" key="files">
           <Card>
             <Alert
-              message="Sitemap状态正常"
-              description="所有sitemap文件均可正常访问，最后更新时间为 2026-04-17 10:00"
-              type="success"
+              message={sitemapStatus?.is_valid ? 'Sitemap状态正常' : 'Sitemap状态异常'}
+              description={
+                sitemapStatus 
+                  ? `所有sitemap文件均可正常访问，最后更新时间为 ${formatDateTime(sitemapStatus.updated_at)}`
+                  : '正在加载Sitemap状态...'
+              }
+              type={sitemapStatus?.is_valid ? 'success' : 'error'}
               showIcon
               style={{ marginBottom: 16 }}
             />
@@ -788,22 +842,7 @@ const SitemapManager: React.FC = () => {
             <p><strong>包含URL数:</strong> {selectedSitemap.urls}</p> */}
             <TextArea
               rows={15}
-              value={`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://example.com/wallpaper/4k-star-sky</loc>
-    <lastmod>2026-04-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://example.com/wallpaper/anime-girl</loc>
-    <lastmod>2026-04-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  ...
-</urlset>`}
+              value={selectedSitemap.content}
               readOnly
             />
           </div>
@@ -814,16 +853,28 @@ const SitemapManager: React.FC = () => {
       <Modal
         title="编辑Sitemap配置"
         open={editModalVisible}
-        onOk={handleSave}
-        onCancel={() => setEditModalVisible(false)}
+        onOk={handleSaveEdit}
+        onCancel={() => {
+          setEditModalVisible(false);
+          form.resetFields();
+        }}
+        confirmLoading={savingEdit}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="文件名" rules={[{ required: true }]}>
-            <Input />
+          <Form.Item 
+            name="title" 
+            label="文件名" 
+            rules={[{ required: true, message: '请输入文件名' }]}
+          >
+            <Input placeholder="请输入文件名" />
           </Form.Item>
-          {/* <Form.Item name="autoUpdate" label="自动更新" valuePropName="checked">
-            <Switch />
-          </Form.Item> */}
+          <Form.Item 
+            name="content" 
+            label="内容" 
+            rules={[{ required: true, message: '请输入内容' }]}
+          >
+            <Input.TextArea rows={4} placeholder="请输入内容" />
+          </Form.Item>
         </Form>
       </Modal>
 
