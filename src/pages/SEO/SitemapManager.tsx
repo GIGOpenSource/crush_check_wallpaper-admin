@@ -527,19 +527,6 @@ const SitemapManager: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 操作栏 */}
-      <Card style={{ marginBottom: 24 }}>
-        <Space>
-          <Button type="primary" icon={<ReloadOutlined />} onClick={() => setGenerateModalVisible(true)}>
-            重新生成
-          </Button>
-          <Button icon={<GlobalOutlined />} onClick={handleSubmitToSearchEngines}>
-            提交到搜索引擎
-          </Button>
-          {/* <Button icon={<DownloadOutlined />} onClick={handleDownloadAll}>下载全部</Button> */}
-        </Space>
-      </Card>
-
       <Tabs defaultActiveKey="files">
         <TabPane tab="Sitemap文件" key="files">
           <Card>
@@ -550,6 +537,14 @@ const SitemapManager: React.FC = () => {
               showIcon
               style={{ marginBottom: 16 }}
             />
+            <Space style={{ marginBottom: 16 }}>
+              <Button type="primary" icon={<ReloadOutlined />} onClick={() => setGenerateModalVisible(true)}>
+                重新生成
+              </Button>
+              <Button icon={<GlobalOutlined />} onClick={handleSubmitToSearchEngines}>
+                提交到搜索引擎
+              </Button>
+            </Space>
             <Table 
               columns={columns} 
               dataSource={sitemapFiles} 
