@@ -882,8 +882,8 @@ export const deleteTDK = async (id: number): Promise<ApiResponse<void>> => {
 };
 
 /**
- * 创建TDK模板
- * @param data - TDK模板数据
+ * 创建TDK模板或页面TDK
+ * @param data - TDK数据
  */
 export const createTDKTemplate = async (data: {
   page_type: string;
@@ -891,6 +891,7 @@ export const createTDKTemplate = async (data: {
   description?: string;
   keywords?: string;
   is_template?: boolean;
+  url_content?: string;  // 页面URL（仅页面TDK需要）
 }): Promise<ApiResponse<TDKTemplate>> => {
   if (API_CONFIG.USE_MOCK) {
     // Mock 数据
@@ -905,7 +906,8 @@ export const createTDKTemplate = async (data: {
         keywords: data.keywords || '',
         updated_at: new Date().toISOString(),
         applied_count: 0,
-        is_template: true,
+        is_template: data.is_template !== false,
+        url_content: data.url_content || '',
       },
       message: '创建成功',
       success: true,

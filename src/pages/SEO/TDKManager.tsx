@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tabs, message, Breadcrumb, Upload, Popconfirm } from 'antd';
-import { EditOutlined, EyeOutlined, CopyOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EditOutlined, EyeOutlined, CopyOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi, type TDKTemplate as ApiTDKTemplate, type PageTDK as ApiPageTDK } from '../../services/seoApi';
 
@@ -13,15 +13,19 @@ const TDKManager: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [pageTDKModalVisible, setPageTDKModalVisible] = useState(false); // 页面TDK编辑弹窗
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false); // 是否为新增模式
+  const [isCreatingPageTDK, setIsCreatingPageTDK] = useState(false); // 是否为新增页面TDK模式
   const [, setEditingRecord] = useState<ApiPageTDK | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<ApiTDKTemplate | null>(null);
+  const [editingPageTDK, setEditingPageTDK] = useState<ApiPageTDK | null>(null); // 正在编辑的页面TDK
   // 文件输入引用（预留）
   const [templates, setTemplates] = useState<ApiTDKTemplate[]>([]);
   const [pageTDKs, setPageTDKs] = useState<ApiPageTDK[]>([]);
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
   const [templateForm] = Form.useForm();
+  const [pageTDKForm] = Form.useForm(); // 页面TDK表单
   
   // 加载状态
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -264,74 +268,151 @@ const TDKManager: React.FC = () => {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
-      render: (text: string, record: ApiPageTDK) => (
-        <div>
-          <div>{text}</div>
-          <Tag color={record.char_count?.title && record.char_count.title > 60 ? 'error' : record.char_count?.title && record.char_count.title > 55 ? 'warning' : 'success'}>
-            {record.char_count?.title || 0} 字符
-          </Tag>
-        </div>
-      ),
+      render: (text: string, record: ApiPageTDK) => {
+        const titleLength = text ? text.length : 0;
+        return (
+          <div>
+            <div>{text}</div>
+            <Tag color={titleLength > 60 ? 'error' : titleLength > 55 ? 'warning' : 'success'}>
+              {titleLength} 字符
+            </Tag>
+          </div>
+        );
+      },
     },
     {
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
       width: 300,
-      render: (text: string, record: ApiPageTDK) => (
-        <div>
-          <div style={{ fontSize: 12, color: '#666' }}>{text}</div>
-          <Tag color={record.char_count?.desc && record.char_count.desc > 160 ? 'error' : record.char_count?.desc && record.char_count.desc > 150 ? 'warning' : 'success'}>
-            {record.char_count?.desc || 0} 字符
-          </Tag>
-        </div>
-      ),
+      render: (text: string, record: ApiPageTDK) => {
+        const descLength = text ? text.length : 0;
+        return (
+          <div>
+            <div style={{ fontSize: 12, color: '#666' }}>{text}</div>
+            <Tag color={descLength > 160 ? 'error' : descLength > 150 ? 'warning' : 'success'}>
+              {descLength} 字符
+            </Tag>
+          </div>
+        );
+      },
     },
     {
       title: 'Keywords',
       dataIndex: 'keywords',
       key: 'keywords',
-      render: (keywords: string[]) => (
-        <Space wrap>
-          {keywords.map((k, i) => <Tag key={i}>{k}</Tag>)}
-        </Space>
-      ),
+      render: (keywords: string[] | string) => {
+        // 防御性处理：确保keywords是数组
+        const keywordArray = Array.isArray(keywords) ? keywords : (typeof keywords === 'string' ? [keywords] : []);
+        return (
+          <Space wrap>
+            {keywordArray.map((k, i) => <Tag key={i}>{k}</Tag>)}
+          </Space>
+        );
+      },
     },
-    { title: '页面类型', dataIndex: 'page_type_display', key: 'page_type_display', width: 100 },
+    { 
+      title: <span style={{ whiteSpace: 'nowrap' }}>页面类型</span>, 
+      dataIndex: 'page_type_display', 
+      key: 'page_type_display', 
+      width: 100 
+    },
     {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 180,
       render: (_: unknown, record: ApiPageTDK) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
+        <Space size={4}>
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} style={{ padding: '0 4px' }}>
             编辑
           </Button>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handlePreview(record)}>预览</Button>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handlePreview(record)} style={{ padding: '0 4px' }}>预览</Button>
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除这个页面TDK吗？"
+            onConfirm={() => handleDeletePageTDK(record)}
+            okText="确定"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button 
+              type="link" 
+              size="small" 
+              danger
+              icon={<DeleteOutlined />}
+              style={{ padding: '0 4px' }}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
   const handleEdit = (record: ApiPageTDK) => {
-    setEditingRecord(record);
-    form.setFieldsValue({
+    setIsCreatingPageTDK(false);
+    setEditingPageTDK(record);
+    pageTDKForm.setFieldsValue({
+      url_content: record.url_content,
       title: record.title,
       description: record.description,
-      keywords: record.keywords.join(', '),
+      keywords: Array.isArray(record.keywords) ? record.keywords.join(', ') : record.keywords,
+      page_type: record.page_type || 'article',
     });
-    setEditModalVisible(true);
+    setPageTDKModalVisible(true);
   };
 
-  const handleSave = () => {
-    form.validateFields().then(() => {
-      message.success('保存成功');
-      setEditModalVisible(false);
-    });
+  const handleAddPageTDK = () => {
+    setIsCreatingPageTDK(true);
+    setEditingPageTDK(null);
+    pageTDKForm.resetFields();
+    setPageTDKModalVisible(true);
+  };
+
+  const handleSavePageTDK = async () => {
+    try {
+      const values = await pageTDKForm.validateFields();
+      const keywordsArray = values.keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k);
+      
+      if (isCreatingPageTDK) {
+        // 新增页面TDK
+        await seoApi.createTDKTemplate({
+          url_content: values.url_content,
+          page_type: values.page_type,
+          title: values.title,
+          description: values.description,
+          keywords: keywordsArray.join(','),
+          is_template: false,
+        });
+        message.success('页面TDK创建成功');
+      } else if (editingPageTDK) {
+        // 更新页面TDK
+        await seoApi.updateTDKTemplate(editingPageTDK.id, {
+          page_type: values.page_type,
+          title: values.title,
+          description: values.description,
+          keywords: keywordsArray.join(','),
+        });
+        message.success('页面TDK保存成功');
+      }
+      setPageTDKModalVisible(false);
+      setEditingPageTDK(null);
+      setIsCreatingPageTDK(false);
+      fetchPageTDKs(); // 重新加载页面TDK列表
+    } catch (_err) {
+      message.error(isCreatingPageTDK ? '页面TDK创建失败' : '页面TDK保存失败');
+    }
+  };
+
+  const handleDeletePageTDK = async (record: ApiPageTDK) => {
+    try {
+      await seoApi.deleteTDK(record.id);
+      message.success('页面TDK删除成功');
+      fetchPageTDKs(); // 重新加载页面TDK列表
+    } catch (_err) {
+      message.error('页面TDK删除失败');
+    }
   };
 
   // 打开批量编辑弹窗
@@ -502,18 +583,28 @@ const TDKManager: React.FC = () => {
         </TabPane>
 
         <TabPane tab="页面TDK" key="pageType">
-          <Card>
+          <Card
+            title="页面TDK管理"
+            extra={
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddPageTDK}>
+                新增页面TDK
+              </Button>
+            }
+          >
             <Space style={{ marginBottom: 16 }}>
               <Select placeholder="页面类型" style={{ width: 120 }} allowClear>
-                <Option value="article">文章页</Option>
-                <Option value="category">分类页</Option>
-                <Option value="tag">标签页</Option>
+                  <Option value="article">文章页</Option>
+              <Option value="category">分类页</Option>
+              <Option value="tag">标签页</Option>
+              <Option value="detail">详情页</Option>
+              <Option value="search">搜索页</Option>
+              <Option value="custom">自定义页</Option>
               </Select>
-              <Select placeholder="字符长度" style={{ width: 120 }} allowClear>
+              {/* <Select placeholder="字符长度" style={{ width: 120 }} allowClear>
                 <Option value="title_long">Title超长</Option>
                 <Option value="desc_long">Desc超长</Option>
                 <Option value="title_short">Title过短</Option>
-              </Select>
+              </Select> */}
               <Input.Search placeholder="搜索URL/标题" style={{ width: 250 }} />
             </Space>
             {selectedRowKeys.length > 0 && (
@@ -588,61 +679,13 @@ const TDKManager: React.FC = () => {
         </TabPane>
       </Tabs>
 
-      {/* 编辑TDK弹窗 */}
-      <Modal
-        title="编辑TDK"
-        open={editModalVisible}
-        onOk={handleSave}
-        onCancel={() => setEditModalVisible(false)}
-        width={600}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="title"
-            label="Title"
-            rules={[{ required: true }]}
-          >
-            <Input maxLength={70} showCount placeholder="建议55-65字符" />
-          </Form.Item>
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[{ required: true }]}
-          >
-            <TextArea
-              rows={3}
-              maxLength={170}
-              showCount
-              placeholder="建议150-160字符"
-            />
-          </Form.Item>
-          <Form.Item
-            name="keywords"
-            label="Keywords"
-          >
-            <Input placeholder="多个关键词用逗号分隔" />
-          </Form.Item>
-          <Alert
-            message="SEO优化提示"
-            description={
-              <ul style={{ margin: 0, paddingLeft: 16 }}>
-                <li>Title应包含核心关键词，长度控制在60字符以内</li>
-                <li>Description应准确概括内容，吸引用户点击</li>
-                <li>Keywords建议3-5个，避免堆砌</li>
-              </ul>
-            }
-            type="info"
-            showIcon
-          />
-        </Form>
-      </Modal>
-
       {/* 批量应用弹窗 */}
       <Modal
         title="批量应用TDK模板"
         open={batchModalVisible}
         onOk={handleBatchApply}
         onCancel={() => setBatchModalVisible(false)}
+        destroyOnHidden
       >
         <Form form={batchForm} layout="vertical">
           <Form.Item
@@ -677,6 +720,88 @@ const TDKManager: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* 编辑/新增页面TDK弹窗 */}
+      <Modal
+        title={isCreatingPageTDK ? '新增页面TDK' : (editingPageTDK ? `编辑页面TDK - ${editingPageTDK.url_content}` : '编辑页面TDK')}
+        open={pageTDKModalVisible}
+        onOk={handleSavePageTDK}
+        onCancel={() => {
+          setPageTDKModalVisible(false);
+          setEditingPageTDK(null);
+          setIsCreatingPageTDK(false);
+        }}
+        width={700}
+        destroyOnHidden
+      >
+        <Form form={pageTDKForm} layout="vertical">
+          <Form.Item
+            name="url_content"
+            label="页面URL"
+            rules={[{ required: true, message: '请输入页面URL' }]}
+          >
+            <Input 
+              placeholder="例如：/wallpaper/4k-star-sky" 
+              disabled={!isCreatingPageTDK}
+            />
+          </Form.Item>
+          <Form.Item
+            name="page_type"
+            label="页面类型"
+            rules={[{ required: true, message: '请选择页面类型' }]}
+          >
+            <Select placeholder="选择页面类型">
+              <Option value="article">文章页</Option>
+              <Option value="category">分类页</Option>
+              <Option value="tag">标签页</Option>
+              <Option value="detail">详情页</Option>
+              <Option value="search">搜索页</Option>
+              <Option value="custom">自定义页</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="title"
+            label="Title"
+            rules={[{ required: true, message: '请输入Title' }]}
+          >
+            <Input 
+              maxLength={70} 
+              showCount 
+              placeholder="建议55-65字符" 
+            />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="Description"
+            rules={[{ required: true, message: '请输入Description' }]}
+          >
+            <Input.TextArea
+              rows={3}
+              maxLength={170}
+              showCount
+              placeholder="建议150-160字符"
+            />
+          </Form.Item>
+          <Form.Item
+            name="keywords"
+            label="Keywords"
+          >
+            <Input placeholder="多个关键词用逗号分隔，如：壁纸,高清,4K" />
+          </Form.Item>
+          <Alert
+            message="SEO优化提示"
+            description={
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                <li>Title应包含核心关键词，长度控制在60字符以内</li>
+                <li>Description应准确概括内容，吸引用户点击</li>
+                <li>Keywords建议3-5个，避免堆砌</li>
+              </ul>
+            }
+            type="info"
+            showIcon
+          />
+        </Form>
+      </Modal>
+
       {/* 编辑/新增模板弹窗 */}
       <Modal
         title={isCreatingTemplate ? '新增TDK模板' : (editingTemplate ? `编辑模板 - ${editingTemplate.page_type_display}` : '编辑模板')}
@@ -688,6 +813,7 @@ const TDKManager: React.FC = () => {
           setIsCreatingTemplate(false);
         }}
         width={700}
+        destroyOnHidden
       >
         <Form form={templateForm} layout="vertical">
           <Form.Item
