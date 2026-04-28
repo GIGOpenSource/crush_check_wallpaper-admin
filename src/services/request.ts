@@ -12,12 +12,20 @@ import type {
   AxiosError 
 } from 'axios';
 import { message, Modal } from 'antd';
+import type { MessageInstance } from 'antd/es/message/interface';
 
 // 全局导航函数（用于在非组件中导航）
 let navigate: ((to: string, options?: { replace?: boolean }) => void) | null = null;
 
 export function setNavigate(fn: typeof navigate) {
   navigate = fn;
+}
+
+// 全局 message 实例（通过 App 组件设置）
+let globalMessage: MessageInstance = message;
+
+export function setMessageInstance(msgInstance: MessageInstance) {
+  globalMessage = msgInstance;
 }
 
 // 响应数据结构定义
@@ -100,30 +108,12 @@ service.interceptors.response.use(
     if (responseCode !== undefined && responseCode !== 200 && responseCode !== 201 && responseCode !== 0) {
       const customConfig = response.config as CustomRequestConfig;
       
-      console.log('🔴 接口返回错误:', { code: responseCode, message: responseMessage, data: res });
-      
       // 只要 code 不等于 200，都显示错误提示（除非明确配置为 false）
       if (customConfig.showErrorMessage !== false) {
         const errorMsg = responseMessage || '请求失败';
-        console.log('📢 准备显示错误提示:', errorMsg);
         
-        // 使用 setTimeout 确保在下一个事件循环中显示
-        setTimeout(() => {
-          // 根据配置决定如何显示错误消息
-          if (customConfig.showErrorMessage === 'modal' || customConfig.showErrorModal) {
-            // 使用 Modal 弹窗显示重要错误
-            console.log('💬 显示 Modal 错误提示');
-            Modal.error({
-              title: '请求失败',
-              content: errorMsg,
-              okText: '确定',
-            });
-          } else {
-            // 默认使用 message 提示错误
-            console.log('📣 显示 message 错误提示');
-            message.error(errorMsg);
-          }
-        }, 0);
+        // 使用全局 message 实例显示错误提示
+        globalMessage.error(errorMsg);
       }
 
       // 特殊状态码处理
@@ -141,6 +131,7 @@ service.interceptors.response.use(
         }
       }
 
+      // 返回包含错误信息的 Promise.reject
       return Promise.reject(new Error(responseMessage || '请求失败'));
     }
 
@@ -154,7 +145,6 @@ service.interceptors.response.use(
     
     // 处理HTTP错误状态码
     let errorMessage = '网络错误，请稍后重试';
-    let showAsModal = false;
     
     if (error.response) {
       // 尝试从响应中获取错误信息
@@ -180,7 +170,6 @@ service.interceptors.response.use(
             break;
           case 403:
             errorMessage = '没有权限执行此操作';
-            showAsModal = true; // 403错误使用弹窗
             break;
           case 404:
             errorMessage = '请求的资源不存在';
@@ -190,19 +179,15 @@ service.interceptors.response.use(
             break;
           case 500:
             errorMessage = '服务器内部错误';
-            showAsModal = true; // 500错误使用弹窗
             break;
           case 502:
             errorMessage = '网关错误';
-            showAsModal = true;
             break;
           case 503:
             errorMessage = '服务不可用';
-            showAsModal = true;
             break;
           case 504:
             errorMessage = '网关超时';
-            showAsModal = true;
             break;
           default:
             errorMessage = `请求失败: ${error.response.status}`;
@@ -212,22 +197,12 @@ service.interceptors.response.use(
       errorMessage = '请求超时，请检查网络连接';
     } else if (error.message === 'Network Error') {
       errorMessage = '网络连接失败，请检查网络设置';
-      showAsModal = true; // 网络错误使用弹窗
     }
 
     // 根据配置决定如何显示错误消息
     if (customConfig?.showErrorMessage !== false) {
-      if (customConfig.showErrorMessage === 'modal' || customConfig.showErrorModal || showAsModal) {
-        // 使用 Modal 弹窗显示重要错误
-        Modal.error({
-          title: '错误提示',
-          content: errorMessage,
-          okText: '确定',
-        });
-      } else {
-        // 使用 message 提示普通错误
-        message.error(errorMessage);
-      }
+      // 使用全局 message 实例显示错误提示
+      globalMessage.error(errorMessage);
     }
 
     console.error('Response error:', error);

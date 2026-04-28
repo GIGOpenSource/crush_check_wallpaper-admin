@@ -118,8 +118,12 @@ const AdminList: React.FC = () => {
       setLoading(true);
       
       if (editingAdmin) {
-        // 编辑模式
-        await updateAdmin(editingAdmin.id, values);
+        // 编辑模式：如果密码为空，则不传递密码字段
+        const updateData = { ...values };
+        if (!updateData.password || updateData.password.trim() === '') {
+          delete updateData.password;
+        }
+        await updateAdmin(editingAdmin.id, updateData);
         message.success('管理员信息更新成功');
       } else {
         // 新增模式
@@ -129,9 +133,10 @@ const AdminList: React.FC = () => {
       
       setModalVisible(false);
       loadAdmins(currentPage);
-    } catch (error) {
+    } catch (error: any) {
       console.error('保存管理员失败:', error);
-      message.error('保存管理员失败');
+      // 拦截器已经显示了错误提示，这里不需要重复显示
+      // 如果需要在业务层自定义错误处理，可以配置 showErrorMessage: false
     } finally {
       setLoading(false);
     }
@@ -144,9 +149,11 @@ const AdminList: React.FC = () => {
       await deleteAdmin(id);
       message.success('管理员删除成功');
       loadAdmins(currentPage);
-    } catch (error) {
+    } catch (error: any) {
       console.error('删除管理员失败:', error);
-      message.error('删除管理员失败');
+      // 展示后端返回的具体错误信息
+      const errorMsg = error?.message || error?.response?.data?.message || '删除管理员失败';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -333,23 +340,29 @@ const AdminList: React.FC = () => {
             <Input placeholder="请输入用户名" disabled={!!editingAdmin} />
           </Form.Item>
 
-          {!editingAdmin && (
-            <Form.Item
-              label="密码"
-              name="password"
-              rules={[
-                { required: true, message: '请输入密码' },
-                { min: 6, message: '密码长度不能少于6位' },
-              ]}
-            >
-              <Input.Password placeholder="请输入密码（至少6位）" />
-            </Form.Item>
-          )}
+          <Form.Item
+            label="密码"
+            name="password"
+            rules={
+              editingAdmin
+                ? [] // 编辑时密码非必填
+                : [
+                    { required: true, message: '请输入密码' },
+                    { min: 6, message: '密码长度不能少于6位' },
+                  ]
+            }
+            tooltip={editingAdmin ? '留空则不修改密码' : undefined}
+          >
+            <Input.Password 
+              placeholder={editingAdmin ? "请输入新密码（留空则不修改）" : "请输入密码（至少6位）"} 
+            />
+          </Form.Item>
 
           <Form.Item
             label="邮箱"
             name="email"
             rules={[
+              { required: true, message: '请输入邮箱' },
               { type: 'email', message: '请输入有效的邮箱地址' },
             ]}
           >
