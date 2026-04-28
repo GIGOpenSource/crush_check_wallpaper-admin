@@ -860,7 +860,7 @@ const WallpaperList: React.FC = () => {
       {showImagePreview && previewWallpaper && (
         <Image
           key={previewWallpaper.id}  // 使用壁纸ID作为key，确保切换图片时重新渲染
-          src={previewWallpaper.thumb_url}  // 直接使用 thumb_url
+          src={previewWallpaper.url}  // 直接使用 thumb_url
           alt={previewWallpaper.name}
           style={{ display: 'none' }}
           preview={{
