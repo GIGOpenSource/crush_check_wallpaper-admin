@@ -32,6 +32,11 @@ const SitemapManager: React.FC = () => {
   const [autoUpdateForm] = Form.useForm();
   const [savingAutoUpdate, setSavingAutoUpdate] = useState(false);
 
+  // 提交到搜索引擎弹窗状态
+  const [submitModalVisible, setSubmitModalVisible] = useState(false);
+  const [selectedSitemapIds, setSelectedSitemapIds] = useState<number[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
   // 提交历史记录
   const [sitemapHistory, setSitemapHistory] = useState<SitemapHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -447,15 +452,41 @@ const SitemapManager: React.FC = () => {
     message.success('开始下载全部sitemap文件...');
   };
 
+  // 打开提交到搜索引擎弹窗
+  const handleOpenSubmitModal = () => {
+    setSelectedSitemapIds([]);
+    setSubmitModalVisible(true);
+  };
+
+  // 关闭提交弹窗
+  const handleCloseSubmitModal = () => {
+    setSubmitModalVisible(false);
+    setSelectedSitemapIds([]);
+  };
+
+  // 提交到搜索引擎
   const handleSubmitToSearchEngines = async () => {
+    if (selectedSitemapIds.length === 0) {
+      message.warning('请至少选择一个 Sitemap 文件');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const sitemapIds = sitemapFiles.map(s => s.id);
-      const res = await submitToSearchEngines(sitemapIds);
+      const res = await submitToSearchEngines(selectedSitemapIds);
       if (res.code === 200) {
-        message.success(`成功提交 ${res.data.submitted} 个Sitemap到Google Search Console`);
+        message.success(`成功提交 ${selectedSitemapIds.length} 个 Sitemap 文件到搜索引擎`);
+        handleCloseSubmitModal();
+        // 刷新提交历史
+        loadSitemapHistory();
+      } else {
+        message.error(res.message || '提交失败');
       }
-    } catch (_err) {
-      message.error('提交失败');
+    } catch (err: any) {
+      console.error('提交到搜索引擎失败:', err);
+      message.error('提交失败，请稍后重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -541,7 +572,7 @@ const SitemapManager: React.FC = () => {
               <Button type="primary" icon={<ReloadOutlined />} onClick={() => setGenerateModalVisible(true)}>
                 重新生成
               </Button>
-              <Button icon={<GlobalOutlined />} onClick={handleSubmitToSearchEngines}>
+              <Button icon={<GlobalOutlined />} onClick={handleOpenSubmitModal}>
                 提交到搜索引擎
               </Button>
             </Space>
@@ -824,6 +855,56 @@ const SitemapManager: React.FC = () => {
             <Input type="number" min={0.1} max={1} step={0.1} placeholder="请输入优先级 (0.1 ~ 1)" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 提交到搜索引擎选择弹窗 */}
+      <Modal
+        title="选择要提交的 Sitemap 文件"
+        open={submitModalVisible}
+        onOk={handleSubmitToSearchEngines}
+        onCancel={handleCloseSubmitModal}
+        confirmLoading={submitting}
+        width={800}
+      >
+        <Alert
+          message="请选择要提交到搜索引擎的 Sitemap 文件"
+          description="提交后，搜索引擎将重新索引这些 Sitemap 文件中的 URL"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <Table
+          rowSelection={{
+            selectedRowKeys: selectedSitemapIds,
+            onChange: (selectedRowKeys: React.Key[]) => {
+              setSelectedSitemapIds(selectedRowKeys as number[]);
+            },
+          }}
+          columns={[
+            { title: '文件名', dataIndex: 'name', key: 'name', ellipsis: true },
+            { 
+              title: '状态', 
+              dataIndex: 'status', 
+              key: 'status', 
+              width: 100,
+              render: (status: string) => {
+                const config: Record<string, { color: string; text: string }> = {
+                  valid: { color: 'success', text: '有效' },
+                  invalid: { color: 'warning', text: '无效' },
+                  error: { color: 'error', text: '错误' },
+                };
+                const item = config[status] || { color: 'default', text: status || '未知' };
+                return <Tag color={item.color}>{item.text}</Tag>;
+              },
+            },
+            { title: 'URL数量', dataIndex: 'urls', key: 'urls', width: 100 },
+            { title: '最后更新', dataIndex: 'lastUpdate', key: 'lastUpdate', width: 180 },
+          ]}
+          dataSource={sitemapFiles}
+          rowKey="id"
+          pagination={false}
+          size="small"
+        />
       </Modal>
 
       {/* 自动更新配置弹窗 */}

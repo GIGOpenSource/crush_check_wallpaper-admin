@@ -589,9 +589,9 @@ export const submitToSearchEngines = async (sitemapIds: number[]): Promise<ApiRe
     return seoMockApi.submitToSearchEngines(sitemapIds);
   }
   return request({
-    url: `${API_CONFIG.SEO_PREFIX}/sitemap/submit`,
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/submit-to-search-engine/`,
     method: 'POST',
-    data: { sitemapIds },
+    data: { sitemap_id: sitemapIds },  // sitemap_id: [1,2,3]
   });
 };
 
