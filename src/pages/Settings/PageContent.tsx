@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card, Form, Button, Tabs, message, Spin } from 'antd';
-import type { TabsProps } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { getAllPageContent, savePageContent } from '../../services/settingsApi';
 import type { PageContent } from '../../services/settingsApi';
@@ -8,7 +7,12 @@ import '@wangeditor/editor/dist/css/style.css';
 import { Editor, Toolbar } from '@wangeditor/editor-for-react';
 import type { IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/editor';
 
-const { TabPane } = Tabs;
+// 动态注册wangEditor模块
+import('@wangeditor/editor').then(() => {
+  // 自动注册所有模块
+}).catch(error => {
+  console.error('wangEditor模块加载失败:', error);
+});
 
 // 编辑器配置（外部定义避免重复创建）
 const toolbarConfig: Partial<IToolbarConfig> = {
@@ -19,6 +23,7 @@ const toolbarConfig: Partial<IToolbarConfig> = {
     'bold',
     'underline',
     'italic',
+    'through',
     'color',
     'bgColor',
     '|',
@@ -33,21 +38,24 @@ const toolbarConfig: Partial<IToolbarConfig> = {
     'justifyLeft',
     'justifyCenter',
     'justifyRight',
+    'justifyJustify',
     '|',
     'insertLink',
     'insertImage',
     'insertTable',
-    'insertVideo',
     '|',
     'undo',
     'redo',
     '|',
+    'clearStyle',
     'fullScreen',
   ],
 };
 
 const editorConfig: Partial<IEditorConfig> = {
   placeholder: '请输入内容...',
+  autoFocus: false,
+  scroll: true,
   MENU_CONF: {
     uploadImage: {
       // 如果需要支持图片上传，可以在这里配置
@@ -67,20 +75,28 @@ interface EditorContainerProps {
 
 const EditorContainer: React.FC<EditorContainerProps> = React.memo(({ html, onCreated, onChange, visible }) => {
   const [editor, setEditor] = useState<IDomEditor | null>(null);
+  const editorRef = React.useRef<IDomEditor | null>(null);
 
   // 销毁编辑器
   useEffect(() => {
     return () => {
-      if (editor) {
-        editor.destroy();
+      if (editorRef.current) {
+        editorRef.current.destroy();
+        editorRef.current = null;
+        setEditor(null);
       }
     };
-  }, [editor]);
+  }, []);
 
-  // 只有在visible为true时才渲染编辑器
-  if (!visible) {
-    return <div style={{ height: '550px' }} />;
-  }
+  const handleCreated = useCallback((ed: IDomEditor) => {
+    editorRef.current = ed;
+    setEditor(ed);
+    onCreated(ed);
+  }, [onCreated]);
+
+  const handleChange = useCallback((ed: IDomEditor) => {
+    onChange(ed.getHtml());
+  }, [onChange]);
 
   return (
     <div style={{ border: '1px solid #d9d9d9', borderRadius: '4px' }}>
@@ -91,11 +107,10 @@ const EditorContainer: React.FC<EditorContainerProps> = React.memo(({ html, onCr
         style={{ borderBottom: '1px solid #d9d9d9' }}
       />
       <Editor
-        key={visible ? 'editor-active' : 'editor-inactive'}
         defaultConfig={editorConfig}
         value={html}
-        onCreated={onCreated}
-        onChange={(ed) => onChange(ed.getHtml())}
+        onCreated={handleCreated}
+        onChange={handleChange}
         mode="default"
         style={{ height: '500px', overflowY: 'hidden' }}
       />
@@ -229,7 +244,7 @@ const PageContent: React.FC = () => {
                   children: (
                     <Form.Item 
                       name="help" 
-                      label="帮助与支持内容"
+                      label=""
                       style={{ marginBottom: 0 }}
                     >
                       <EditorContainer
@@ -247,7 +262,7 @@ const PageContent: React.FC = () => {
                   children: (
                     <Form.Item 
                       name="about" 
-                      label="关于我们内容"
+                      label=""
                       style={{ marginBottom: 0 }}
                     >
                       <EditorContainer
@@ -265,7 +280,7 @@ const PageContent: React.FC = () => {
                   children: (
                     <Form.Item 
                       name="privacy" 
-                      label="隐私政策内容"
+                      label=""
                       style={{ marginBottom: 0 }}
                     >
                       <EditorContainer
