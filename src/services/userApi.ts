@@ -165,7 +165,7 @@ export function deleteCustomerUser(id: number) {
  * @param ids 用户ID数组
  */
 export function batchDisableCustomerUsers(ids: number[]) {
-  return http.post('/dashboard/customer_user/batch_disable/', { ids });
+  return http.post('/client/users/batch-disable/', { user_ids: ids,status:1 });
 }
 
 /**
@@ -173,5 +173,5 @@ export function batchDisableCustomerUsers(ids: number[]) {
  * @param ids 用户ID数组
  */
 export function batchDeleteCustomerUsers(ids: number[]) {
-  return http.post('/dashboard/customer_user/batch_delete/', { ids });
+  return http.post('/client/users/batch-delete/', { user_ids: ids });
 }
