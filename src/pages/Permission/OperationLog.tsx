@@ -174,17 +174,13 @@ const OperationLog: React.FC = () => {
     },
     { 
       title: '状态', 
-      dataIndex: 'status', 
-      key: 'status',
+      dataIndex: 'response_code', 
+      key: 'response_code',
       width: 100,
-      render: (status: number) => {
-        if (status === undefined || status === null) return '--';
-        if (status === 1) {
-          return <Tag color="success">成功</Tag>;
-        } else if (status === 0) {
-          return <Tag color="error">失败</Tag>;
-        }
-        return <Tag>--</Tag>;
+      render: (code: number) => {
+        if (!code) return '--';
+        const color = code >= 200 && code < 300 ? 'success' : 'error';
+        return <Tag color={color}>{code}</Tag>;
       },
     },
     // { 
@@ -451,27 +447,6 @@ const OperationLog: React.FC = () => {
                         }>
                           {currentLog.request_method}
                         </Tag>
-                      ) : '--'}
-                    </div>
-                  </div>
-                </Col>
-                <Col span={6}>
-                  <div style={{ 
-                    background: '#f5f7fa', 
-                    padding: '12px 16px', 
-                    borderRadius: 8,
-                    border: '1px solid #e8e8e8'
-                  }}>
-                    <div style={{ color: '#999', marginBottom: 6, fontSize: 12 }}>状态</div>
-                    <div>
-                      {currentLog.status !== undefined && currentLog.status !== null ? (
-                        currentLog.status === 1 ? (
-                          <Tag color="success">成功</Tag>
-                        ) : currentLog.status === 0 ? (
-                          <Tag color="error">失败</Tag>
-                        ) : (
-                          <Tag>--</Tag>
-                        )
                       ) : '--'}
                     </div>
                   </div>

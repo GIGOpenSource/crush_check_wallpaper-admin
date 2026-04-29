@@ -290,3 +290,33 @@ export function createWallpaperWithImage(data: {
     },
   });
 }
+
+/**
+ * 获取用户上传的壁纸列表
+ * @param customerId 用户ID
+ * @param params 查询参数
+ */
+export function getUserUploads(customerId: number, params?: {
+  currentPage?: number;
+  pageSize?: number;
+}) {
+  return http.get<GetWallpaperListResponse>(`/wallpapers/wallpaper/my-uploads/`, {
+    customer_id: customerId,
+    ...params,
+  });
+}
+
+/**
+ * 获取用户收藏的壁纸列表
+ * @param customerId 用户ID
+ * @param params 查询参数
+ */
+export function getUserCollections(customerId: number, params?: {
+  currentPage?: number;
+  pageSize?: number;
+}) {
+  return http.get<GetWallpaperListResponse>(`/wallpapers/wallpaper/my-collections/`, {
+    customer_id: customerId,
+    ...params,
+  });
+}
