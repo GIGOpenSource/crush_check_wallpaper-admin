@@ -47,6 +47,12 @@ const SendNotification: React.FC = () => {
   }, [userModalVisible]);
 
   const onFinish = async (values: any) => {
+    // 如果选择部分用户但没有选择任何用户，则阻止提交
+    if (values.send_to === 'specific' && selectedUserIds.length === 0) {
+      message.warning('请选择至少一个用户');
+      return;
+    }
+
     setLoading(true);
     try {
       const params: SendNotificationParams = {
@@ -166,12 +172,33 @@ const SendNotification: React.FC = () => {
             {({ getFieldValue }) =>
               getFieldValue('send_to') === 'specific' && (
                 <Form.Item
-                  label="选择用户"
+                  label={
+                    <span>
+                      选择用户
+                      <span style={{ color: 'red', marginLeft: 4 }}>*</span>
+                    </span>
+                  }
                   required
+                  rules={[
+                    {
+                      validator: () => {
+                        if (selectedUserIds.length === 0) {
+                          return Promise.reject(new Error('请至少选择一个用户'));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                  validateTrigger="onChange"
                 >
                   <Button onClick={handleOpenUserModal}>
                     选择用户 {selectedUserIds.length > 0 && `(已选${selectedUserIds.length}个)`}
                   </Button>
+                  {selectedUserIds.length === 0 && (
+                    <div style={{ color: '#ff4d4f', fontSize: 14, marginTop: 4 }}>
+                      请至少选择一个用户
+                    </div>
+                  )}
                 </Form.Item>
               )
             }

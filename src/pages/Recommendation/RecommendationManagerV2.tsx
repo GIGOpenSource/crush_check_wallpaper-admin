@@ -1138,9 +1138,9 @@ const RecommendationManagerV2: React.FC = () => {
             cancelText="取消"
             disabled={selectedContentIds.length === 0}
           >
-            <Button danger icon={<DeleteOutlined />} disabled={selectedContentIds.length === 0}>
+            {/* <Button danger icon={<DeleteOutlined />} disabled={selectedContentIds.length === 0}>
               批量移除 ({selectedContentIds.length})
-            </Button>
+            </Button> */}
           </Popconfirm>
         </Space>
 

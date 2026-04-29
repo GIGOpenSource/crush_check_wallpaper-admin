@@ -514,13 +514,13 @@ const WallpaperList: React.FC = () => {
         cancelText="取消"
         okButtonProps={{ style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } }}
       >
-        <Button 
+        {/* <Button 
           type="primary" 
           icon={<CheckOutlined />}
           style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
         >
           批量通过
-        </Button>
+        </Button> */}
       </Popconfirm>
     );
   };
@@ -911,19 +911,21 @@ const WallpaperList: React.FC = () => {
 
       <Card>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Button type="primary" onClick={handleCreate}>
-            新建壁纸
-          </Button>
+          <Space>
+            <Button type="primary" onClick={handleCreate}>
+              新建壁纸
+            </Button>
+            {handleBatchDeleteConfirm()}
+          </Space>
           <Space>
             {handleBatchPassConfirm()}
-            <Button 
+            {/* <Button 
               danger
               icon={<CloseOutlined />}
               onClick={handleOpenBatchRejectModal}
             >
               批量拒绝
-            </Button>
-            {handleBatchDeleteConfirm()}
+            </Button> */}
           </Space>
         </div>
         <Table
@@ -1389,6 +1391,8 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
 
 
 

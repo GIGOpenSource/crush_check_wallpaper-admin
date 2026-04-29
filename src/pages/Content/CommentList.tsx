@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Avatar, Input, Space, message, Popconfirm } from 'antd';
+import { Table, Card, Button, Avatar, Input, Space, message, Popconfirm, Tooltip, Image } from 'antd';
 import { UserOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, PictureOutlined } from '@ant-design/icons';
 import { 
   getCommentList, 
@@ -15,6 +15,8 @@ const CommentList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchParams, setSearchParams] = useState<GetCommentListParams>({});
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string>('');
 
   // 加载评论列表
   useEffect(() => {
@@ -122,29 +124,46 @@ const CommentList: React.FC = () => {
       title: '评论内容',
       dataIndex: 'content',
       key: 'content',
+      width: 250,
       ellipsis: true,
+      render: (text: string) => (
+        <Tooltip title={text}>
+          <span style={{ whiteSpace: 'nowrap' }}>{text}</span>
+        </Tooltip>
+      ),
     },
     {
       title: '所属壁纸',
       key: 'wallpaper_object',
-      width: 200,
+      width: 300,
       render: (_: unknown, record: Comment) => (
-        <Space>
-          {record.wallpaper_object?.thumb_url ? (
-            <img
-              src={record.wallpaper_object.thumb_url}
-              alt={record.wallpaper_object.name}
-              style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }}
-            />
-          ) : (
-            <div style={{ width: 40, height: 40, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <PictureOutlined style={{ color: '#999' }} />
-            </div>
-          )}
-          <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {record.wallpaper_object?.name || '未知壁纸'}
-          </span>
-        </Space>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 40, height: 40, flexShrink: 0 }}>
+            {record.wallpaper_object?.thumb_url ? (
+              <Image
+                src={record.wallpaper_object.thumb_url}
+                alt={record.wallpaper_object.name}
+                width={40}
+                height={40}
+                style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
+                preview={false}
+                onClick={() => {
+                  setPreviewImageUrl(record.wallpaper_object!.thumb_url);
+                  setShowImagePreview(true);
+                }}
+              />
+            ) : (
+              <div style={{ width: 40, height: 40, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PictureOutlined style={{ color: '#999' }} />
+              </div>
+            )}
+          </div>
+          <Tooltip title={record.wallpaper_object?.name}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {record.wallpaper_object?.name || '未知壁纸'}
+            </span>
+          </Tooltip>
+        </div>
       ),
     },
     {
@@ -188,6 +207,23 @@ const CommentList: React.FC = () => {
 
   return (
     <div>
+      {/* 图片预览组件 */}
+      {showImagePreview && (
+        <Image
+          src={previewImageUrl}
+          style={{ display: 'none' }}
+          preview={{
+            visible: true,
+            onVisibleChange: (visible) => {
+              setShowImagePreview(visible);
+              if (!visible) {
+                setPreviewImageUrl('');
+              }
+            },
+          }}
+        />
+      )}
+
       <h2 style={{ marginBottom: 24 }}>评论管理</h2>
       
       <Card style={{ marginBottom: 24 }}>
