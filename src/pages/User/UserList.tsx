@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Input, Select, DatePicker, Space, Tag, Avatar, Dropdown, message, Modal, Form, Popconfirm, Upload } from 'antd';
+import { Table, Card, Button, Input, Select, Space, Tag, Avatar, message, Modal, Form, Popconfirm, Upload } from 'antd';
 import { UserOutlined, SearchOutlined, ReloadOutlined, MoreOutlined, EditOutlined, StopOutlined, DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -11,8 +11,6 @@ import {
   type CustomerUser,
   type GetCustomerUserListParams 
 } from '../../services/userApi';
-
-const { RangePicker } = DatePicker;
 
 const UserList: React.FC = () => {
   const navigate = useNavigate();
@@ -26,7 +24,8 @@ const UserList: React.FC = () => {
   const [searchParams, setSearchParams] = useState({
     nickname: '',
     email: '',
-    status: undefined as 1 | 2 | undefined,
+    status: undefined as string | undefined,
+    gender: undefined as number | undefined,
   });
 
   // 编辑弹窗
@@ -63,14 +62,20 @@ const UserList: React.FC = () => {
   // 搜索
   const handleSearch = () => {
     setCurrentPage(1);
-    loadUserList({ ...searchParams, currentPage: 1 });
+    loadUserList({ ...searchParams, currentPage: 1, pageSize });
   };
 
   // 重置
   const handleReset = () => {
-    setSearchParams({ currentPage: 1, pageSize: 10 });
+    const initialParams = {
+      nickname: '',
+      email: '',
+      status: undefined as string | undefined,
+      gender: undefined as number | undefined,
+    };
+    setSearchParams(initialParams);
     setCurrentPage(1);
-    loadUserList({ currentPage: 1, pageSize: 10 });
+    loadUserList({ ...initialParams, currentPage: 1, pageSize: 10 });
   };
 
   // 查看详情
@@ -358,10 +363,18 @@ const UserList: React.FC = () => {
       <Card style={{ marginBottom: 24 }}>
         <Space wrap>
           <Input
-            placeholder="搜索邮箱/昵称"
-            value={searchParams.email || searchParams.nickname || ''}
-            onChange={(e) => setSearchParams({ ...searchParams, email: e.target.value, nickname: e.target.value })}
-            style={{ width: 250 }}
+            placeholder="搜索昵称"
+            value={searchParams.nickname}
+            onChange={(e) => setSearchParams({ ...searchParams, nickname: e.target.value })}
+            style={{ width: 200 }}
+            prefix={<SearchOutlined />}
+            allowClear
+          />
+          <Input
+            placeholder="搜索邮箱"
+            value={searchParams.email}
+            onChange={(e) => setSearchParams({ ...searchParams, email: e.target.value })}
+            style={{ width: 200 }}
             prefix={<SearchOutlined />}
             allowClear
           />
@@ -382,25 +395,11 @@ const UserList: React.FC = () => {
             style={{ width: 120 }}
             allowClear
             value={searchParams.status}
-            onChange={(value) => setSearchParams({ ...searchParams, status: value })}
+            onChange={(value) => setSearchParams({ ...searchParams, status: value ? String(value) : undefined })}
             options={[
-              { value: 1, label: '正常' },
-              { value: 2, label: '已禁用' },
+              { value: '1', label: '正常' },
+              { value: '2', label: '已禁用' },
             ]}
-          />
-          <RangePicker 
-            placeholder={['注册开始', '注册结束']}
-            onChange={(dates) => {
-              if (dates && dates[0] && dates[1]) {
-                setSearchParams({
-                  ...searchParams,
-                  startDate: dates[0].format('YYYY-MM-DD'),
-                  endDate: dates[1].format('YYYY-MM-DD'),
-                });
-              } else {
-                setSearchParams({ ...searchParams, startDate: undefined, endDate: undefined });
-              }
-            }}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索

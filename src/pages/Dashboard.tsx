@@ -20,6 +20,10 @@ interface StatsData {
   total_collection: number;
   daily_active_users?: number;
   weekly_active_users?: number;
+  new_users_today?: number;
+  new_wallpapers_today?: number;
+  new_daily_active_users?: number;
+  new_weekly_active_users?: number;
 }
 
 const Dashboard: React.FC = () => {
@@ -200,7 +204,7 @@ const Dashboard: React.FC = () => {
                 title="总用户数"
                 value={stats?.total_users || 0}
                 prefix={<UserOutlined />}
-                suffix={<Tag color="success">+{stats?.daily_active_users || 128} 今日</Tag>}
+                suffix={<Tag color="success">+{stats?.new_users_today || 0} 今日</Tag>}
               />
             </Card>
           </Col>
@@ -210,7 +214,7 @@ const Dashboard: React.FC = () => {
                 title="总壁纸数"
                 value={stats?.total_wallpapers || 0}
                 prefix={<PictureOutlined />}
-                suffix={<Tag color="success">+45 今日</Tag>}
+                suffix={<Tag color="success">+{stats?.new_wallpapers_today || 0} 今日</Tag>}
               />
             </Card>
           </Col>
@@ -261,9 +265,9 @@ const Dashboard: React.FC = () => {
             <Card>
               <Statistic
                 title="日活跃用户"
-                value={stats?.daily_active_users || 3456}
+                value={stats?.daily_active_users || 0}
                 prefix={<RiseOutlined />}
-                suffix={<Tag color="processing">+12.5%</Tag>}
+                suffix={<Tag color="processing">+{stats?.new_daily_active_users || 0}</Tag>}
               />
             </Card>
           </Col>
@@ -271,9 +275,9 @@ const Dashboard: React.FC = () => {
             <Card>
               <Statistic
                 title="周活跃用户"
-                value={stats?.weekly_active_users || 12345}
+                value={stats?.weekly_active_users || 0}
                 prefix={<RiseOutlined />}
-                suffix={<Tag color="processing">+8.3%</Tag>}
+                suffix={<Tag color="processing">+{stats?.new_weekly_active_users || 0}</Tag>}
               />
             </Card>
           </Col>
