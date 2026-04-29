@@ -27,10 +27,12 @@ const Login: React.FC = () => {
         localStorage.setItem('token', response.token);
       }
 
-      // 保存用户信息（如果有）
-      if (response.userInfo) {
-        localStorage.setItem('userInfo', JSON.stringify(response.userInfo));
-      }
+      // 保存用户信息
+      // 如果后端返回了userInfo，使用后端的数据；否则使用登录时输入的账号
+      const userInfo = response.userInfo || {
+        username: values.username,
+      };
+      localStorage.setItem('userInfo', JSON.stringify(userInfo));
 
       message.success('登录成功');
       

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Badge, theme, Drawer, message, Popconfirm } from 'antd';
+import { Layout, Menu, Button, Avatar, Badge, theme, Drawer, message, Popconfirm } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -149,18 +149,10 @@ const AdminLayout: React.FC = () => {
     },
   ];
 
-  const userMenuItems = [
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: '个人中心',
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '账号设置',
-    },
-  ];
+  // 获取用户信息
+  const userInfoStr = localStorage.getItem('userInfo');
+  const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+  const username = userInfo?.username || '管理员';
 
   // 退出登录处理函数
   const handleLogout = async () => {
@@ -187,14 +179,6 @@ const AdminLayout: React.FC = () => {
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
-  };
-
-  const handleUserMenuClick = ({ key }: { key: string }) => {
-    if (key === 'profile') {
-      navigate('/profile');
-    } else if (key === 'settings') {
-      navigate('/settings');
-    }
   };
 
   const getSelectedKeys = () => {
@@ -324,15 +308,10 @@ const AdminLayout: React.FC = () => {
             {/* <Badge count={5} size="small">
               <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} />
             </Badge> */}
-            <Dropdown
-              menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
-              placement="bottomRight"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <Avatar icon={<UserOutlined />} />
-                <span>管理员</span>
-              </div>
-            </Dropdown>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Avatar icon={<UserOutlined />} />
+              <span>{username}</span>
+            </div>
             {/* 退出登录按钮 - 使用 Popconfirm */}
             <Popconfirm
               title="确认退出"
