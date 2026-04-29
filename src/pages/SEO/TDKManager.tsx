@@ -952,7 +952,6 @@ const TDKManager: React.FC = () => {
           <Form.Item
             name="title"
             label="Title"
-            rules={[{ required: true, message: '请输入Title' }]}
           >
             <Input 
               maxLength={70} 
@@ -963,7 +962,6 @@ const TDKManager: React.FC = () => {
           <Form.Item
             name="description"
             label="Description"
-            rules={[{ required: true, message: '请输入Description' }]}
           >
             <Input.TextArea
               rows={3}

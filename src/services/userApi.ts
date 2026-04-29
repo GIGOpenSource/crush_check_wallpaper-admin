@@ -56,7 +56,7 @@ export function getCurrentUser() {
  * 退出登录
  */
 export function logout() {
-  return http.post('/users/logout');
+  return http.post('/users/logout/');
 }
 
 /**
