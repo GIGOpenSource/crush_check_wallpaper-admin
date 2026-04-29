@@ -173,27 +173,31 @@ const OperationLog: React.FC = () => {
       },
     },
     { 
-      title: '状态码', 
-      dataIndex: 'response_code', 
-      key: 'response_code',
+      title: '状态', 
+      dataIndex: 'status', 
+      key: 'status',
       width: 100,
-      render: (code: number) => {
-        if (!code) return '--';
-        const color = code >= 200 && code < 300 ? 'success' : 'error';
-        return <Tag color={color}>{code}</Tag>;
+      render: (status: number) => {
+        if (status === undefined || status === null) return '--';
+        if (status === 1) {
+          return <Tag color="success">成功</Tag>;
+        } else if (status === 0) {
+          return <Tag color="error">失败</Tag>;
+        }
+        return <Tag>--</Tag>;
       },
     },
-    { 
-      title: '耗时', 
-      dataIndex: 'duration', 
-      key: 'duration',
-      width: 100,
-      render: (duration: number) => {
-        if (!duration) return '--';
-        const color = duration > 1000 ? 'error' : duration > 500 ? 'warning' : 'success';
-        return <Tag color={color}>{duration}ms</Tag>;
-      },
-    },
+    // { 
+    //   title: '耗时', 
+    //   dataIndex: 'duration', 
+    //   key: 'duration',
+    //   width: 100,
+    //   render: (duration: number) => {
+    //     if (!duration) return '--';
+    //     const color = duration > 1000 ? 'error' : duration > 500 ? 'warning' : 'success';
+    //     return <Tag color={color}>{duration}ms</Tag>;
+    //   },
+    // },
     { 
       title: '操作时间', 
       dataIndex: 'created_at', 
@@ -458,6 +462,27 @@ const OperationLog: React.FC = () => {
                     borderRadius: 8,
                     border: '1px solid #e8e8e8'
                   }}>
+                    <div style={{ color: '#999', marginBottom: 6, fontSize: 12 }}>状态</div>
+                    <div>
+                      {currentLog.status !== undefined && currentLog.status !== null ? (
+                        currentLog.status === 1 ? (
+                          <Tag color="success">成功</Tag>
+                        ) : currentLog.status === 0 ? (
+                          <Tag color="error">失败</Tag>
+                        ) : (
+                          <Tag>--</Tag>
+                        )
+                      ) : '--'}
+                    </div>
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <div style={{ 
+                    background: '#f5f7fa', 
+                    padding: '12px 16px', 
+                    borderRadius: 8,
+                    border: '1px solid #e8e8e8'
+                  }}>
                     <div style={{ color: '#999', marginBottom: 6, fontSize: 12 }}>状态码</div>
                     <div>
                       {currentLog.response_code ? (
@@ -476,7 +501,7 @@ const OperationLog: React.FC = () => {
                 性能信息
               </div>
               <Row gutter={16}>
-                <Col span={12}>
+                {/* <Col span={12}>
                   <div style={{ 
                     background: '#f5f7fa', 
                     padding: '12px 16px', 
@@ -495,7 +520,7 @@ const OperationLog: React.FC = () => {
                       ) : '--'}
                     </div>
                   </div>
-                </Col>
+                </Col> */}
                 <Col span={12}>
                   <div style={{ 
                     background: '#f5f7fa', 
@@ -531,7 +556,7 @@ const OperationLog: React.FC = () => {
                 </div>
               </div>
               
-              <div style={{ marginBottom: 16 }}>
+              {/* <div style={{ marginBottom: 16 }}>
                 <div style={{ color: '#999', marginBottom: 8, fontSize: 12 }}>请求参数</div>
                 <TextArea
                   value={currentLog.request_params || '--'}
@@ -545,9 +570,9 @@ const OperationLog: React.FC = () => {
                     borderRadius: 8
                   }}
                 />
-              </div>
+              </div> */}
               
-              <div>
+              {/* <div>
                 <div style={{ color: '#999', marginBottom: 8, fontSize: 12 }}>响应信息</div>
                 <div style={{ 
                   background: '#f5f7fa', 
@@ -558,7 +583,7 @@ const OperationLog: React.FC = () => {
                 }}>
                   {currentLog.response_msg || '--'}
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         )}

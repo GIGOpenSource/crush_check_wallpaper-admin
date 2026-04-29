@@ -25,6 +25,7 @@ export interface OperationLog {
   response_code?: number;
   response_msg?: string;
   duration?: number;
+  status?: number; // 1: 成功, 0: 失败
 }
 
 /**
