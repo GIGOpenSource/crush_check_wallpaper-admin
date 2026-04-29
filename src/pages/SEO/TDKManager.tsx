@@ -61,10 +61,17 @@ const TDKManager: React.FC = () => {
     total: 0,
   });
 
+  // 模板搜索状态
+  const [templateSearchForm] = Form.useForm();
+  const [templateSearchParams, setTemplateSearchParams] = useState({
+    title: '',
+    page_type: '',
+  });
+
   // 页面TDK搜索状态
   const [pageSearchForm] = Form.useForm();
   const [pageSearchParams, setPageSearchParams] = useState({
-    search: '',
+    title: '',
     page_type: '',
   });
 
@@ -85,13 +92,15 @@ const TDKManager: React.FC = () => {
     fetchPageTDKs();
   }, [pagePagination.currentPage, pagePagination.pageSize]);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = async (params?: { title?: string; page_type?: string; currentPage?: number }) => {
     try {
       setLoadingTemplates(true);
+      const { currentPage, ...restParams } = params || {};
       const res = await seoApi.getTDKList({
-        currentPage: templatePagination.currentPage,
+        currentPage: currentPage || templatePagination.currentPage,
         pageSize: templatePagination.pageSize,
         is_template: true,
+        ...restParams,
       });
       if (res.code === 200 && res.data) {
         setTemplates(res.data.results as ApiTDKTemplate[]);
@@ -107,13 +116,15 @@ const TDKManager: React.FC = () => {
     }
   };
 
-  const fetchPageTDKs = async () => {
+  const fetchPageTDKs = async (params?: { title?: string; page_type?: string; currentPage?: number }) => {
     try {
       setLoadingPages(true);
+      const { currentPage, ...restParams } = params || {};
       const res = await seoApi.getTDKList({
-        currentPage: pagePagination.currentPage,
+        currentPage: currentPage || pagePagination.currentPage,
         pageSize: pagePagination.pageSize,
         is_template: false,
+        ...restParams,
       });
       if (res.code === 200 && res.data) {
         setPageTDKs(res.data.results as ApiPageTDK[]);
@@ -589,6 +600,36 @@ const TDKManager: React.FC = () => {
     setPreviewModalVisible(true);
   };
 
+  // 模板搜索和重置
+  const handleTemplateSearch = () => {
+    const values = templateSearchForm.getFieldsValue();
+    setTemplateSearchParams(values);
+    setTemplatePagination(prev => ({ ...prev, currentPage: 1 }));
+    fetchTemplates({ ...values, currentPage: 1 });
+  };
+
+  const handleTemplateReset = () => {
+    templateSearchForm.resetFields();
+    setTemplateSearchParams({ title: '', page_type: '' });
+    setTemplatePagination(prev => ({ ...prev, currentPage: 1 }));
+    fetchTemplates({ currentPage: 1 });
+  };
+
+  // 搜索和重置
+  const handlePageSearch = () => {
+    const values = pageSearchForm.getFieldsValue();
+    setPageSearchParams(values);
+    setPagePagination(prev => ({ ...prev, currentPage: 1 }));
+    fetchPageTDKs({ ...values, currentPage: 1 });
+  };
+
+  const handlePageReset = () => {
+    pageSearchForm.resetFields();
+    setPageSearchParams({ title: '', page_type: '' });
+    setPagePagination(prev => ({ ...prev, currentPage: 1 }));
+    fetchPageTDKs({ currentPage: 1 });
+  };
+
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
@@ -628,6 +669,35 @@ const TDKManager: React.FC = () => {
               </Button>
             }
           >
+            <Space style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <Form form={templateSearchForm} layout="inline" style={{ display: 'flex', gap: 8 }}>
+                <Form.Item name="page_type" style={{ marginBottom: 0 }}>
+                  <Select 
+                    placeholder="页面类型" 
+                    style={{ width: 120 }} 
+                    allowClear
+                    options={[
+                      { value: 'article', label: '文章页' },
+                      { value: 'category', label: '分类页' },
+                      { value: 'tag', label: '标签页' },
+                      { value: 'detail', label: '详情页' },
+                      { value: 'search', label: '搜索页' },
+                      { value: 'custom', label: '自定义页' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item name="title" style={{ marginBottom: 0 }}>
+                  <Input.Search 
+                    placeholder="搜索标题" 
+                    style={{ width: 250 }} 
+                    allowClear
+                    onSearch={handleTemplateSearch}
+                  />
+                </Form.Item>
+              </Form>
+              <Button type="primary" onClick={handleTemplateSearch}>搜索</Button>
+              <Button onClick={handleTemplateReset}>重置</Button>
+            </Space>
             {/* <Alert
               message="模板变量说明"
               description="{标题前50字} - 自动提取文章前50字符 | {分类词} - 文章所属分类 | {标签1/2/3} - 文章标签 | {品牌词} - 站点品牌名称"
@@ -668,21 +738,34 @@ const TDKManager: React.FC = () => {
               </Button>
             }
           >
-            <Space style={{ marginBottom: 16 }}>
-              {/* <Select placeholder="页面类型" style={{ width: 120 }} allowClear>
-                  <Option value="article">文章页</Option>
-              <Option value="category">分类页</Option>
-              <Option value="tag">标签页</Option>
-              <Option value="detail">详情页</Option>
-              <Option value="search">搜索页</Option>
-              <Option value="custom">自定义页</Option>
-              </Select> */}
-              {/* <Select placeholder="字符长度" style={{ width: 120 }} allowClear>
-                <Option value="title_long">Title超长</Option>
-                <Option value="desc_long">Desc超长</Option>
-                <Option value="title_short">Title过短</Option>
-              </Select> */}
-              {/* <Input.Search placeholder="搜索URL/标题" style={{ width: 250 }} /> */}
+            <Space style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <Form form={pageSearchForm} layout="inline" style={{ display: 'flex', gap: 8 }}>
+                <Form.Item name="page_type" style={{ marginBottom: 0 }}>
+                  <Select 
+                    placeholder="页面类型" 
+                    style={{ width: 120 }} 
+                    allowClear
+                    options={[
+                      { value: 'article', label: '文章页' },
+                      { value: 'category', label: '分类页' },
+                      { value: 'tag', label: '标签页' },
+                      { value: 'detail', label: '详情页' },
+                      { value: 'search', label: '搜索页' },
+                      { value: 'custom', label: '自定义页' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item name="title" style={{ marginBottom: 0 }}>
+                  <Input.Search 
+                    placeholder="搜索标题" 
+                    style={{ width: 250 }} 
+                    allowClear
+                    onSearch={handlePageSearch}
+                  />
+                </Form.Item>
+              </Form>
+              <Button type="primary" onClick={handlePageSearch}>搜索</Button>
+              <Button onClick={handlePageReset}>重置</Button>
             </Space>
             {selectedRowKeys.length > 0 && (
               <Alert

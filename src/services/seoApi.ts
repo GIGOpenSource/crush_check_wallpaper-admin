@@ -762,6 +762,8 @@ export const getTDKList = async (params: {
   currentPage?: number;
   pageSize?: number;
   is_template: boolean;
+  title?: string;
+  page_type?: string;
 }): Promise<ApiResponse<{
   pagination: {
     page: number;
