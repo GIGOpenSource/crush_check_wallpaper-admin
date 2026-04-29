@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, List, Avatar, Divider, Spin } from 'antd';
-import { UserOutlined, PictureOutlined, EyeOutlined, DownloadOutlined, LikeOutlined, StarOutlined, RiseOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, Row, Col, Statistic, Table, Tag, List, Avatar, Divider, Spin, Button, message, Select } from 'antd';
+import { UserOutlined, PictureOutlined, EyeOutlined, DownloadOutlined, LikeOutlined, StarOutlined, RiseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Line, Pie } from '@ant-design/charts';
 import { 
   getDashboardStats, 
   getHotWallpapers, 
   getRecentUsers,
+  getWallpaperCategoryDistribution,
+  getUserGrowthTrend,
   type DashboardStats,
   type HotWallpaper,
-  type RecentUser 
+  type RecentUser,
+  type WallpaperCategoryDistribution
 } from '../services/dashboardApi';
 
 interface StatsData {
@@ -31,6 +34,9 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [hotWallpapers, setHotWallpapers] = useState<HotWallpaper[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [categoryData, setCategoryData] = useState<WallpaperCategoryDistribution[]>([]);
+  const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
+  const [days, setDays] = useState<number>(7);
 
   // 加载Dashboard统计数据
   useEffect(() => {
@@ -40,15 +46,46 @@ const Dashboard: React.FC = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [statsResponse, wallpapersResponse, usersResponse] = await Promise.all([
+      const [statsResponse, wallpapersResponse, usersResponse, categoryResponse, userGrowthResponse] = await Promise.all([
         getDashboardStats(),
         getHotWallpapers(),
         getRecentUsers(),
+        getWallpaperCategoryDistribution(),
+        getUserGrowthTrend(days),
       ]);
       
       setStats(statsResponse);
       setHotWallpapers(wallpapersResponse.results || []);
       setRecentUsers(usersResponse.results || []);
+      
+      // 转换饼图数据格式
+      console.log('饼图原始响应:', categoryResponse);
+      if (categoryResponse && Array.isArray(categoryResponse)) {
+        console.log('饼图数据数组:', categoryResponse);
+        // 计算总数
+        const total = categoryResponse.reduce((sum: number, item: any) => sum + (item.count || 0), 0);
+        console.log('饼图总数:', total);
+        // 转换为饼图需要的格式
+        const transformedData = categoryResponse.map((item: any) => ({
+          category_name: item.category_name,
+          percentage: total > 0 ? ((item.count / total) * 100) : 0,
+          count: item.count,
+        }));
+        console.log('饼图转换后数据:', transformedData);
+        setCategoryData(transformedData);
+      }
+      
+      // 转换用户增长趋势数据格式
+      console.log('折线图原始响应:', userGrowthResponse);
+      if (userGrowthResponse && Array.isArray(userGrowthResponse)) {
+        console.log('折线图数据数组:', userGrowthResponse);
+        const transformedGrowthData = userGrowthResponse.map((item: any) => ({
+          date: item.date,
+          value: item.new_users || 0,
+        }));
+        console.log('折线图转换后数据:', transformedGrowthData);
+        setUserGrowthData(transformedGrowthData);
+      }
     } catch (error) {
       console.error('加载Dashboard数据失败:', error);
     } finally {
@@ -56,26 +93,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // 用户增长趋势数据
-  const userGrowthData = [
-    { date: '2026-04-10', value: 120 },
-    { date: '2026-04-11', value: 132 },
-    { date: '2026-04-12', value: 101 },
-    { date: '2026-04-13', value: 134 },
-    { date: '2026-04-14', value: 90 },
-    { date: '2026-04-15', value: 230 },
-    { date: '2026-04-16', value: 210 },
-  ];
-
-  // 壁纸分类分布数据
-  const categoryData = [
-    { type: 'PC壁纸', value: 18600 },
-    { type: '手机壁纸', value: 22400 },
-    { type: '静态壁纸', value: 34200 },
-    { type: '动态壁纸', value: 6800 },
-  ];
-
-  const lineConfig = {
+  const lineConfig = useMemo(() => ({
     data: userGrowthData,
     xField: 'date',
     yField: 'value',
@@ -86,17 +104,21 @@ const Dashboard: React.FC = () => {
       size: 5,
       shape: 'circle',
     },
-  };
+  }), [userGrowthData]);
 
-  const pieConfig = {
+  const totalCategoryValue = categoryData.reduce((sum, d) => sum + ((d as any).count || 0), 0);
+
+  const pieConfig = useMemo(() => ({
     data: categoryData,
-    angleField: 'value',
-    colorField: 'type',
+    angleField: 'percentage',
+    colorField: 'category_name',
     radius: 0.8,
     height: 300,
     label: {
       type: 'outer',
-      text: (item: any) => `${item.type} ${(item.value / categoryData.reduce((sum, d) => sum + d.value, 0) * 100).toFixed(1)}%`,
+      text: (item: any) => {
+        return `${item.category_name} ${item.percentage.toFixed(1)}%`;
+      },
     },
     legend: {
       color: {
@@ -105,7 +127,7 @@ const Dashboard: React.FC = () => {
         rowPadding: 5,
       },
     },
-  };
+  }), [categoryData]);
 
   const hotColumns = [
     { 
@@ -194,7 +216,23 @@ const Dashboard: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div>
-        <h2 style={{ marginBottom: 24 }}>数据概览</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h2 style={{ margin: 0 }}>数据概览</h2>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={async () => {
+              try {
+                setLoading(true);
+                await loadDashboardData();
+                message.success('刷新成功');
+              } catch (error) {
+                message.error('刷新失败');
+              }
+            }}
+          >
+            刷新
+          </Button>
+        </div>
         
         {/* 核心数据指标 */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -287,6 +325,36 @@ const Dashboard: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} lg={12}>
             <Card title="用户增长趋势">
+              <Select
+                style={{ width: 120, marginBottom: 16 }}
+                value={days}
+                onChange={async (value) => {
+                  setDays(value);
+                  try {
+                    setLoading(true);
+                    const response = await getUserGrowthTrend(value);
+                    console.log('折线图切换天数响应:', response);
+                    if (response && Array.isArray(response)) {
+                      const transformedGrowthData = response.map((item: any) => ({
+                        date: item.date,
+                        value: item.new_users || 0,
+                      }));
+                      console.log('折线图切换天数转换后:', transformedGrowthData);
+                      setUserGrowthData(transformedGrowthData);
+                    }
+                  } catch (error) {
+                    console.error('加载用户增长趋势数据失败:', error);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                options={[
+                  { value: 7, label: '最近7天' },
+                  { value: 14, label: '最近14天' },
+                  { value: 30, label: '最近30天' },
+                  { value: 90, label: '最近90天' },
+                ]}
+              />
               <Line {...lineConfig} />
             </Card>
           </Col>

@@ -32,6 +32,12 @@ export interface RecentUser {
   created_at: string;
 }
 
+// 壁纸分类分布数据类型
+export interface WallpaperCategoryDistribution {
+  category_name: string;
+  count: number;
+}
+
 // 列表响应类型
 export interface ListResponse<T> {
   results: T[];
@@ -68,5 +74,22 @@ export function getRecentUsers() {
   return http.get<ListResponse<RecentUser>>('/dashboard/customer_user/', {
     currentPage: 1,
     pageSize: 5,
+  });
+}
+
+/**
+ * 获取壁纸分类分布数据
+ */
+export function getWallpaperCategoryDistribution() {
+  return service.get('/dashboard/stats/wallpaper-category-distribution/');
+}
+
+/**
+ * 获取用户增长趋势数据
+ * @param days - 天数，默认7天
+ */
+export function getUserGrowthTrend(days: number = 7) {
+  return service.get('/dashboard/stats/user-growth-trend/', {
+    params: { days },
   });
 }

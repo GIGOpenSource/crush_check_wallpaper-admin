@@ -321,9 +321,9 @@ const AdminLayout: React.FC = () => {
             style={{ fontSize: 16 }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Badge count={5} size="small">
+            {/* <Badge count={5} size="small">
               <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} />
-            </Badge>
+            </Badge> */}
             <Dropdown
               menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
               placement="bottomRight"
