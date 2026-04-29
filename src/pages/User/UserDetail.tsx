@@ -250,7 +250,11 @@ const UserDetail: React.FC = () => {
       width: 150,
       render: (uploader: any) => {
         if (!uploader) return '-';
-        return uploader.nickname || uploader.name || '-';
+        // 直接使用uploader对象，可能是字符串或包含nickname的对象
+        if (typeof uploader === 'string') {
+          return uploader;
+        }
+        return uploader?.nickname || uploader?.name || '-';
       }
     },
     { 
