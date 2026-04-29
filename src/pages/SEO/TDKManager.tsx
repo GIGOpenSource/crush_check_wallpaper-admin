@@ -408,21 +408,27 @@ const TDKManager: React.FC = () => {
       console.log('API返回的Sitemap数据:', res);
       
       if (res.code === 200 && res.data) {
-        const urls = (res.data as any).results || (res.data as any).items || [];
-        console.log('提取的urls数组:', urls);
-        console.log('第一条url数据:', urls[0]);
+        const results = (res.data as any).results || (res.data as any).items || [];
+        console.log('提取的urls数组:', results);
+        console.log('第一条url数据:', results[0]);
+        
+        // 映射后端字段到前端字段
+        const mappedUrls = results.map((item: any) => ({
+          ...item,
+          loc: item.content || item.loc || '', // 将content字段映射为loc
+        }));
         
         if (append) {
           // 追加模式
-          setSitemapUrls(prev => [...prev, ...urls]);
+          setSitemapUrls(prev => [...prev, ...mappedUrls]);
         } else {
           // 重置模式
-          setSitemapUrls(urls);
+          setSitemapUrls(mappedUrls);
         }
         
         // 判断是否还有更多数据
         const total = (res.data as any).pagination?.total || (res.data as any).total || 0;
-        setHasMoreSitemapUrls(urls.length > 0 && (append ? sitemapUrls.length + urls.length < total : urls.length < total));
+        setHasMoreSitemapUrls(mappedUrls.length > 0 && (append ? sitemapUrls.length + mappedUrls.length < total : mappedUrls.length < total));
         setSitemapUrlPage(page);
       }
     } catch (err) {
@@ -923,7 +929,7 @@ const TDKManager: React.FC = () => {
               )}
             >
               {sitemapUrls.map((url: any) => (
-                <Option key={url.id} value={url.content} label={url.loc}>
+                <Option key={url.id} value={url.id} label={url.loc}>
                   {url.loc}
                 </Option>
               ))}
