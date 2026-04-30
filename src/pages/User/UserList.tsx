@@ -224,21 +224,18 @@ const UserList: React.FC = () => {
       dataIndex: 'level',
       key: 'level',
       width: 80,
-      // sorter: true,
     },
     {
       title: '粉丝数',
       dataIndex: 'followers_count',
       key: 'followers_count',
       width: 100,
-      // sorter: true,
     },
     {
       title: '关注数',
       dataIndex: 'following_count',
       key: 'following_count',
       width: 100,
-      // sorter: true,
     },
     {
       title: '上传数',
@@ -257,7 +254,6 @@ const UserList: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 200,
-      sorter: true,
       render: (text: string) => {
         if (!text) return '-';
         // 格式化时间：2026-04-21 09:19:04
@@ -271,7 +267,7 @@ const UserList: React.FC = () => {
           hour12: false,
         }).replace(/\//g, '-');
       },
-      // sorter: (a: Wallpaper, b: Wallpaper) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime(),
+      sorter: (a: CustomerUser, b: CustomerUser) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime(),
     },
     {
       title: '最后登录',
