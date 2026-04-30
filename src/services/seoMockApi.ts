@@ -291,10 +291,66 @@ export const mockSubmitToSearchEngines = async (sitemapIds: number[]) => {
 export const mockGetBacklinks = async (params: any) => {
   await delay(300);
   const allBacklinks = [
-    { id: 1, sourceUrl: 'https://example-blog.com/post-1', targetUrl: 'https://example.com/wallpaper/4k', anchorText: '4K壁纸下载', domainAuthority: 45, isNofollow: true, isSponsored: true, status: 'active', discoveredAt: '2026-04-10', lastChecked: '2026-04-17' },
-    { id: 2, sourceUrl: 'https://tech-site.com/article', targetUrl: 'https://example.com/category/anime', anchorText: '动漫壁纸', domainAuthority: 62, isNofollow: false, isSponsored: false, status: 'active', discoveredAt: '2026-04-08', lastChecked: '2026-04-17' },
-    { id: 3, sourceUrl: 'https://suspicious-site.com', targetUrl: 'https://example.com/wallpaper/nature', anchorText: '点击这里', domainAuthority: 12, isNofollow: true, isSponsored: false, status: 'broken', discoveredAt: '2026-04-05', lastChecked: '2026-04-17' },
-    { id: 4, sourceUrl: 'https://design-portfolio.com', targetUrl: 'https://example.com/', anchorText: '壁纸大全', domainAuthority: 38, isNofollow: false, isSponsored: false, status: 'active', discoveredAt: '2026-04-01', lastChecked: '2026-04-16' },
+    { 
+      id: 1, 
+      source_page: 'https://example-blog.com/post-1', 
+      target_page: 'https://example.com/wallpaper/4k', 
+      anchor_text: '4K壁纸下载', 
+      da_score: 45, 
+      attribute: 'dofollow',
+      attribute_display: 'Dofollow',
+      status: 'active', 
+      status_display: '有效',
+      quality_score: 75,
+      remark: '高质量外链',
+      created_at: '2026-04-10T10:00:00', 
+      updated_at: '2026-04-17T10:00:00'
+    },
+    { 
+      id: 2, 
+      source_page: 'https://tech-site.com/article', 
+      target_page: 'https://example.com/category/anime', 
+      anchor_text: '动漫壁纸', 
+      da_score: 62, 
+      attribute: 'nofollow',
+      attribute_display: 'Nofollow',
+      status: 'pending', 
+      status_display: '待审核',
+      quality_score: 0,
+      remark: '',
+      created_at: '2026-04-08T10:00:00', 
+      updated_at: '2026-04-17T10:00:00'
+    },
+    { 
+      id: 3, 
+      source_page: 'https://suspicious-site.com', 
+      target_page: 'https://example.com/wallpaper/nature', 
+      anchor_text: '点击这里', 
+      da_score: 12, 
+      attribute: 'ugc',
+      attribute_display: 'UGC',
+      status: 'toxic', 
+      status_display: '有毒',
+      quality_score: 20,
+      remark: '低质量网站，建议删除',
+      created_at: '2026-04-05T10:00:00', 
+      updated_at: '2026-04-17T10:00:00'
+    },
+    { 
+      id: 4, 
+      source_page: 'https://design-portfolio.com', 
+      target_page: 'https://example.com/', 
+      anchor_text: '壁纸大全', 
+      da_score: 38, 
+      attribute: 'sponsored',
+      attribute_display: 'Sponsored',
+      status: 'inactive', 
+      status_display: '失效',
+      quality_score: 45,
+      remark: '链接已失效',
+      created_at: '2026-04-01T10:00:00', 
+      updated_at: '2026-04-16T10:00:00'
+    },
   ];
   
   let filtered = allBacklinks;
@@ -303,16 +359,24 @@ export const mockGetBacklinks = async (params: any) => {
   }
   if (params.search) {
     filtered = filtered.filter(b => 
-      b.sourceUrl.includes(params.search) || 
-      b.targetUrl.includes(params.search)
+      b.source_page.includes(params.search) || 
+      b.target_page.includes(params.search) ||
+      b.anchor_text.includes(params.search)
     );
   }
   
   return {
     code: 200,
+    success: true,
+    message: 'success',
     data: {
-      items: filtered,
-      total: filtered.length,
+      pagination: {
+        page: params.page || 1,
+        page_size: params.pageSize || 10,
+        total: filtered.length,
+        total_pages: Math.ceil(filtered.length / (params.pageSize || 10)),
+      },
+      results: filtered,
     },
   };
 };

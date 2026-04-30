@@ -667,15 +667,18 @@ export const getSitemapStatus = async (): Promise<ApiResponse<{
 
 export interface Backlink {
   id: number;
-  sourceUrl: string;
-  targetUrl: string;
-  anchorText: string;
-  domainAuthority: number;
-  isNofollow: boolean;
-  isSponsored: boolean;
-  status: 'active' | 'removed' | 'broken';
-  discoveredAt: string;
-  lastChecked: string;
+  source_page: string;           // 来源页面URL
+  target_page: string;           // 目标页面URL
+  anchor_text: string;           // 锚文本
+  da_score: number;              // DA评分
+  attribute: string;             // 链接属性 (dofollow/nofollow/ugc/sponsored)
+  attribute_display: string;     // 属性显示文本
+  status: string;                // 状态 (active/inactive/pending/toxic)
+  status_display: string;        // 状态显示文本
+  quality_score: number;         // 质量评分
+  remark: string;                // 备注
+  created_at: string;            // 创建时间
+  updated_at: string;            // 更新时间
 }
 
 export const getBacklinks = async (params: {
@@ -688,7 +691,7 @@ export const getBacklinks = async (params: {
     return seoMockApi.getBacklinks(params) as Promise<ApiResponse<PaginatedResponse<Backlink>>>;
   }
   return request<PaginatedResponse<Backlink>>({
-    url: `${API_CONFIG.SEO_PREFIX}/backlinks`,
+    url: `${API_CONFIG.SEO_PREFIX}/backlink/`,
     method: 'GET',
     params,
   });
@@ -736,6 +739,128 @@ export const scanBacklinks = async (): Promise<ApiResponse<{
   return request({
     url: `${API_CONFIG.SEO_PREFIX}/backlinks/scan`,
     method: 'POST',
+  });
+};
+
+// 创建外链
+export const createBacklink = async (data: {
+  source_page: string;
+  target_page: string;
+  anchor_text: string;
+  da_score: number;
+  attribute: string;
+  quality_score?: number;
+  remark?: string;
+}): Promise<ApiResponse<Backlink>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock数据
+    const attributeDisplayMap: Record<string, string> = {
+      'dofollow': 'Dofollow',
+      'nofollow': 'Nofollow',
+      'ugc': 'UGC',
+      'sponsored': 'Sponsored',
+    };
+    const statusDisplayMap: Record<string, string> = {
+      'pending': '待审核',
+      'active': '有效',
+      'inactive': '失效',
+      'toxic': '有毒',
+    };
+    
+    const mockResult: Backlink = {
+      id: Date.now(),
+      source_page: data.source_page,
+      target_page: data.target_page,
+      anchor_text: data.anchor_text,
+      da_score: data.da_score,
+      attribute: data.attribute,
+      attribute_display: attributeDisplayMap[data.attribute] || data.attribute,
+      status: 'pending',
+      status_display: '待审核',
+      quality_score: data.quality_score || 0,
+      remark: data.remark || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve({
+      code: 201,
+      data: mockResult,
+      message: '创建成功',
+    }) as Promise<ApiResponse<Backlink>>;
+  }
+  return request<Backlink>({
+    url: `${API_CONFIG.SEO_PREFIX}/backlink/`,
+    method: 'POST',
+    data,
+  });
+};
+
+// 更新外链
+export const updateBacklink = async (id: number, data: {
+  source_page?: string;
+  target_page?: string;
+  anchor_text?: string;
+  da_score?: number;
+  attribute?: string;
+  quality_score?: number;
+  remark?: string;
+  status?: string;
+}): Promise<ApiResponse<Backlink>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock数据
+    const attributeDisplayMap: Record<string, string> = {
+      'dofollow': 'Dofollow',
+      'nofollow': 'Nofollow',
+      'ugc': 'UGC',
+      'sponsored': 'Sponsored',
+    };
+    const statusDisplayMap: Record<string, string> = {
+      'pending': '待审核',
+      'active': '有效',
+      'inactive': '失效',
+      'toxic': '有毒',
+    };
+    
+    const mockResult: Backlink = {
+      id,
+      source_page: data.source_page || '',
+      target_page: data.target_page || '',
+      anchor_text: data.anchor_text || '',
+      da_score: data.da_score || 0,
+      attribute: data.attribute || 'dofollow',
+      attribute_display: attributeDisplayMap[data.attribute || 'dofollow'] || 'Dofollow',
+      status: data.status || 'pending',
+      status_display: statusDisplayMap[data.status || 'pending'] || '待审核',
+      quality_score: data.quality_score || 0,
+      remark: data.remark || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve({
+      code: 200,
+      data: mockResult,
+      message: '更新成功',
+    }) as Promise<ApiResponse<Backlink>>;
+  }
+  return request<Backlink>({
+    url: `${API_CONFIG.SEO_PREFIX}/backlink/${id}/`,
+    method: 'PUT',
+    data,
+  });
+};
+
+// 删除外链
+export const deleteBacklink = async (id: number): Promise<ApiResponse<void>> => {
+  if (API_CONFIG.USE_MOCK) {
+    return Promise.resolve({
+      code: 200,
+      data: undefined,
+      message: '删除成功',
+    }) as Promise<ApiResponse<void>>;
+  }
+  return request<void>({
+    url: `${API_CONFIG.SEO_PREFIX}/backlink/${id}/`,
+    method: 'DELETE',
   });
 };
 
@@ -1284,6 +1409,9 @@ export const seoApi = {
   checkBacklink,
   batchCheckBacklinks,
   scanBacklinks,
+  createBacklink,
+  updateBacklink,
+  deleteBacklink,
   
   // TDK
   getTDKList,

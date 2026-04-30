@@ -112,13 +112,32 @@ const BacklinkManager: React.FC = () => {
       render: (text: string) => {
         const colorMap: Record<string, string> = {
           '待审核': 'default',
-          '已通过': 'success',
-          '已拒绝': 'error',
+          '有效': 'success',
+          '失效': 'error',
+          '有毒': 'error',
         };
         return <Tag color={colorMap[text] || 'default'}>{text}</Tag>;
       },
     },
-    { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 180,
+      render: (text: string) => {
+        if (!text) return '--';
+        const date = new Date(text);
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).replace(/\//g, '-');
+      },
+    },
     {
       title: '操作',
       key: 'action',
@@ -148,6 +167,7 @@ const BacklinkManager: React.FC = () => {
       anchor_text: record.anchor_text,
       da_score: record.da_score,
       attribute: record.attribute,
+      quality_score: record.quality_score,
       remark: record.remark,
       status: record.status,
     });
@@ -246,12 +266,12 @@ const BacklinkManager: React.FC = () => {
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="已通过" value={backlinks?.filter(b => b.status_display === '已通过').length || 0} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="有效" value={backlinks?.filter(b => b.status_display === '有效').length || 0} valueStyle={{ color: '#52c41a' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="已拒绝" value={backlinks?.filter(b => b.status_display === '已拒绝').length || 0} valueStyle={{ color: '#f5222d' }} />
+            <Statistic title="失效" value={backlinks?.filter(b => b.status_display === '失效').length || 0} valueStyle={{ color: '#f5222d' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
@@ -404,17 +424,30 @@ const BacklinkManager: React.FC = () => {
           <Form.Item name="anchor_text" label="锚文本" rules={[{ required: true, message: '请输入锚文本' }]}>
             <Input placeholder="点击文本" />
           </Form.Item>
-          <Form.Item name="da_score" label="DA评分">
+          <Form.Item name="da_score" label="DA评分" rules={[{ required: true, message: '请输入DA评分' }]}>
             <Input type="number" min={0} max={100} placeholder="0-100" />
           </Form.Item>
-          <Form.Item name="attribute" label="链接属性">
-            <Select defaultValue="dofollow">
+          <Form.Item name="attribute" label="链接属性" rules={[{ required: true, message: '请选择链接属性' }]}>
+            <Select>
               <Option value="dofollow">Dofollow</Option>
               <Option value="nofollow">Nofollow</Option>
+              <Option value="ugc">UGC</Option>
+              <Option value="sponsored">Sponsored</Option>
             </Select>
+          </Form.Item>
+          <Form.Item name="quality_score" label="质量评分">
+            <Input type="number" min={0} max={100} placeholder="0-100" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={3} placeholder="请输入备注信息" />
+          </Form.Item>
+          <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
+            <Select>
+              <Option value="pending">待审核</Option>
+              <Option value="active">有效</Option>
+              <Option value="inactive">失效</Option>
+              <Option value="toxic">有毒</Option>
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
@@ -436,13 +469,15 @@ const BacklinkManager: React.FC = () => {
           <Form.Item name="anchor_text" label="锚文本" rules={[{ required: true, message: '请输入锚文本' }]}>
             <Input placeholder="点击文本" />
           </Form.Item>
-          <Form.Item name="da_score" label="DA评分">
+          <Form.Item name="da_score" label="DA评分" rules={[{ required: true, message: '请输入DA评分' }]}>
             <Input type="number" min={0} max={100} placeholder="0-100" />
           </Form.Item>
-          <Form.Item name="attribute" label="链接属性">
+          <Form.Item name="attribute" label="链接属性" rules={[{ required: true, message: '请选择链接属性' }]}>
             <Select>
               <Option value="dofollow">Dofollow</Option>
               <Option value="nofollow">Nofollow</Option>
+              <Option value="ugc">UGC</Option>
+              <Option value="sponsored">Sponsored</Option>
             </Select>
           </Form.Item>
           <Form.Item name="remark" label="备注">
@@ -451,8 +486,9 @@ const BacklinkManager: React.FC = () => {
           <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
             <Select>
               <Option value="pending">待审核</Option>
-              <Option value="approved">已通过</Option>
-              <Option value="rejected">已拒绝</Option>
+              <Option value="active">有效</Option>
+              <Option value="inactive">失效</Option>
+              <Option value="toxic">有毒</Option>
             </Select>
           </Form.Item>
         </Form>
