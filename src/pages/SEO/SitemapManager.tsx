@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, Input, Switch, message, Timeline, Statistic, Row, Col, Select, Breadcrumb, Spin, Popconfirm } from 'antd';
+import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, Input, InputNumber, Switch, message, Timeline, Statistic, Row, Col, Select, Breadcrumb, Spin, Popconfirm } from 'antd';
 
 import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -1015,7 +1015,13 @@ const SitemapManager: React.FC = () => {
             ]}
             initialValue={0.5}
           >
-            <Input type="number" min={0.1} max={1} step={0.1} placeholder="请输入优先级 (0.1 ~ 1)" />
+            <InputNumber 
+              min={0.1} 
+              max={1} 
+              step={0.1} 
+              placeholder="请输入优先级 (0.1 ~ 1)" 
+              style={{ width: '100%' }}
+            />
           </Form.Item>
         </Form>
       </Modal>
