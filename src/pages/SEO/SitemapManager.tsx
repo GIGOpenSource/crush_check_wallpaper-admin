@@ -28,7 +28,7 @@ const SitemapManager: React.FC = () => {
   const [sitemapTotal, setSitemapTotal] = useState(0);
   const [sitemapPage, setSitemapPage] = useState(1);
   const [sitemapPageSize] = useState(10);
-  
+
   // 自动更新配置弹窗
   const [autoUpdateModalVisible, setAutoUpdateModalVisible] = useState(false);
   const [autoUpdateForm] = Form.useForm();
@@ -109,7 +109,7 @@ const SitemapManager: React.FC = () => {
         const data = res.data as any;
         const results = Array.isArray(data?.results) ? data.results : [];
         const pagination = data?.pagination || {};
-        
+
         // 字段映射：将后端返回的字段映射为前端期望的格式
         const mappedResults = results.map((item: any) => ({
           id: item.id,
@@ -122,7 +122,7 @@ const SitemapManager: React.FC = () => {
           autoUpdate: item.auto_update ?? false,
           content: item.content,
         }));
-        
+
         setSitemapFiles(mappedResults);
         setSitemapTotal(pagination.total || 0);
         setSitemapPage(page);
@@ -165,7 +165,7 @@ const SitemapManager: React.FC = () => {
         // 后端返回的数据结构：data.results 是数组，data.pagination 是分页信息
         const results = (res.data as any).results || [];
         const pagination = (res.data as any).pagination || {};
-        
+
         // 映射后端字段到前端字段
         const mappedData: SitemapUrl[] = results.map((item: any) => ({
           id: item.id,
@@ -175,7 +175,7 @@ const SitemapManager: React.FC = () => {
           priority: item.priority || 0.5,
           status: item.index_status || 'pending',  // index_status -> status
         }));
-        
+
         setUrlList(mappedData);
         setUrlTotal(pagination.total || 0);
         setUrlPage(page);
@@ -225,7 +225,7 @@ const SitemapManager: React.FC = () => {
     try {
       const values = await addUrlForm.validateFields();
       setSavingUrl(true);
-      
+
       const res = await createSitemapUrl({
         content: values.content,
         index_status: values.index_status,
@@ -233,7 +233,7 @@ const SitemapManager: React.FC = () => {
         priority: values.priority,
         title: values.title,
       });
-      
+
       // 支持 200 和 201 状态码
       if (res.code === 200 || res.code === 201) {
         message.success('添加成功');
@@ -251,28 +251,12 @@ const SitemapManager: React.FC = () => {
   };
 
   // 删除URL
-  const handleDeleteUrl = (record: SitemapUrl) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除该URL吗？此操作不可撤销。`,
-      okText: '确认删除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          setLoading(true);
-          await deleteSitemapUrl(record.id);
-          message.success('删除成功');
-          loadUrls();  // 刷新列表
-          loadStatistics();  // 刷新统计数据
-        } catch (err: any) {
-          console.error('删除失败:', err);
-          message.error(err?.message || '删除失败');
-        } finally {
-          setLoading(false);
-        }
-      },
-    });
+  const handleDeleteUrl = async (record: SitemapUrl) => {
+    setLoading(true);
+    await deleteSitemapUrl(record.id);
+    message.success('删除成功');
+    loadUrls();  // 刷新列表
+    loadStatistics();  // 刷新统计数据
   };
 
   const columns = [
@@ -330,10 +314,10 @@ const SitemapManager: React.FC = () => {
 
   const urlColumns = [
     { title: 'URL', dataIndex: 'loc', key: 'loc', ellipsis: true },
-    { 
-      title: '最后修改', 
-      dataIndex: 'lastmod', 
-      key: 'lastmod', 
+    {
+      title: '最后修改',
+      dataIndex: 'lastmod',
+      key: 'lastmod',
       width: 180,
       render: (date: string) => {
         if (!date) return '--';
@@ -384,9 +368,9 @@ const SitemapManager: React.FC = () => {
           cancelText="取消"
           okButtonProps={{ danger: true }}
         >
-          <Button 
-            type="link" 
-            danger 
+          <Button
+            type="link"
+            danger
             icon={<DeleteOutlined />}
           >
             删除
@@ -416,18 +400,18 @@ const SitemapManager: React.FC = () => {
     try {
       const values = await form.validateFields();
       setSavingEdit(true);
-      
+
       if (!editingSitemap) {
         message.error('编辑对象不存在');
         return;
       }
-      
+
       const res = await updateSitemapUrl({
         id: editingSitemap.id,
         title: values.title,
         content: values.content,
       });
-      
+
       if (res.code === 200 || res.code === 201) {
         message.success('保存成功');
         setEditModalVisible(false);
@@ -459,19 +443,19 @@ const SitemapManager: React.FC = () => {
     try {
       const values = await autoUpdateForm.validateFields();
       setSavingAutoUpdate(true);
-      
+
       // 模拟API调用
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // 更新本地状态
       if (selectedSitemap) {
-        setSitemapFiles(prev => prev.map(item => 
-          item.id === selectedSitemap.id 
+        setSitemapFiles(prev => prev.map(item =>
+          item.id === selectedSitemap.id
             ? { ...item, autoUpdate: values.enabled }
             : item
         ));
       }
-      
+
       message.success(`自动更新${values.enabled ? '已启用' : '已禁用'}`);
       setAutoUpdateModalVisible(false);
     } catch (_err) {
@@ -486,16 +470,16 @@ const SitemapManager: React.FC = () => {
     try {
       // 模拟API调用
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // 更新本地状态
-      setSitemapFiles(prev => prev.map(item => 
-        item.id === record.id 
+      setSitemapFiles(prev => prev.map(item =>
+        item.id === record.id
           ? { ...item, autoUpdate: checked }
           : item
       ));
-      
+
       message.success(`自动更新${checked ? '已启用' : '已禁用'}`);
-      
+
       // 如果启用，打开配置弹窗
       if (checked) {
         handleOpenAutoUpdateConfig({ ...record, autoUpdate: checked });
@@ -642,42 +626,42 @@ const SitemapManager: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic 
-              title="总URL数" 
-              value={statistics.total_urls} 
+            <Statistic
+              title="总URL数"
+              value={statistics.total_urls}
               loading={statsLoading}
-              prefix={<FileTextOutlined />} 
+              prefix={<FileTextOutlined />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic 
-              title="已索引" 
-              value={statistics.indexed_count} 
+            <Statistic
+              title="已索引"
+              value={statistics.indexed_count}
               loading={statsLoading}
-              valueStyle={{ color: '#52c41a' }} 
+              valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic 
-              title="待索引" 
-              value={statistics.pending_count} 
+            <Statistic
+              title="待索引"
+              value={statistics.pending_count}
               loading={statsLoading}
-              valueStyle={{ color: '#faad14' }} 
+              valueStyle={{ color: '#faad14' }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic 
-              title="索引率" 
-              value={statistics.index_rate} 
+            <Statistic
+              title="索引率"
+              value={statistics.index_rate}
               loading={statsLoading}
-              suffix="%" 
-              valueStyle={{ color: '#1890ff' }} 
+              suffix="%"
+              valueStyle={{ color: '#1890ff' }}
             />
           </Card>
         </Col>
@@ -689,7 +673,7 @@ const SitemapManager: React.FC = () => {
             <Alert
               message={sitemapStatus?.status ? 'Sitemap状态正常' : 'Sitemap状态异常'}
               description={
-                sitemapStatus 
+                sitemapStatus
                   ? `所有sitemap文件均可正常访问，最后更新时间为 ${formatDateTime(sitemapStatus.time)}`
                   : '正在加载Sitemap状态...'
               }
@@ -705,10 +689,10 @@ const SitemapManager: React.FC = () => {
                 提交到搜索引擎
               </Button>
             </Space>
-            <Table 
-              columns={columns} 
-              dataSource={sitemapFiles} 
-              rowKey="id" 
+            <Table
+              columns={columns}
+              dataSource={sitemapFiles}
+              rowKey="id"
               loading={sitemapLoading}
               scroll={{ x: 'max-content' }}
               pagination={{
@@ -731,16 +715,16 @@ const SitemapManager: React.FC = () => {
                 新增
               </Button>
               <Input
-                placeholder="搜索URL" 
+                placeholder="搜索URL"
                 style={{ width: 240 }}
                 value={urlSearch}
                 onChange={(e) => setUrlSearch(e.target.value)}
                 // onSearch={() => loadUrls(1)}
                 allowClear
               />
-              <Select 
-                placeholder="索引状态" 
-                style={{ width: 120 }} 
+              <Select
+                placeholder="索引状态"
+                style={{ width: 120 }}
                 allowClear
                 value={urlStatusFilter}
                 onChange={(value) => {
@@ -748,7 +732,7 @@ const SitemapManager: React.FC = () => {
                   loadUrls(1);
                 }}
               >
-                 <Select.Option value="">全部</Select.Option>
+                <Select.Option value="">全部</Select.Option>
                 <Select.Option value="indexed">已索引</Select.Option>
                 <Select.Option value="pending">待索引</Select.Option>
                 <Select.Option value="error">错误</Select.Option>
@@ -911,16 +895,16 @@ const SitemapManager: React.FC = () => {
         confirmLoading={savingEdit}
       >
         <Form form={form} layout="vertical">
-          <Form.Item 
-            name="title" 
-            label="文件名" 
+          <Form.Item
+            name="title"
+            label="文件名"
             rules={[{ required: true, message: '请输入文件名' }]}
           >
             <Input placeholder="请输入文件名" />
           </Form.Item>
-          <Form.Item 
-            name="content" 
-            label="内容" 
+          <Form.Item
+            name="content"
+            label="内容"
             rules={[{ required: true, message: '请输入内容' }]}
           >
             <Input.TextArea rows={4} placeholder="请输入内容" />
@@ -940,9 +924,9 @@ const SitemapManager: React.FC = () => {
         confirmLoading={loading}
       >
         <Form form={generateForm} layout="vertical">
-          <Form.Item 
-            name="content_type" 
-            label="包含内容类型" 
+          <Form.Item
+            name="content_type"
+            label="包含内容类型"
             rules={[{ required: true, message: '请选择内容类型' }]}
             initialValue="article"
           >
@@ -953,9 +937,9 @@ const SitemapManager: React.FC = () => {
               <Select.Option value="page">页面</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item 
-            name="changefreq" 
-            label="更新频率" 
+          <Form.Item
+            name="changefreq"
+            label="更新频率"
             rules={[{ required: true, message: '请选择更新频率' }]}
             initialValue="daily"
           >
@@ -969,9 +953,9 @@ const SitemapManager: React.FC = () => {
               <Select.Option value="never">从不</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item 
-            name="priority" 
-            label="优先级" 
+          <Form.Item
+            name="priority"
+            label="优先级"
             rules={[
               { required: true, message: '请输入优先级' },
               { type: 'number', min: 0.1, max: 1, message: '优先级范围是 0.1 ~ 1' }
@@ -1008,10 +992,10 @@ const SitemapManager: React.FC = () => {
           }}
           columns={[
             { title: '文件名', dataIndex: 'name', key: 'name', ellipsis: true },
-            { 
-              title: '状态', 
-              dataIndex: 'status', 
-              key: 'status', 
+            {
+              title: '状态',
+              dataIndex: 'status',
+              key: 'status',
               width: 100,
               render: (status: string) => {
                 const config: Record<string, { color: string; text: string }> = {
@@ -1083,9 +1067,9 @@ const SitemapManager: React.FC = () => {
         width={600}
       >
         <Form form={addUrlForm} layout="vertical">
-          <Form.Item 
-            name="content" 
-            label="URL" 
+          <Form.Item
+            name="content"
+            label="URL"
             rules={[
               { required: true, message: '请输入URL' },
               { type: 'url', message: '请输入有效的URL' }
@@ -1093,9 +1077,9 @@ const SitemapManager: React.FC = () => {
           >
             <Input placeholder="例如: https://example.com/article/123" />
           </Form.Item>
-          <Form.Item 
-            name="index_status" 
-            label="索引状态" 
+          <Form.Item
+            name="index_status"
+            label="索引状态"
             rules={[{ required: true, message: '请选择索引状态' }]}
             initialValue="pending"
           >
@@ -1105,9 +1089,9 @@ const SitemapManager: React.FC = () => {
               <Select.Option value="excluded">已排除</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item 
-            name="changefreq" 
-            label="更新频率" 
+          <Form.Item
+            name="changefreq"
+            label="更新频率"
             rules={[{ required: true, message: '请选择更新频率' }]}
             initialValue="weekly"
           >
@@ -1121,12 +1105,12 @@ const SitemapManager: React.FC = () => {
               <Select.Option value="never">从不</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item 
-            name="priority" 
-            label="优先级" 
+          <Form.Item
+            name="priority"
+            label="优先级"
             rules={[
               { required: true, message: '请输入优先级' },
-              { 
+              {
                 validator: (_, value) => {
                   if (value >= 0.1 && value <= 1) {
                     return Promise.resolve();
@@ -1139,9 +1123,9 @@ const SitemapManager: React.FC = () => {
           >
             <Input type="number" step="0.1" min="0.1" max="1" placeholder="0.1 ~ 1" />
           </Form.Item>
-          <Form.Item 
-            name="title" 
-            label="分类" 
+          <Form.Item
+            name="title"
+            label="分类"
             rules={[{ required: true, message: '请选择分类' }]}
             initialValue="article"
           >

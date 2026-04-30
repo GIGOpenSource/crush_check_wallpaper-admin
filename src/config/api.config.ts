@@ -64,10 +64,16 @@ export interface ApiResponse<T = unknown> {
 
 // 分页响应接口
 export interface PaginatedResponse<T = unknown> {
-  items: T[];
+  results: T[];
   total: number;
   page: number;
   pageSize: number;
+  pagination?: {
+    page: number;
+    page_size: number;
+    total: number;
+    total_pages: number;
+  };
 }
 
 export default API_CONFIG;
