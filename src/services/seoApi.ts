@@ -353,11 +353,15 @@ export interface SitemapConfig {
 // Sitemap URL 类型
 export interface SitemapUrl {
   id: number;
-  loc: string;
-  lastmod: string;
-  changefreq: string;
-  priority: number;
-  status: 'indexed' | 'pending' | 'error';
+  loc: string;                       // URL地址（展示用）
+  lastmod: string;                   // 最后修改时间
+  changefreq: string;                // 更新频率
+  priority: number;                  // 优先级
+  status: 'indexed' | 'pending' | 'excluded' | 'error';  // 索引状态
+  // 编辑表单用字段
+  content: string;                   // URL内容
+  index_status: 'pending' | 'indexed' | 'excluded';  // 索引状态
+  title: 'article' | 'category' | 'tag' | 'page';  // 分类
 }
 
 // Sitemap 统计类型
@@ -420,6 +424,9 @@ export const createSitemapUrl = async (data: {
       changefreq: data.changefreq,
       priority: data.priority,
       status: data.index_status === 'excluded' ? 'error' : data.index_status,
+      content: data.content,
+      index_status: data.index_status,
+      title: data.title,
     };
     return Promise.resolve({
       code: 201,
@@ -434,21 +441,73 @@ export const createSitemapUrl = async (data: {
   });
 };
 
-// 更新 Sitemap URL
-export const updateSitemapUrl = async (data: {
-  id: number;
+// 更新 Sitemap
+export const updateSitemap = async (id: number, data: {
   title: string;
   content: string;
+}): Promise<ApiResponse<SitemapFile>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockResult: SitemapFile = {
+      id: id,
+      name: data.title,
+      url: `/sitemap_${id}.xml`,
+      type: 'sitemap',
+      urls: 0,
+      size: '0KB',
+      lastUpdate: new Date().toISOString(),
+      status: 'valid',
+      autoUpdate: false,
+      content: data.content,
+    };
+    return Promise.resolve({
+      code: 200,
+      data: mockResult,
+      message: '更新成功',
+    }) as Promise<ApiResponse<SitemapFile>>;
+  }
+  return request<SitemapFile>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemaps/${id}/`,
+    method: 'PUT',
+    data,
+  });
+};
+
+// 删除 Sitemap
+export const deleteSitemap = async (id: number): Promise<ApiResponse<void>> => {
+  if (API_CONFIG.USE_MOCK) {
+    return Promise.resolve({
+      code: 200,
+      data: undefined,
+      message: '删除成功',
+    }) as Promise<ApiResponse<void>>;
+  }
+  return request<void>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemaps/${id}/`,
+    method: 'DELETE',
+  });
+};
+
+// 更新 Sitemap URL
+export const updateSitemapUrl = async (id: number, data: {
+  content: string;
+  index_status: 'pending' | 'indexed' | 'excluded';
+  changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+  priority: number;
+  title: 'article' | 'category' | 'tag' | 'page';
 }): Promise<ApiResponse<SitemapUrl>> => {
   if (API_CONFIG.USE_MOCK) {
     // Mock 数据
     const mockResult: SitemapUrl = {
-      id: data.id,
+      id: id,
       loc: data.content,
       lastmod: new Date().toISOString(),
-      changefreq: 'weekly',
-      priority: 0.5,
-      status: 'indexed',
+      changefreq: data.changefreq,
+      priority: data.priority,
+      status: data.index_status === 'excluded' ? 'error' : data.index_status === 'indexed' ? 'indexed' : 'pending',
+      content: data.content,
+      index_status: data.index_status,
+      title: data.title,
     };
     return Promise.resolve({
       code: 200,
@@ -457,8 +516,8 @@ export const updateSitemapUrl = async (data: {
     }) as Promise<ApiResponse<SitemapUrl>>;
   }
   return request<SitemapUrl>({
-    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/update-sitemap-xml/`,
-    method: 'POST',
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/${id}/`,
+    method: 'PUT',
     data,
   });
 };
@@ -488,19 +547,71 @@ export const getSitemapUrls = async (params?: {
   if (API_CONFIG.USE_MOCK) {
     // Mock 数据
     const mockUrls: SitemapUrl[] = [
-      { id: 1, loc: 'https://example.com/wallpaper/4k-star-sky', lastmod: '2026-04-17', changefreq: 'weekly', priority: 0.8, status: 'indexed' },
-      { id: 2, loc: 'https://example.com/wallpaper/anime-girl', lastmod: '2026-04-17', changefreq: 'weekly', priority: 0.8, status: 'indexed' },
-      { id: 3, loc: 'https://example.com/category/nature', lastmod: '2026-04-16', changefreq: 'daily', priority: 0.9, status: 'indexed' },
-      { id: 4, loc: 'https://example.com/tag/4k', lastmod: '2026-04-15', changefreq: 'daily', priority: 0.7, status: 'pending' },
-      { id: 5, loc: 'https://example.com/about', lastmod: '2026-04-10', changefreq: 'monthly', priority: 0.5, status: 'indexed' },
+      { 
+        id: 1, 
+        loc: 'https://example.com/wallpaper/4k-star-sky', 
+        lastmod: '2026-04-17', 
+        changefreq: 'weekly', 
+        priority: 0.8, 
+        status: 'indexed',
+        content: 'https://example.com/wallpaper/4k-star-sky',
+        index_status: 'indexed',
+        title: 'article',
+      },
+      { 
+        id: 2, 
+        loc: 'https://example.com/wallpaper/anime-girl', 
+        lastmod: '2026-04-17', 
+        changefreq: 'weekly', 
+        priority: 0.8, 
+        status: 'indexed',
+        content: 'https://example.com/wallpaper/anime-girl',
+        index_status: 'indexed',
+        title: 'article',
+      },
+      { 
+        id: 3, 
+        loc: 'https://example.com/category/nature', 
+        lastmod: '2026-04-16', 
+        changefreq: 'daily', 
+        priority: 0.9, 
+        status: 'indexed',
+        content: 'https://example.com/category/nature',
+        index_status: 'indexed',
+        title: 'category',
+      },
+      { 
+        id: 4, 
+        loc: 'https://example.com/tag/4k', 
+        lastmod: '2026-04-15', 
+        changefreq: 'daily', 
+        priority: 0.7, 
+        status: 'pending',
+        content: 'https://example.com/tag/4k',
+        index_status: 'pending',
+        title: 'tag',
+      },
+      { 
+        id: 5, 
+        loc: 'https://example.com/about', 
+        lastmod: '2026-04-10', 
+        changefreq: 'monthly', 
+        priority: 0.5, 
+        status: 'indexed',
+        content: 'https://example.com/about',
+        index_status: 'indexed',
+        title: 'page',
+      },
     ];
     return Promise.resolve({
       code: 200,
       data: {
-        items: mockUrls,
-        total: mockUrls.length,
-        page: params?.currentPage || 1,
-        pageSize: params?.pageSize || 10,
+        results: mockUrls,
+        pagination: {
+          total: mockUrls.length,
+          page: params?.currentPage || 1,
+          page_size: params?.pageSize || 10,
+        },
       },
       message: 'success',
       success: true,
@@ -1397,6 +1508,8 @@ export const seoApi = {
   getSitemapUrls,
   getSitemapStatistics,
   createSitemapUrl,
+  updateSitemap,
+  deleteSitemap,
   generateSitemap,
   generateSitemapXml,
   downloadSitemap,

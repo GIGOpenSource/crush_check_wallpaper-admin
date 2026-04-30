@@ -3,7 +3,7 @@ import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, In
 
 import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, updateSitemapUrl, deleteSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory, getSitemapStatus } from '../../services/seoApi';
+import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, updateSitemapUrl, deleteSitemapUrl, updateSitemap, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory, getSitemapStatus } from '../../services/seoApi';
 import type { SitemapFile, SitemapUrl, SitemapHistory, SitemapStatistics as SitemapStatisticsType } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
@@ -158,7 +158,7 @@ const SitemapManager: React.FC = () => {
       const res = await getSitemapUrls({
         currentPage: page,
         pageSize: urlPageSize,
-        content: urlSearch || undefined,
+         content: urlSearch || undefined,
         index_status: urlStatusFilter || undefined,
       });
       if (res.code === 200 && res.data) {
@@ -174,6 +174,10 @@ const SitemapManager: React.FC = () => {
           changefreq: item.changefreq || 'weekly',
           priority: item.priority || 0.5,
           status: item.index_status || 'pending',  // index_status -> status
+          // 保留原始字段用于编辑表单回显
+          content: item.content || '',
+          index_status: item.index_status || 'pending',
+          title: item.title || 'article',
         }));
 
         setUrlList(mappedData);
@@ -257,6 +261,52 @@ const SitemapManager: React.FC = () => {
     message.success('删除成功');
     loadUrls();  // 刷新列表
     loadStatistics();  // 刷新统计数据
+  };
+
+  // 编辑URL
+  const [editingUrl, setEditingUrl] = useState<SitemapUrl | null>(null);
+  const [editUrlModalVisible, setEditUrlModalVisible] = useState(false);
+  const [editUrlForm] = Form.useForm();
+  const [savingEditUrl, setSavingEditUrl] = useState(false);
+
+  const handleEditUrl = (record: SitemapUrl) => {
+    setEditingUrl(record);
+    editUrlForm.setFieldsValue({
+      content: record.content,
+      index_status: record.index_status,
+      changefreq: record.changefreq,
+      priority: record.priority,
+      title: record.title,
+    });
+    setEditUrlModalVisible(true);
+  };
+
+  const handleSaveEditUrl = async () => {
+    try {
+      const values = await editUrlForm.validateFields();
+      setSavingEditUrl(true);
+
+      const res = await updateSitemapUrl(editingUrl!.id, {
+        content: values.content,
+        index_status: values.index_status,
+        changefreq: values.changefreq,
+        priority: values.priority,
+        title: values.title,
+      });
+
+      if (res.code === 200) {
+        message.success('更新成功');
+        setEditUrlModalVisible(false);
+        editUrlForm.resetFields();
+        loadUrls();  // 刷新列表
+        loadStatistics();  // 刷新统计数据
+      }
+    } catch (err: any) {
+      console.error('更新失败:', err);
+      message.error(err?.message || '更新失败');
+    } finally {
+      setSavingEditUrl(false);
+    }
   };
 
   const columns = [
@@ -358,24 +408,28 @@ const SitemapManager: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 150,
       render: (_: unknown, record: SitemapUrl) => (
-        <Popconfirm
-          title="确认删除"
-          description="确定要删除该URL吗？此操作不可撤销。"
-          onConfirm={() => handleDeleteUrl(record)}
-          okText="确认删除"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-        >
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
+        <Space size={4} style={{ paddingLeft: 0 }}>
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEditUrl(record)} style={{ padding: '0 4px' }}>编辑</Button>
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除该URL吗？此操作不可撤销。"
+            onConfirm={() => handleDeleteUrl(record)}
+            okText="确认删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
           >
-            删除
-          </Button>
-        </Popconfirm>
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              style={{ padding: '0 4px' }}
+            >
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -406,8 +460,7 @@ const SitemapManager: React.FC = () => {
         return;
       }
 
-      const res = await updateSitemapUrl({
-        id: editingSitemap.id,
+      const res = await updateSitemap(editingSitemap.id, {
         title: values.title,
         content: values.content,
       });
@@ -1128,6 +1181,87 @@ const SitemapManager: React.FC = () => {
             label="分类"
             rules={[{ required: true, message: '请选择分类' }]}
             initialValue="article"
+          >
+            <Select>
+              <Select.Option value="article">文章</Select.Option>
+              <Select.Option value="category">分类</Select.Option>
+              <Select.Option value="tag">标签</Select.Option>
+              <Select.Option value="page">页面</Select.Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 编辑 URL 弹窗 */}
+      <Modal
+        title="编辑 Sitemap URL"
+        open={editUrlModalVisible}
+        onOk={handleSaveEditUrl}
+        onCancel={() => {
+          setEditUrlModalVisible(false);
+          editUrlForm.resetFields();
+        }}
+        confirmLoading={savingEditUrl}
+        width={600}
+      >
+        <Form form={editUrlForm} layout="vertical">
+          <Form.Item
+            name="content"
+            label="URL"
+            rules={[
+              { required: true, message: '请输入URL' },
+              { type: 'url', message: '请输入有效的URL' }
+            ]}
+          >
+            <Input placeholder="例如: https://example.com/article/123" />
+          </Form.Item>
+          <Form.Item
+            name="index_status"
+            label="索引状态"
+            rules={[{ required: true, message: '请选择索引状态' }]}
+          >
+            <Select>
+              <Select.Option value="pending">待索引</Select.Option>
+              <Select.Option value="indexed">已索引</Select.Option>
+              <Select.Option value="excluded">已排除</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="changefreq"
+            label="更新频率"
+            rules={[{ required: true, message: '请选择更新频率' }]}
+          >
+            <Select>
+              <Select.Option value="always">总是</Select.Option>
+              <Select.Option value="hourly">每小时</Select.Option>
+              <Select.Option value="daily">每天</Select.Option>
+              <Select.Option value="weekly">每周</Select.Option>
+              <Select.Option value="monthly">每月</Select.Option>
+              <Select.Option value="yearly">每年</Select.Option>
+              <Select.Option value="never">从不</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="priority"
+            label="优先级"
+            rules={[
+              { required: true, message: '请输入优先级' },
+              {
+                validator: (_, value) => {
+                  if (value >= 0.1 && value <= 1) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('优先级范围: 0.1 ~ 1'));
+                }
+              }
+            ]}
+          >
+            <Input type="number" step="0.1" min="0.1" max="1" placeholder="0.1 ~ 1" />
+          </Form.Item>
+          <Form.Item
+            name="title"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
           >
             <Select>
               <Select.Option value="article">文章</Select.Option>
