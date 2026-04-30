@@ -593,14 +593,19 @@ const TDKManager: React.FC = () => {
   const handlePreview = (record: ApiPageTDK) => {
     setPreviewRecord(record);
     
+    // 使用url_content作为完整URL，如果url_content是相对路径则添加域名
+    const fullUrl = record.url_content?.startsWith('http') 
+      ? record.url_content 
+      : `https://example.com${record.url_content || ''}`;
+    
     // 模拟不同搜索引擎的展示效果
     setPreviewData({
-      googleTitle: record.title.length > 60 ? record.title.substring(0, 57) + '...' : record.title,
-      googleDesc: record.description.length > 160 ? record.description.substring(0, 157) + '...' : record.description,
-      googleUrl: `https://example.com${record.url_content}`,
-      bingTitle: record.title.length > 65 ? record.title.substring(0, 62) + '...' : record.title,
-      bingDesc: record.description.length > 170 ? record.description.substring(0, 167) + '...' : record.description,
-      bingUrl: `https://example.com${record.url_content}`,
+      googleTitle: record.title?.length > 60 ? record.title.substring(0, 57) + '...' : record.title || '',
+      googleDesc: record.description?.length > 160 ? record.description.substring(0, 157) + '...' : record.description || '',
+      googleUrl: fullUrl,
+      bingTitle: record.title?.length > 65 ? record.title.substring(0, 62) + '...' : record.title || '',
+      bingDesc: record.description?.length > 170 ? record.description.substring(0, 167) + '...' : record.description || '',
+      bingUrl: fullUrl,
     });
     
     setPreviewModalVisible(true);
@@ -1120,8 +1125,8 @@ const TDKManager: React.FC = () => {
                 </div>
               </div>
               <div style={{ marginTop: 16 }}>
-                <Tag color="blue">Title: {previewRecord.title.length} 字符 (建议 ≤60)</Tag>
-                <Tag color="green">Description: {previewRecord.description.length} 字符 (建议 ≤160)</Tag>
+                <Tag color="blue">Title: {previewRecord.title?.length || 0} 字符 (建议 ≤60)</Tag>
+                <Tag color="green">Description: {previewRecord.description?.length || 0} 字符 (建议 ≤160)</Tag>
               </div>
             </Card>
 
@@ -1135,45 +1140,70 @@ const TDKManager: React.FC = () => {
                 borderRadius: 8,
               }}>
                 <div style={{ 
-                  color: '#001ba0',
-                  fontSize: 18,
-                  lineHeight: 1.33,
-                  marginBottom: 6,
+                  color: '#6867AF',
+                  fontSize: 20,
+                  lineHeight: 1.3,
+                  marginBottom: 8,
                   cursor: 'pointer',
                 }}>
                   {previewData.bingTitle}
                 </div>
                 <div style={{ 
-                  color: '#006d21',
+                  color: '#008000',
                   fontSize: 13,
                   lineHeight: 1.3,
-                  marginBottom: 6,
+                  marginBottom: 8,
                 }}>
                   {previewData.bingUrl}
                 </div>
                 <div style={{ 
-                  color: '#666',
-                  fontSize: 13,
-                  lineHeight: 1.5,
+                  color: '#000000',
+                  fontSize: 14,
+                  lineHeight: 1.58,
                 }}>
                   {previewData.bingDesc}
                 </div>
               </div>
               <div style={{ marginTop: 16 }}>
-                <Tag color="blue">Title: {previewRecord.title.length} 字符 (建议 ≤65)</Tag>
-                <Tag color="green">Description: {previewRecord.description.length} 字符 (建议 ≤170)</Tag>
+                <Tag color="blue">Title: {previewRecord.title?.length || 0} 字符 (建议 ≤65)</Tag>
+                <Tag color="green">Description: {previewRecord.description?.length || 0} 字符 (建议 ≤170)</Tag>
               </div>
             </Card>
 
             {/* Keywords 展示 */}
             <Card title="Keywords" style={{ marginTop: 24 }}>
               <Space wrap>
-                {previewRecord.keywords.map((k, i) => (
-                  <Tag key={i} color="purple">{k}</Tag>
-                ))}
+                {(() => {
+                  // 处理keywords：可能是数组、逗号分隔的字符串、或其他类型
+                  let keywordsArray: string[] = [];
+                  const keywords = previewRecord.keywords as any;
+                  
+                  if (Array.isArray(keywords)) {
+                    keywordsArray = keywords;
+                  } else if (typeof keywords === 'string' && keywords.trim()) {
+                    // 按逗号分割，并去除每个关键词的前后空格
+                    keywordsArray = keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k);
+                  }
+                  
+                  if (keywordsArray.length === 0) {
+                    return <span style={{ color: '#999' }}>暂无关键词</span>;
+                  }
+                  
+                  return keywordsArray.map((k, i) => (
+                    <Tag key={i} color="purple">{k}</Tag>
+                  ));
+                })()}
               </Space>
               <div style={{ marginTop: 8, color: '#666' }}>
-                共 {previewRecord.keywords.length} 个关键词
+                共 {(() => {
+                  const keywords = previewRecord.keywords as any;
+                  if (Array.isArray(keywords)) {
+                    return keywords.length;
+                  } else if (typeof keywords === 'string' && keywords.trim()) {
+                    return keywords.split(',').filter((k: string) => k.trim()).length;
+                  }
+                  return 0;
+                })()} 个关键词
               </div>
             </Card>
           </div>
