@@ -289,6 +289,21 @@ const RecommendationManagerV2: React.FC = () => {
       },
     },
     {
+      title: '时间模式',
+      dataIndex: 'time_mode',
+      key: 'time_mode',
+      width: 120,
+      render: (timeMode: string) => {
+        const modeMap: Record<string, { color: string; text: string }> = {
+          fixed: { color: 'blue', text: '固定区间' },
+          daily: { color: 'green', text: '每日循环' },
+          weekly: { color: 'orange', text: '每周循环' },
+        };
+        const config = modeMap[timeMode || 'fixed'] || { color: 'default', text: '未知' };
+        return <Tag color={config.color}>{config.text}</Tag>;
+      },
+    },
+    {
       title: '生效时间',
       key: 'time',
       width: 200,
@@ -485,6 +500,7 @@ const RecommendationManagerV2: React.FC = () => {
       content_limit: record.content_limit || POSITION_CONFIG[record.strategy_type as keyof typeof POSITION_CONFIG]?.maxContentPerStrategy || 50,
       status: record.status,
       remark: record.remark,
+      time_mode: record.time_mode || 'fixed',
       timeRange: record.start_time && record.end_time
         ? [dayjs(record.start_time), dayjs(record.end_time)]
         : undefined,
@@ -514,6 +530,7 @@ const RecommendationManagerV2: React.FC = () => {
           content_limit: values.content_limit,
           start_time: startTime,
           end_time: endTime,
+          time_mode: values.time_mode,
           status: values.status,
           remark: values.remark,
         });
@@ -527,6 +544,7 @@ const RecommendationManagerV2: React.FC = () => {
           content_limit: values.content_limit,
           start_time: startTime,
           end_time: endTime,
+          time_mode: values.time_mode,
           status: values.status,
           remark: values.remark,
         });
@@ -1108,8 +1126,21 @@ const RecommendationManagerV2: React.FC = () => {
             />
           </Form.Item>
           <Form.Item
+            label="时间模式"
+            name="time_mode"
+            initialValue="fixed"
+            rules={[{ required: true, message: '请选择时间模式' }]}
+          >
+            <Select placeholder="请选择时间模式">
+              <Option value="fixed">固定区间</Option>
+              <Option value="daily">每日循环</Option>
+              <Option value="weekly">每周循环</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
             label="生效时间"
             name="timeRange"
+            rules={[{ required: true, message: '请选择生效时间' }]}
           >
             <RangePicker
               showTime

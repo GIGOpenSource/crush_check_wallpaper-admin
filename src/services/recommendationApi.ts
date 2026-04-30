@@ -14,6 +14,7 @@ export interface RecommendationStrategy {
   content_limit?: number;  // 内容数量限制
   wallpaper_ids?: number[];  // 壁纸ID列表
   content_current_count?: number;  // 当前实际内容数量
+  time_mode?: 'fixed' | 'daily' | 'weekly';  // 时间模式：fixed-固定区间，daily-每日循环，weekly-每周循环
   start_time?: string;
   end_time?: string;
   status: 'draft' | 'active' | 'inactive';  // 状态：draft-草稿，active-激活，inactive-未激活
