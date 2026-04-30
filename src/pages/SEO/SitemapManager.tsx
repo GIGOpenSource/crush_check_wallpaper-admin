@@ -251,19 +251,28 @@ const SitemapManager: React.FC = () => {
   };
 
   // 删除URL
-  const handleDeleteUrl = async (record: SitemapUrl) => {
-    try {
-      setLoading(true);
-      await deleteSitemapUrl(record.id);
-      message.success('删除成功');
-      loadUrls();  // 刷新列表
-      loadStatistics();  // 刷新统计数据
-    } catch (err: any) {
-      console.error('删除失败:', err);
-      message.error(err?.message || '删除失败');
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteUrl = (record: SitemapUrl) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除该URL吗？此操作不可撤销。`,
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          setLoading(true);
+          await deleteSitemapUrl(record.id);
+          message.success('删除成功');
+          loadUrls();  // 刷新列表
+          loadStatistics();  // 刷新统计数据
+        } catch (err: any) {
+          console.error('删除失败:', err);
+          message.error(err?.message || '删除失败');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const columns = [
