@@ -1,0 +1,1 @@
+import{y as e}from"./index-N8YkuEai.js";export default e();

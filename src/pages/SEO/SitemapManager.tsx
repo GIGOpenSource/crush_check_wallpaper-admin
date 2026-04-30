@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, Input, Switch, message, Timeline, Statistic, Row, Col, Select, Breadcrumb, Spin } from 'antd';
+import { Card, Button, Table, Tag, Space, Progress, Alert, Tabs, Modal, Form, Input, Switch, message, Timeline, Statistic, Row, Col, Select, Breadcrumb, Spin, Popconfirm } from 'antd';
 
-import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined } from '@ant-design/icons';
+import { ReloadOutlined, DownloadOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, GlobalOutlined, FileTextOutlined, ArrowLeftOutlined, SearchOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, updateSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory, getSitemapStatus } from '../../services/seoApi';
+import { listSitemaps, getSitemapUrls, getSitemapStatistics, createSitemapUrl, updateSitemapUrl, deleteSitemapUrl, generateSitemap, generateSitemapXml, downloadSitemap, submitToSearchEngines, getSitemapSubmissionHistory, getSitemapStatus } from '../../services/seoApi';
 import type { SitemapFile, SitemapUrl, SitemapHistory, SitemapStatistics as SitemapStatisticsType } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
@@ -250,6 +250,22 @@ const SitemapManager: React.FC = () => {
     }
   };
 
+  // 删除URL
+  const handleDeleteUrl = async (record: SitemapUrl) => {
+    try {
+      setLoading(true);
+      await deleteSitemapUrl(record.id);
+      message.success('删除成功');
+      loadUrls();  // 刷新列表
+      loadStatistics();  // 刷新统计数据
+    } catch (err: any) {
+      console.error('删除失败:', err);
+      message.error(err?.message || '删除失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const columns = [
     { title: '文件名', dataIndex: 'name', key: 'name', width: 180, ellipsis: true },
     { title: '类型', dataIndex: 'type', key: 'type', width: 100, ellipsis: true, render: (type: string) => <Tag color={type === 'index' ? 'blue' : 'default'}>{type === 'index' ? '索引' : '地图'}</Tag> },
@@ -345,6 +361,29 @@ const SitemapManager: React.FC = () => {
         const statusInfo = map[status] || { color: 'default', text: status || '--' };
         return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
       },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_: unknown, record: SitemapUrl) => (
+        <Popconfirm
+          title="确认删除"
+          description="确定要删除该URL吗？此操作不可撤销。"
+          onConfirm={() => handleDeleteUrl(record)}
+          okText="确认删除"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <Button 
+            type="link" 
+            danger 
+            icon={<DeleteOutlined />}
+          >
+            删除
+          </Button>
+        </Popconfirm>
+      ),
     },
   ];
 

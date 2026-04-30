@@ -463,6 +463,21 @@ export const updateSitemapUrl = async (data: {
   });
 };
 
+// 删除 Sitemap URL
+export const deleteSitemapUrl = async (id: number): Promise<ApiResponse<void>> => {
+  if (API_CONFIG.USE_MOCK) {
+    return Promise.resolve({
+      code: 200,
+      data: undefined,
+      message: '删除成功',
+    }) as Promise<ApiResponse<void>>;
+  }
+  return request<void>({
+    url: `${API_CONFIG.SEO_PREFIX}/sitemap_urls/${id}/`,
+    method: 'DELETE',
+  });
+};
+
 // 获取 Sitemap URL 列表
 export const getSitemapUrls = async (params?: {
   currentPage?: number;
