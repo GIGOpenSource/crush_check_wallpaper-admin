@@ -96,6 +96,9 @@ export interface GetCustomerUserListParams {
   status?: string;
   startDate?: string;
   endDate?: string;
+  sort_field?: string;
+  sort_order?: 'asc' | 'desc';
+  ordering?: string; // Django REST framework 常用排序参数
 }
 
 // 获取客户用户列表响应

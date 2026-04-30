@@ -73,8 +73,15 @@ const BasicSettings: React.FC = () => {
               registerEnabled: true,
             }}
           >
-            <Form.Item name="siteName" label="站点名称" rules={[{ required: true, message: '请输入站点名称' }]}>
-              <Input placeholder="请输入站点名称" />
+            <Form.Item 
+              name="siteName" 
+              label="站点名称" 
+              rules={[
+                { required: true, message: '请输入站点名称' },
+                { max: 100, message: '站点名称长度不能超过100个字符' }
+              ]}
+            >
+              <Input placeholder="请输入站点名称" showCount maxLength={100} />
             </Form.Item>
             <Form.Item name="siteDescription" label="站点描述">
               <Input.TextArea rows={3} placeholder="请输入站点描述" />

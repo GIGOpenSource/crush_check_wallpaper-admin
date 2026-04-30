@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Tag, Space, Modal, Button, Row, Col, Input, DatePicker, Form } from 'antd';
+import { Table, Card, Tag, Space, Modal, Button, Row, Col, Input, DatePicker, Form, Select } from 'antd';
 import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { 
   getOperationLogList,
@@ -25,9 +25,9 @@ const OperationLog: React.FC = () => {
   // 搜索状态
   const [form] = Form.useForm();
   const [searchParams, setSearchParams] = useState<{
-    operator?: string;
+    username?: string;
     module?: string;
-    action?: string;
+    operation_type?: string;
     start_time?: string;
     end_time?: string;
   }>({});
@@ -54,9 +54,9 @@ const OperationLog: React.FC = () => {
   const handleSearch = () => {
     const values = form.getFieldsValue();
     const params: any = {
-      operator: values.operator,
+      username: values.username,
       module: values.module,
-      action: values.action,
+      operation_type: values.operation_type,
     };
     
     if (values.dateRange && values.dateRange.length === 2) {
@@ -105,6 +105,20 @@ const OperationLog: React.FC = () => {
     };
     return colorMap[action] || 'default';
   };
+
+  // 操作类型选项
+  const operationTypeOptions = [
+    { value: 'create', label: '创建' },
+    { value: 'update', label: '更新' },
+    { value: 'delete', label: '删除' },
+    { value: 'query', label: '查询' },
+    { value: 'export', label: '导出' },
+    { value: 'import', label: '导入' },
+    { value: 'login', label: '登录' },
+    { value: 'logout', label: '登出' },
+    { value: 'audit', label: '审核' },
+    { value: 'other', label: '其他' },
+  ];
 
   const columns = [
     { 
@@ -245,7 +259,7 @@ const OperationLog: React.FC = () => {
           }}>
             <div style={{ flex: '0 0 auto', minWidth: 240 }}>
               <Form.Item 
-                name="operator" 
+                name="username" 
                 label="操作人" 
                 style={{ marginBottom: 0 }}
                 labelCol={{ style: { width: 70 } }}
@@ -267,19 +281,23 @@ const OperationLog: React.FC = () => {
               </Form.Item>
             </div>
             
-            <div style={{ flex: '0 0 auto', minWidth: 280 }}>
+            <div style={{ flex: '0 0 auto', minWidth: 240 }}>
               <Form.Item 
-                name="action" 
+                name="operation_type" 
                 label="操作类型" 
                 style={{ marginBottom: 0 }}
                 labelCol={{ style: { width: 70 } }}
                 wrapperCol={{ flex: 1 }}
               >
-                <Input placeholder="请输入操作类型" allowClear />
+                <Select 
+                  placeholder="请选择操作类型" 
+                  allowClear
+                  options={operationTypeOptions}
+                />
               </Form.Item>
             </div>
             
-            <div style={{ flex: '0 0 auto', minWidth: 380 }}>
+            {/* <div style={{ flex: '0 0 auto', minWidth: 380 }}>
               <Form.Item 
                 name="dateRange" 
                 label="操作时间" 
@@ -293,7 +311,7 @@ const OperationLog: React.FC = () => {
                   placeholder={['开始日期', '结束日期']}
                 />
               </Form.Item>
-            </div>
+            </div> */}
             
             {/* 搜索和重置按钮 */}
             <div style={{ flex: '0 0 auto' }}>

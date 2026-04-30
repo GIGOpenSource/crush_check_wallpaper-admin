@@ -120,6 +120,7 @@ const SitemapManager: React.FC = () => {
           lastUpdate: formatDateTime(item.updated_at),           // updated_at -> lastUpdate (格式化)
           status: item.is_active ? 'valid' : 'invalid',          // is_active -> status
           autoUpdate: item.auto_update ?? false,
+          content: item.content,
         }));
         
         setSitemapFiles(mappedResults);
@@ -353,11 +354,13 @@ const SitemapManager: React.FC = () => {
   };
 
   const handleEdit = (record: SitemapFile) => {
+    console.log('编辑Sitemap - record数据:', record); // 调试：查看完整数据
     setEditingSitemap(record);
     form.setFieldsValue({
       title: record.name,
-      content: record.content,  // 如果需要编辑内容,可以从record获取
+      content: record.content || '',  // 如果content为空，设置为空字符串
     });
+    console.log('表单已设置值 - content:', record.content || ''); // 调试：确认设置的值
     setEditModalVisible(true);
   };
 

@@ -239,8 +239,8 @@ const CommentList: React.FC = () => {
           />
           <Input
             placeholder="搜索用户昵称"
-            value={searchParams.user_nickname}
-            onChange={(e) => setSearchParams({ ...searchParams, user_nickname: e.target.value })}
+            value={searchParams.nickname}
+            onChange={(e) => setSearchParams({ ...searchParams, nickname: e.target.value })}
             style={{ width: 200 }}
             prefix={<UserOutlined />}
             allowClear

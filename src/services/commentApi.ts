@@ -27,7 +27,7 @@ export interface GetCommentListParams {
   currentPage?: number;
   pageSize?: number;
   content?: string;
-  user_nickname?: string;
+  nickname?: string;
 }
 
 // 获取评论列表响应

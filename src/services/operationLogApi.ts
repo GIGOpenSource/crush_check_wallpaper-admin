@@ -51,9 +51,9 @@ export function getOperationLogList(
   currentPage: number,
   pageSize: number,
   params?: {
-    operator?: string;
+    username?: string;
     module?: string;
-    action?: string;
+    operation_type?: string;
     start_time?: string;
     end_time?: string;
   }
