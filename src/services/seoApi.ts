@@ -1597,6 +1597,7 @@ export interface PageSpeedItem {
   page_size: number;           // 页面大小（MB）
   resource_count: number;      // 资源数量
   issue_count: number;         // 问题数量
+  is_mobile_friendly: boolean; // 是否移动友好（移动端专用）
   tested_at: string;           // 测试时间
 }
 
@@ -1649,6 +1650,102 @@ export const getPageSpeedDetail = async (id: number): Promise<ApiResponse<PageSp
   return request<PageSpeedDetail>({
     url: `${API_CONFIG.SEO_PREFIX}/page_speed/${id}/`,
     method: 'GET',
+  });
+};
+
+/**
+ * 移动端页面速度测试请求类型（新测试）
+ */
+export interface MobilePageSpeedTestRequest {
+  page_path: string;           // 页面路径
+  platform: 'phone';          // 平台固定为phone
+}
+
+/**
+ * 页面速度重测请求类型
+ */
+export interface PageSpeedRetestRequest {
+  id: number;                  // 页面速度记录ID
+  platform: 'page' | 'phone';  // 平台类型
+}
+
+/**
+ * 移动端页面速度测试结果类型
+ */
+export interface MobilePageSpeedTestResult {
+  test_id: number;             // 测试ID
+  page_path: string;           // 页面路径
+  status: string;              // 状态
+  message: string;             // 消息
+}
+
+/**
+ * 测试新页面速度（移动端）
+ * @param params 测试参数
+ * @returns 测试结果
+ */
+export const testMobilePageSpeed = async (params: MobilePageSpeedTestRequest): Promise<ApiResponse<MobilePageSpeedTestResult>> => {
+  return request<MobilePageSpeedTestResult>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/test/`,
+    method: 'POST',
+    data: params,
+  });
+};
+
+/**
+ * 重测页面速度
+ * @param params 重测参数
+ * @returns 测试结果
+ */
+export const retestPageSpeed = async (params: PageSpeedRetestRequest): Promise<ApiResponse<MobilePageSpeedTestResult>> => {
+  return request<MobilePageSpeedTestResult>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/test/`,
+    method: 'POST',
+    data: params,
+  });
+};
+
+/**
+ * 移动端页面速度统计类型
+ */
+export interface MobilePageSpeedStatistics {
+  total_count: number;         // 总测试数
+  avg_score: number;           // 平均分数
+  excellent_count: number;     // 优秀数量
+  needs_improvement_count: number;  // 需要改进数量
+}
+
+/**
+ * 获取移动端页面速度统计数据
+ * @returns 统计数据
+ */
+export const getMobilePageSpeedStatistics = async (): Promise<ApiResponse<MobilePageSpeedStatistics>> => {
+  return request<MobilePageSpeedStatistics>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/statistics/`,
+    method: 'GET',
+    params: {
+      platform: 'phone',
+    },
+  });
+};
+
+/**
+ * 获取移动端页面速度列表
+ * @param params 查询参数
+ * @returns 移动端页面速度列表
+ */
+export const getMobilePageSpeedList = async (params: {
+  currentPage?: number;
+  pageSize?: number;
+}): Promise<ApiResponse<PaginatedResponse<PageSpeedItem>>> => {
+  return request<PaginatedResponse<PageSpeedItem>>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/`,
+    method: 'GET',
+    params: {
+      currentPage: params.currentPage || 1,
+      pageSize: params.pageSize || 10,
+      platform: 'phone',
+    },
   });
 };
 
@@ -1859,6 +1956,10 @@ export const seoApi = {
   // 页面速度
   getPageSpeedStatistics,
   testPageSpeed,
+  retestPageSpeed,
   getPageSpeedList,
   getPageSpeedDetail,
+  testMobilePageSpeed,
+  getMobilePageSpeedStatistics,
+  getMobilePageSpeedList,
 };

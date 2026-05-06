@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Timeline, Spin, Form, Pagination } from 'antd';
-import { ThunderboltOutlined, CheckCircleOutlined, PlayCircleOutlined, EyeOutlined, ReloadOutlined, DashboardOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined } from '@ant-design/icons';
-import { seoApi, type PageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail } from '../../services/seoApi';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio, Pagination, Popconfirm, Spin, Timeline } from 'antd';
+import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined, DashboardOutlined, ThunderboltOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
 
@@ -13,7 +13,7 @@ const PageSpeedAnalyzer: React.FC = () => {
   const [testUrl, setTestUrl] = useState('');
   
   // 统计数据状态
-  const [statistics, setStatistics] = useState<PageSpeedStatistics | null>(null);
+  const [statistics, setStatistics] = useState<MobilePageSpeedStatistics | null>(null);
   const [loading, setLoading] = useState(false);
 
   // 列表数据状态
@@ -175,9 +175,17 @@ const PageSpeedAnalyzer: React.FC = () => {
           <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             详情
           </Button>
-          <Button type="link" icon={<ReloadOutlined />} onClick={() => handleRetest(record)}>
-            重测
-          </Button>
+          <Popconfirm
+            title="确认重测"
+            description={`确定要重新测试页面 ${record.page_path} 吗？`}
+            onConfirm={() => handleRetest(record)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" icon={<ReloadOutlined />}>
+              重测
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -201,8 +209,8 @@ const PageSpeedAnalyzer: React.FC = () => {
   const handleRetest = async (record: PageSpeedItem) => {
     message.loading(`正在重新测试 ${record.page_path}...`, 1.5);
     try {
-      const response = await seoApi.testPageSpeed({
-        page_path: record.page_path,
+      const response = await seoApi.retestPageSpeed({
+        id: record.id,
         platform: 'page',
       });
       if (response.code === 200 || response.code === 201) {
@@ -412,9 +420,21 @@ const PageSpeedAnalyzer: React.FC = () => {
         footer={[
           <Button key="close" onClick={() => setDetailModalVisible(false)}>关闭</Button>,
           selectedResult && (
-            <Button key="retest" type="primary" icon={<ReloadOutlined />} onClick={() => handleRetest(selectedResult)}>
-              重新测试
-            </Button>
+            <Popconfirm
+              key="retest"
+              title="确认重测"
+              description={`确定要重新测试页面 ${selectedResult.page_path} 吗？`}
+              onConfirm={() => {
+                handleRetest(selectedResult);
+                setDetailModalVisible(false);
+              }}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button type="primary" icon={<ReloadOutlined />}>
+                重新测试
+              </Button>
+            </Popconfirm>
           ),
         ]}
       >

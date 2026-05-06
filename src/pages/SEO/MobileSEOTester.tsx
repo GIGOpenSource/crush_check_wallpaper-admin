@@ -1,144 +1,128 @@
-import React, { useState } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio } from 'antd';
-import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined, TabletOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio, Pagination, Popconfirm } from 'antd';
+import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
-
-interface MobileTestResult {
-  id: number;
-  url: string;
-  device: 'mobile' | 'tablet';
-  isMobileFriendly: boolean;
-  viewport: boolean;
-  fontSize: boolean;
-  touchTargets: boolean;
-  loadTime: number;
-  score: number;
-  issues: MobileIssue[];
-  testedAt: string;
-}
-
-interface MobileIssue {
-  type: 'error' | 'warning' | 'info';
-  category: string;
-  message: string;
-  solution: string;
-}
 
 const MobileSEOTester: React.FC = () => {
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedResult, setSelectedResult] = useState<MobileTestResult | null>(null);
+  const [selectedResult, setSelectedResult] = useState<PageSpeedDetail | null>(null);
   const [testing, setTesting] = useState(false);
   const [testUrl, setTestUrl] = useState('');
-  const [testDevice, setTestDevice] = useState<'mobile' | 'tablet'>('mobile');
+  
+  // 统计数据状态
+  const [statistics, setStatistics] = useState<MobilePageSpeedStatistics | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  // 列表数据状态
+  const [pageSpeedList, setPageSpeedList] = useState<PageSpeedItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
-  // 测试结果数据
-  const testResults: MobileTestResult[] = [
-    {
-      id: 1,
-      url: '/wallpaper/nature-landscape',
-      device: 'mobile',
-      isMobileFriendly: true,
-      viewport: true,
-      fontSize: true,
-      touchTargets: true,
-      loadTime: 1.8,
-      score: 92,
-      issues: [
-        { type: 'info', category: '图片优化', message: '部分图片未使用响应式尺寸', solution: '使用srcset属性提供不同尺寸图片' },
-      ],
-      testedAt: '2024-01-20',
-    },
-    {
-      id: 2,
-      url: '/wallpaper/anime-collection',
-      device: 'mobile',
-      isMobileFriendly: false,
-      viewport: true,
-      fontSize: false,
-      touchTargets: false,
-      loadTime: 3.5,
-      score: 58,
-      issues: [
-        { type: 'error', category: '字体大小', message: '字体大小小于12px，难以阅读', solution: '将字体大小调整为至少16px' },
-        { type: 'error', category: '触摸目标', message: '按钮间距过小，容易误触', solution: '增大按钮尺寸至48x48px以上' },
-        { type: 'warning', category: '加载速度', message: '页面加载时间超过3秒', solution: '优化图片大小，启用懒加载' },
-      ],
-      testedAt: '2024-01-19',
-    },
-    {
-      id: 3,
-      url: '/category/minimalist',
-      device: 'tablet',
-      isMobileFriendly: true,
-      viewport: true,
-      fontSize: true,
-      touchTargets: true,
-      loadTime: 1.2,
-      score: 88,
-      issues: [
-        { type: 'warning', category: '布局', message: '平板设备上内容宽度未充分利用', solution: '优化响应式布局断点' },
-      ],
-      testedAt: '2024-01-18',
-    },
-  ];
+  // 获取页面速度统计数据
+  useEffect(() => {
+    fetchStatistics();
+    fetchPageSpeedList();
+  }, []);
 
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      const response = await seoApi.getMobilePageSpeedStatistics();
+      if (response.code === 200) {
+        setStatistics(response.data);
+      }
+    } catch (error) {
+      message.error('获取统计数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 获取页面速度列表
+  const fetchPageSpeedList = async (page = currentPage, size = pageSize) => {
+    setListLoading(true);
+    try {
+      const response = await seoApi.getMobilePageSpeedList({
+        currentPage: page,
+        pageSize: size,
+      });
+      if (response.code === 200 && response.data) {
+        setPageSpeedList(response.data.results || []);
+        setTotal(response.data.pagination?.total || 0);
+      }
+    } catch (error) {
+      message.error('获取页面速度列表失败');
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  // 分页变化
+  const handlePageChange = (page: number, pageSize: number) => {
+    setCurrentPage(page);
+    setPageSize(pageSize);
+    fetchPageSpeedList(page, pageSize);
+  };
+
+  // 表格列定义
   const columns = [
     {
       title: '页面',
-      dataIndex: 'url',
-      key: 'url',
-      render: (text: string) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{text}</div>
-        </div>
-      ),
+      dataIndex: 'page_path',
+      key: 'page_path',
+      width: 200,
+      ellipsis: true,
     },
     {
       title: '设备',
-      dataIndex: 'device',
       key: 'device',
       width: 100,
-      render: (device: string) => (
-        <Tag icon={device === 'mobile' ? <MobileOutlined /> : <TabletOutlined />}>
-          {device === 'mobile' ? '手机' : '平板'}
-        </Tag>
+      render: () => (
+        <Tag icon={<MobileOutlined />}>手机</Tag>
       ),
     },
     {
       title: '移动友好',
-      dataIndex: 'isMobileFriendly',
-      key: 'isMobileFriendly',
+      dataIndex: 'is_mobile_friendly',
+      key: 'is_mobile_friendly',
       width: 100,
-      render: (friendly: boolean) => (
-        friendly ? (
-          <Tag color="success" icon={<CheckCircleOutlined />}>友好</Tag>
-        ) : (
-          <Tag color="error" icon={<CloseCircleOutlined />}>不友好</Tag>
-        )
+      render: (isFriendly: boolean) => (
+        <Tag 
+          icon={isFriendly ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+          color={isFriendly ? 'success' : 'error'}
+        >
+          {isFriendly ? '友好' : '不友好'}
+        </Tag>
       ),
     },
     {
       title: '评分',
-      dataIndex: 'score',
-      key: 'score',
+      dataIndex: 'overall_score',
+      key: 'overall_score',
       width: 120,
       render: (score: number) => (
         <Progress
           percent={score}
           size="small"
+          status={score >= 80 ? 'success' : score >= 60 ? 'normal' : 'exception'}
           strokeColor={score >= 80 ? '#52c41a' : score >= 60 ? '#faad14' : '#f5222d'}
+          format={() => `${score}%`}
+          style={{ width: 100 }}
         />
       ),
     },
     {
       title: '加载时间',
-      dataIndex: 'loadTime',
-      key: 'loadTime',
+      dataIndex: 'load_time',
+      key: 'load_time',
       width: 100,
       render: (time: number) => (
-        <Tag color={time < 2 ? 'success' : time < 3 ? 'warning' : 'error'}>
+        <Tag color={time < 2 ? 'success' : time < 4 ? 'warning' : 'error'}>
           {time}s
         </Tag>
       ),
@@ -146,62 +130,119 @@ const MobileSEOTester: React.FC = () => {
     {
       title: '问题数',
       key: 'issues',
-      width: 100,
-      render: (_: unknown, record: MobileTestResult) => {
-        const errors = record.issues.filter(i => i.type === 'error').length;
-        const warnings = record.issues.filter(i => i.type === 'warning').length;
+      width: 80,
+      render: (_: unknown, record: PageSpeedItem) => {
+        const issueCount = record.issue_count || 0;
         return (
           <Space>
-            {errors > 0 && <Badge count={errors} style={{ backgroundColor: '#f5222d' }} />}
-            {warnings > 0 && <Badge count={warnings} style={{ backgroundColor: '#faad14' }} />}
-            {record.issues.length === 0 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+            {issueCount > 0 && (
+              <Badge 
+                count={issueCount} 
+                style={{ backgroundColor: issueCount > 2 ? '#f5222d' : '#faad14' }} 
+              />
+            )}
+            {issueCount === 0 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
           </Space>
         );
       },
     },
     {
       title: '测试时间',
-      dataIndex: 'testedAt',
-      key: 'testedAt',
+      dataIndex: 'tested_at',
+      key: 'tested_at',
       width: 120,
+      render: (time: string) => time ? new Date(time).toLocaleDateString('zh-CN') : '-',
     },
     {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_: unknown, record: MobileTestResult) => (
+      fixed: 'right' as const,
+      render: (_: unknown, record: PageSpeedItem) => (
         <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
-          <Button type="link" icon={<ReloadOutlined />} onClick={() => handleRetest(record)}>重测</Button>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
+          <Popconfirm
+            title="确认重测"
+            description={`确定要重新测试页面 ${record.page_path} 吗？`}
+            onConfirm={() => handleRetest(record)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" icon={<ReloadOutlined />}>
+              重测
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
-  const handleViewDetail = (record: MobileTestResult) => {
-    setSelectedResult(record);
-    setDetailModalVisible(true);
+  const handleViewDetail = async (record: PageSpeedItem) => {
+    try {
+      const response = await seoApi.getPageSpeedDetail(record.id);
+      if (response.code === 200 && response.data) {
+        setSelectedResult(response.data);
+        setDetailModalVisible(true);
+      } else {
+        message.error('获取详情失败');
+      }
+    } catch (error) {
+      console.error('获取页面速度详情失败:', error);
+      message.error('获取详情失败，请稍后重试');
+    }
   };
 
-  const handleRetest = (record: MobileTestResult) => {
-    message.loading(`正在重新测试 ${record.url}...`, 1.5);
-    setTimeout(() => {
-      message.success('测试完成');
-    }, 1500);
+  const handleRetest = async (record: PageSpeedItem) => {
+    message.loading(`正在重新测试 ${record.page_path}...`, 1.5);
+    try {
+      const response = await seoApi.retestPageSpeed({
+        id: record.id,
+        platform: 'phone',
+      });
+      if (response.code === 200 || response.code === 201) {
+        message.success('重新测试已提交');
+        fetchPageSpeedList();
+        fetchStatistics();
+      } else {
+        message.error(response.message || '重新测试失败');
+      }
+    } catch (error) {
+      message.error('重新测试失败，请稍后重试');
+    }
   };
 
-  const handleTest = () => {
+  const handleTest = async () => {
     if (!testUrl) {
       message.warning('请输入要测试的页面URL');
       return;
     }
+    
     setTesting(true);
-    setTimeout(() => {
+    try {
+      // 确保路径以 / 开头
+      const path = testUrl.startsWith('/') ? testUrl : `/${testUrl}`;
+      const response = await seoApi.testMobilePageSpeed({
+        page_path: path,
+        platform: 'phone',
+      });
+      
+      if (response.code === 200 || response.code === 201) {
+        message.success('移动端页面速度测试已提交，正在后台处理');
+        setTestModalVisible(false);
+        setTestUrl('');
+        fetchStatistics();
+        fetchPageSpeedList();
+      } else {
+        message.error(response.message || '测试提交失败');
+      }
+    } catch (error) {
+      console.error('测试提交失败:', error);
+      message.error('测试提交失败，请稍后重试');
+    } finally {
       setTesting(false);
-      message.success('移动端适配测试完成');
-      setTestModalVisible(false);
-      setTestUrl('');
-    }, 2000);
+    }
   };
 
   const getIssueIcon = (type: string) => {
@@ -226,12 +267,6 @@ const MobileSEOTester: React.FC = () => {
     }
   };
 
-  // 计算统计数据
-  const totalTests = testResults.length;
-  const passedTests = testResults.filter(r => r.isMobileFriendly).length;
-  const avgScore = Math.floor(testResults.reduce((sum, r) => sum + r.score, 0) / totalTests);
-  const avgLoadTime = (testResults.reduce((sum, r) => sum + r.loadTime, 0) / totalTests).toFixed(1);
-
   return (
     <div style={{ padding: 24 }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
@@ -241,23 +276,38 @@ const MobileSEOTester: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="测试页面数" value={totalTests} prefix={<MobileOutlined />} />
+          <Card loading={loading}>
+            <Statistic title="测试页面数" value={statistics?.total_count || 0} prefix={<MobileOutlined />} />
           </Card>
         </Col>
         <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="移动友好页面" value={passedTests} suffix={`/${totalTests}`} valueStyle={{ color: '#3f8600' }} />
+          <Card loading={loading}>
+            <Statistic 
+              title="优秀页面" 
+              value={statistics?.excellent_count || 0} 
+              suffix={`/ ${statistics?.total_count || 0}`} 
+              valueStyle={{ color: '#3f8600' }} 
+            />
           </Card>
         </Col>
         <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="平均评分" value={avgScore} suffix="分" valueStyle={{ color: avgScore >= 80 ? '#3f8600' : '#cf1322' }} />
+          <Card loading={loading}>
+            <Statistic 
+              title="平均评分" 
+              value={statistics?.avg_score || 0} 
+              suffix="分" 
+              valueStyle={{ color: (statistics?.avg_score || 0) >= 80 ? '#3f8600' : '#cf1322' }} 
+            />
           </Card>
         </Col>
         <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="平均加载时间" value={avgLoadTime} suffix="秒" valueStyle={{ color: Number(avgLoadTime) < 2 ? '#3f8600' : '#cf1322' }} />
+          <Card loading={loading}>
+            <Statistic 
+              title="需改进" 
+              value={statistics?.needs_improvement_count || 0} 
+              suffix="个"
+              valueStyle={{ color: '#faad14' }}
+            />
           </Card>
         </Col>
       </Row>
@@ -277,7 +327,25 @@ const MobileSEOTester: React.FC = () => {
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <Table columns={columns} dataSource={testResults} rowKey="id" />
+        <Table 
+          columns={columns} 
+          dataSource={pageSpeedList} 
+          rowKey="id" 
+          loading={listLoading}
+          pagination={false}
+        />
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
+            <Pagination 
+                current={currentPage} 
+                pageSize={pageSize} 
+                total={total} 
+                onChange={handlePageChange}
+                onShowSizeChange={handlePageChange} 
+                showSizeChanger 
+                showQuickJumper 
+                showTotal={(total) => `共 ${total} 条`}
+            />
+        </div>
       </Card>
 
       {/* 测试新页面弹窗 */}
@@ -287,22 +355,23 @@ const MobileSEOTester: React.FC = () => {
         onOk={handleTest}
         onCancel={() => setTestModalVisible(false)}
         confirmLoading={testing}
+        okButtonProps={{ disabled: !testUrl }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form layout="vertical">
-            <Form.Item label="页面URL" required>
+            <Form.Item 
+              label="页面URL" 
+              required
+              validateStatus={!testUrl ? 'error' : ''}
+              help={!testUrl ? '请输入页面路径' : ''}
+            >
               <Input
                 placeholder="输入页面路径，如 /wallpaper/nature"
                 value={testUrl}
                 onChange={(e) => setTestUrl(e.target.value)}
                 prefix="/"
+                status={!testUrl ? 'error' : ''}
               />
-            </Form.Item>
-            <Form.Item label="测试设备">
-              <Radio.Group value={testDevice} onChange={(e) => setTestDevice(e.target.value)}>
-                <Radio.Button value="mobile"><MobileOutlined /> 手机</Radio.Button>
-                <Radio.Button value="tablet"><TabletOutlined /> 平板</Radio.Button>
-              </Radio.Group>
             </Form.Item>
           </Form>
           <Alert
@@ -316,16 +385,28 @@ const MobileSEOTester: React.FC = () => {
 
       {/* 测试详情弹窗 */}
       <Modal
-        title="移动端测试详情"
+        title="移动端页面速度详情"
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
-        width={700}
+        width={800}
         footer={[
           <Button key="close" onClick={() => setDetailModalVisible(false)}>关闭</Button>,
           selectedResult && (
-            <Button key="retest" type="primary" icon={<ReloadOutlined />} onClick={() => handleRetest(selectedResult)}>
-              重新测试
-            </Button>
+            <Popconfirm
+              key="retest"
+              title="确认重测"
+              description={`确定要重新测试页面 ${selectedResult.page_path} 吗？`}
+              onConfirm={() => {
+                handleRetest(selectedResult);
+                setDetailModalVisible(false);
+              }}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button type="primary" icon={<ReloadOutlined />}>
+                重新测试
+              </Button>
+            </Popconfirm>
           ),
         ]}
       >
@@ -334,56 +415,48 @@ const MobileSEOTester: React.FC = () => {
             <TabPane tab="概览" key="overview">
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Alert
-                  message={selectedResult.isMobileFriendly ? '页面移动端适配良好' : '页面存在移动端适配问题'}
-                  type={selectedResult.isMobileFriendly ? 'success' : 'error'}
+                  message={selectedResult.is_mobile_friendly ? '✅ 页面移动端适配良好' : '❌ 页面存在移动端适配问题'}
+                  type={selectedResult.is_mobile_friendly ? 'success' : 'error'}
                   showIcon
+                />
+                <Progress
+                  type="circle"
+                  percent={selectedResult.overall_score}
+                  width={80}
+                  status={selectedResult.overall_score >= 80 ? 'success' : selectedResult.overall_score >= 60 ? 'normal' : 'exception'}
                 />
                 <Card size="small" title="测试指标">
                   <Row gutter={16}>
                     <Col span={8}>
-                      <Statistic title="综合评分" value={selectedResult.score} suffix="/100" />
+                      <Statistic title="综合评分" value={selectedResult.overall_score} suffix="分" />
                     </Col>
                     <Col span={8}>
-                      <Statistic title="加载时间" value={selectedResult.loadTime} suffix="秒" />
+                      <Statistic title="加载时间" value={selectedResult.load_time} suffix="秒" />
                     </Col>
                     <Col span={8}>
-                      <Statistic title="问题数量" value={selectedResult.issues.length} />
+                      <Statistic title="问题数量" value={selectedResult.issue_count} />
                     </Col>
                   </Row>
                 </Card>
-                <Card size="small" title="检测项">
-                  <List>
-                    <List.Item>
-                      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                        <span>视口设置</span>
-                        {selectedResult.viewport ? (
-                          <Tag color="success" icon={<CheckCircleOutlined />}>通过</Tag>
-                        ) : (
-                          <Tag color="error" icon={<CloseCircleOutlined />}>未通过</Tag>
-                        )}
-                      </Space>
-                    </List.Item>
-                    <List.Item>
-                      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                        <span>字体大小</span>
-                        {selectedResult.fontSize ? (
-                          <Tag color="success" icon={<CheckCircleOutlined />}>通过</Tag>
-                        ) : (
-                          <Tag color="error" icon={<CloseCircleOutlined />}>未通过</Tag>
-                        )}
-                      </Space>
-                    </List.Item>
-                    <List.Item>
-                      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                        <span>触摸目标</span>
-                        {selectedResult.touchTargets ? (
-                          <Tag color="success" icon={<CheckCircleOutlined />}>通过</Tag>
-                        ) : (
-                          <Tag color="error" icon={<CloseCircleOutlined />}>未通过</Tag>
-                        )}
-                      </Space>
-                    </List.Item>
-                  </List>
+                <Card size="small" title="页面信息">
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Statistic title="TTFB" value={selectedResult.ttfb} suffix="秒" />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic title="资源数量" value={selectedResult.resource_count} suffix="个" />
+                    </Col>
+                  </Row>
+                </Card>
+                <Card size="small" title="测试信息">
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Statistic title="页面路径" value={selectedResult.page_path} />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic title="测试时间" value={new Date(selectedResult.tested_at).toLocaleString('zh-CN')} />
+                    </Col>
+                  </Row>
                 </Card>
               </Space>
             </TabPane>
@@ -397,6 +470,9 @@ const MobileSEOTester: React.FC = () => {
                         <Space>
                           {getIssueIcon(item.type)}
                           <strong>{item.category}</strong>
+                          <Tag color={item.impact === 'high' ? 'error' : item.impact === 'medium' ? 'warning' : 'default'}>
+                            {item.impact === 'high' ? '高影响' : item.impact === 'medium' ? '中影响' : '低影响'}
+                          </Tag>
                         </Space>
                       }
                       description={
@@ -405,7 +481,7 @@ const MobileSEOTester: React.FC = () => {
                           <p style={{ color: '#52c41a' }}><strong>解决方案：</strong>{item.solution}</p>
                         </div>
                       }
-                      type={getIssueColor(item.type) as any}
+                      type={item.type === 'error' ? 'error' : item.type === 'warning' ? 'warning' : 'info'}
                       style={{ width: '100%' }}
                     />
                   </List.Item>
