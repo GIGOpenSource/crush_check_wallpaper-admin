@@ -78,7 +78,7 @@ const BacklinkManager: React.FC = () => {
       const res = await seoApi.getBacklinks({
         currentPage: pagination.current,
         pageSize: pagination.pageSize,
-        search: searchText,
+        source_page: searchText,
       });
       if (res.code === 200) {
         // SEO模块API返回结构：pagination + results
@@ -485,21 +485,6 @@ const BacklinkManager: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 操作栏 */}
-      <Card style={{ marginBottom: 24 }}>
-        <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-            添加外链
-          </Button>
-          <Input.Search
-            placeholder="搜索来源页面、目标页面或锚文本"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
-          />
-        </Space>
-      </Card>
-
       <Tabs 
         defaultActiveKey="backlinks"
         items={[
@@ -515,6 +500,22 @@ const BacklinkManager: React.FC = () => {
                   showIcon
                   style={{ marginBottom: 16 }}
                 />
+                
+                {/* 操作栏 - 移到列表内部 */}
+                <Space style={{ marginBottom: 16 }}>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+                    添加外链
+                  </Button>
+                  <Input.Search
+                    placeholder="搜索来源页面"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    onSearch={loadBacklinks}
+                    style={{ width: 300 }}
+                  />
+                  <Button onClick={loadBacklinks}>刷新</Button>
+                </Space>
+
                 <Table
                   columns={columns}
                   dataSource={backlinks}

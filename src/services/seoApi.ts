@@ -804,7 +804,7 @@ export const getBacklinks = async (params: {
   currentPage?: number;
   pageSize?: number;
   status?: string;
-  search?: string;
+  source_page?: string;
 }): Promise<ApiResponse<PaginatedResponse<Backlink>>> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.getBacklinks(params) as Promise<ApiResponse<PaginatedResponse<Backlink>>>;
@@ -816,7 +816,7 @@ export const getBacklinks = async (params: {
       currentPage: params.currentPage || 1,
       pageSize: params.pageSize || 10,
       status: params.status,
-      search: params.search,
+      source_page: params.source_page,
     },
   });
 };
@@ -2087,6 +2087,173 @@ export const seoApi = {
   getResourceAnalysis,
   getOptimizationSuggestions,
 
+  // 内容优化统计
+  getContentOptimizationDashboard,
+  getContentOptimizationList,
+  analyzeContentOptimization,
+  reAnalyzeContentOptimization,
+
   // 检测日志
   getDetectionLogs,
 };
+export interface ContentOptimizationDashboard {
+  analyzed_pages_count: number;    // 已分析页面总数
+  avg_content_score: number;       // 平均内容评分
+  total_issues: number;            // 待修复问题总数
+  total_suggestions: number;       // 优化建议总数
+}
+
+/**
+ * 内容优化问题类型
+ */
+export interface ContentIssue {
+  type: 'error' | 'warning' | 'info';
+  message: string;
+  location: string;
+}
+
+/**
+ * 内容优化页面类型
+ */
+export interface ContentOptimizationPage {
+  id: number;
+  page_path: string;           // 页面路径
+  page_title: string;          // 页面标题
+  full_url?: string;           // 完整URL（可选）
+  platform?: string;           // 平台类型
+  platform_display?: string;   // 平台显示名称
+  content_score: number;       // 内容评分
+  word_count: number;          // 字数
+  issue_count: number;         // 问题数量
+  issues?: ContentIssue[];     // 问题列表（可选）
+  optimization_suggestions?: string[]; // 优化建议（可选）
+  last_optimized_at: string;   // 最后优化时间
+  created_at?: string;         // 创建时间
+}
+
+/**
+ * 分析新页面内容请求类型
+ */
+export interface AnalyzeContentRequest {
+  page_path: string;  // 页面路径
+}
+
+/**
+ * 分析新页面内容响应类型
+ */
+export interface AnalyzeContentResult {
+  message: string;    // 分析结果消息
+  page_id?: number;   // 分析后的页面ID
+}
+
+/**
+ * 分析新页面内容
+ * @param params 分析参数
+ * @returns 分析结果
+ */
+async function analyzeContentOptimization(params: AnalyzeContentRequest): Promise<ApiResponse<AnalyzeContentResult>> {
+  try {
+    const response = await request<AnalyzeContentResult>({
+      url: '/seo/content_optimization/analyze/',
+      method: 'post',
+      data: params,
+    });
+    return response;
+  } catch (error) {
+    console.error('分析页面内容失败:', error);
+    return {
+      code: 500,
+      success: false,
+      message: '分析失败',
+      data: {} as AnalyzeContentResult,
+    };
+  }
+}
+
+/**
+ * 重新分析页面内容请求类型
+ */
+export interface ReAnalyzeContentRequest {
+  id: number;  // 页面ID
+}
+
+/**
+ * 重新分析页面内容
+ * @param params 重新分析参数
+ * @returns 分析结果
+ */
+async function reAnalyzeContentOptimization(params: ReAnalyzeContentRequest): Promise<ApiResponse<AnalyzeContentResult>> {
+  try {
+    const response = await request<AnalyzeContentResult>({
+      url: '/seo/content_optimization/re-analyze/',
+      method: 'post',
+      data: params,
+    });
+    return response;
+  } catch (error) {
+    console.error('重新分析页面内容失败:', error);
+    return {
+      code: 500,
+      success: false,
+      message: '重新分析失败',
+      data: {} as AnalyzeContentResult,
+    };
+  }
+}
+
+/**
+ * 获取内容优化统计数据
+ */
+async function getContentOptimizationDashboard(): Promise<ApiResponse<ContentOptimizationDashboard>> {
+  try {
+    const response = await request<ContentOptimizationDashboard>({
+      url: '/seo/content_optimization/dashboard/',
+      method: 'get',
+    });
+    return response;
+  } catch (error) {
+    console.error('获取内容优化统计数据失败:', error);
+    return {
+      code: 500,
+      success: false,
+      message: '获取统计数据失败',
+      data: {} as ContentOptimizationDashboard,
+    };
+  }
+}
+
+/**
+ * 获取内容优化列表
+ */
+async function getContentOptimizationList(params: {
+  currentPage: number;
+  pageSize: number;
+  title?: string;          // 页面标题搜索
+  min_score?: number;      // 最低评分筛选
+  max_score?: number;      // 最高评分筛选
+}): Promise<ApiResponse<PaginatedResponse<ContentOptimizationPage>>> {
+  try {
+    const response = await request<PaginatedResponse<ContentOptimizationPage>>({
+      url: '/seo/content_optimization/',
+      method: 'get',
+      params,
+    });
+    return response;
+  } catch (error) {
+    console.error('获取内容优化列表失败:', error);
+    return {
+      code: 500,
+      success: false,
+      message: '获取列表失败',
+      data: {
+        results: [],
+        pagination: {
+          total: 0,
+          currentPages: 1,
+          page_size: 10,
+          total_pages: 0,
+        },
+      }
+    }
+  }    
+}

@@ -357,11 +357,9 @@ export const mockGetBacklinks = async (params: any) => {
   if (params.status) {
     filtered = filtered.filter(b => b.status === params.status);
   }
-  if (params.search) {
+  if (params.source_page) {
     filtered = filtered.filter(b => 
-      b.source_page.includes(params.search) || 
-      b.target_page.includes(params.search) ||
-      b.anchor_text.includes(params.search)
+      b.source_page.includes(params.source_page)
     );
   }
   
