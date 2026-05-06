@@ -23,7 +23,6 @@ interface Backlink {
 }
 
 const BacklinkManager: React.FC = () => {
-  const { message } = App.useApp();
   const navigate = useNavigate();
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -73,7 +72,7 @@ const BacklinkManager: React.FC = () => {
       const res = await seoApi.getBacklinks({
         page: pagination.current,
         pageSize: pagination.pageSize,
-        source_page: searchText,
+        search: searchText,
       });
       if (res.code === 200) {
         // SEO模块API返回结构：pagination + results
@@ -451,6 +450,21 @@ const BacklinkManager: React.FC = () => {
         </Col>
       </Row>
 
+      {/* 操作栏 */}
+      <Card style={{ marginBottom: 24 }}>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+            添加外链
+          </Button>
+          <Input.Search
+            placeholder="搜索来源页面、目标页面或锚文本"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 300 }}
+          />
+        </Space>
+      </Card>
+
       <Tabs 
         defaultActiveKey="backlinks"
         items={[
@@ -466,18 +480,6 @@ const BacklinkManager: React.FC = () => {
                   showIcon
                   style={{ marginBottom: 16 }}
                 />
-                <Space style={{ marginBottom: 16 }}>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-                    添加外链
-                  </Button>
-                  <Input.Search
-                    placeholder="搜索来源页面"
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    onSearch={loadBacklinks}
-                    style={{ width: 300 }}
-                  />
-                </Space>
                 <Table
                   columns={columns}
                   dataSource={backlinks}

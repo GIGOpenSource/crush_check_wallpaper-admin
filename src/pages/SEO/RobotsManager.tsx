@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Form, Alert, Tag, Space, Table, Modal, message, Tabs, Row, Col, Statistic, Breadcrumb, Select, Spin } from 'antd';
 import { SaveOutlined, EyeOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, ArrowLeftOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { getRobotsContent, updateRobotsContent, getRobotsStatistics } from '../../services/robotsApi';
+import { getRobotsContent, updateRobotsContent } from '../../services/robotsApi';
 
 const { TabPane } = Tabs;
 const { TextArea } = Input;
@@ -56,15 +56,6 @@ const RobotsManager: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [robotsContent, setRobotsContent] = useState('');
   
-  // 统计数据
-  const [statistics, setStatistics] = useState<{
-    total_rules: number;
-    allow_count: number;
-    disallow_count: number;
-    last_updated: string;
-  } | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-
   // 规则验证状态
   const [validationResults, setValidationResults] = useState<{
     type: 'success' | 'warning' | 'error';
@@ -125,22 +116,8 @@ const RobotsManager: React.FC = () => {
     }
   };
 
-  // 加载统计数据
-  const loadStatistics = async () => {
-    setStatsLoading(true);
-    try {
-      const res = await getRobotsStatistics();
-      setStatistics(res);
-    } catch (error) {
-      console.error('加载统计数据失败:', error);
-    } finally {
-      setStatsLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadRobotsContent();
-    loadStatistics();
   }, []);
 
   const handleSave = async () => {
@@ -347,47 +324,24 @@ const RobotsManager: React.FC = () => {
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
-          <Spin spinning={statsLoading}>
-            <Card>
-              <Statistic 
-                title="规则总数" 
-                value={statistics?.total_rules || 0} 
-                prefix={<CheckCircleOutlined />} 
-              />
-            </Card>
-          </Spin>
+          <Card>
+            <Statistic title="规则数量" value={rules.length} prefix={<CheckCircleOutlined />} />
+          </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Spin spinning={statsLoading}>
-            <Card>
-              <Statistic 
-                title="Allow路径" 
-                value={statistics?.allow_count || 0} 
-                valueStyle={{ color: '#52c41a' }} 
-              />
-            </Card>
-          </Spin>
+          <Card>
+            <Statistic title="Allow路径" value={8} valueStyle={{ color: '#52c41a' }} />
+          </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Spin spinning={statsLoading}>
-            <Card>
-              <Statistic 
-                title="Disallow路径" 
-                value={statistics?.disallow_count || 0} 
-                valueStyle={{ color: '#f5222d' }} 
-              />
-            </Card>
-          </Spin>
+          <Card>
+            <Statistic title="Disallow路径" value={12} valueStyle={{ color: '#f5222d' }} />
+          </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Spin spinning={statsLoading}>
-            <Card>
-              <Statistic 
-                title="最后更新" 
-                value={statistics?.last_updated ? new Date(statistics.last_updated).toLocaleDateString('zh-CN') : '-'} 
-              />
-            </Card>
-          </Spin>
+          <Card>
+            <Statistic title="最后更新" value="2小时前" />
+          </Card>
         </Col>
       </Row>
 

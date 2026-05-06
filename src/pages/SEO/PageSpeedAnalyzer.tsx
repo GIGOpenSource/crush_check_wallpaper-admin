@@ -1,118 +1,97 @@
-import React, { useState } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Timeline } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Button, Table, Tag, Space, Input, Modal, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Timeline, Spin, Form, Pagination } from 'antd';
 import { ThunderboltOutlined, CheckCircleOutlined, PlayCircleOutlined, EyeOutlined, ReloadOutlined, DashboardOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { seoApi, type PageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
-
-interface SpeedTestResult {
-  id: number;
-  url: string;
-  overallScore: number;
-  fcp: number; // First Contentful Paint
-  lcp: number; // Largest Contentful Paint
-  fid: number; // First Input Delay
-  cls: number; // Cumulative Layout Shift
-  ttfb: number; // Time to First Byte
-  loadTime: number;
-  pageSize: number;
-  resourceCount: number;
-  issues: SpeedIssue[];
-  testedAt: string;
-}
-
-interface SpeedIssue {
-  type: 'error' | 'warning' | 'info';
-  category: 'image' | 'script' | 'css' | 'server' | 'render';
-  message: string;
-  impact: 'high' | 'medium' | 'low';
-  solution: string;
-}
 
 const PageSpeedAnalyzer: React.FC = () => {
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedResult, setSelectedResult] = useState<SpeedTestResult | null>(null);
+  const [selectedResult, setSelectedResult] = useState<PageSpeedDetail | null>(null);
   const [testing, setTesting] = useState(false);
   const [testUrl, setTestUrl] = useState('');
+  
+  // 统计数据状态
+  const [statistics, setStatistics] = useState<PageSpeedStatistics | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // 测试结果数据
-  const testResults: SpeedTestResult[] = [
-    {
-      id: 1,
-      url: '/wallpaper/nature-landscape',
-      overallScore: 85,
-      fcp: 1.2,
-      lcp: 2.1,
-      fid: 15,
-      cls: 0.05,
-      ttfb: 0.3,
-      loadTime: 2.3,
-      pageSize: 2.4,
-      resourceCount: 45,
-      issues: [
-        { type: 'warning', category: 'image', message: '部分图片未压缩', impact: 'medium', solution: '使用WebP格式并启用图片压缩' },
-        { type: 'info', category: 'script', message: '存在未使用的JavaScript', impact: 'low', solution: '移除或延迟加载未使用的脚本' },
-      ],
-      testedAt: '2024-01-20',
-    },
-    {
-      id: 2,
-      url: '/wallpaper/anime-collection',
-      overallScore: 62,
-      fcp: 2.8,
-      lcp: 4.5,
-      fid: 120,
-      cls: 0.25,
-      ttfb: 0.8,
-      loadTime: 5.2,
-      pageSize: 5.8,
-      resourceCount: 78,
-      issues: [
-        { type: 'error', category: 'image', message: '图片文件过大，平均单张超过500KB', impact: 'high', solution: '压缩图片至200KB以下，使用懒加载' },
-        { type: 'error', category: 'script', message: 'JavaScript执行时间过长', impact: 'high', solution: '代码分割，延迟加载非关键脚本' },
-        { type: 'warning', category: 'css', message: '存在阻塞渲染的CSS', impact: 'medium', solution: '内联关键CSS，异步加载非关键样式' },
-        { type: 'warning', category: 'server', message: 'TTFB超过600ms', impact: 'medium', solution: '启用CDN，优化服务器响应时间' },
-      ],
-      testedAt: '2024-01-19',
-    },
-    {
-      id: 3,
-      url: '/category/minimalist',
-      overallScore: 92,
-      fcp: 0.8,
-      lcp: 1.5,
-      fid: 10,
-      cls: 0.02,
-      ttfb: 0.2,
-      loadTime: 1.6,
-      pageSize: 1.2,
-      resourceCount: 28,
-      issues: [
-        { type: 'info', category: 'render', message: '可以进一步优化首屏渲染', impact: 'low', solution: '考虑使用服务端渲染(SSR)' },
-      ],
-      testedAt: '2024-01-18',
-    },
-  ];
+  // 列表数据状态
+  const [pageSpeedList, setPageSpeedList] = useState<PageSpeedItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
+  // 获取页面速度统计数据
+  useEffect(() => {
+    fetchStatistics();
+    fetchPageSpeedList();
+  }, []);
+
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      const response = await seoApi.getPageSpeedStatistics();
+      if (response.code === 200) {
+        setStatistics(response.data);
+      }
+    } catch (error) {
+      message.error('获取统计数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 获取页面速度列表
+  const fetchPageSpeedList = async (page = currentPage, size = pageSize) => {
+    setListLoading(true);
+    try {
+      const response = await seoApi.getPageSpeedList({
+        currentPage: page,
+        pageSize: size,
+        platform: 'page',
+      });
+      if (response.code === 200 && response.data) {
+        setPageSpeedList(response.data.results || []);
+        setTotal(response.data.pagination?.total || 0);
+      }
+    } catch (error) {
+      message.error('获取页面速度列表失败');
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  // 分页变化
+  const handlePageChange = (page: number, pageSize: number) => {
+    setCurrentPage(page);
+    setPageSize(pageSize);
+    fetchPageSpeedList(page, pageSize);
+  };
+
+  // 表格列定义
   const columns = [
     {
       title: '页面',
-      dataIndex: 'url',
-      key: 'url',
-      render: (text: string) => (
-        <div style={{ fontWeight: 500 }}>{text}</div>
-      ),
+      dataIndex: 'page_path',
+      key: 'page_path',
+      width: 200,
+      ellipsis: true,
     },
     {
       title: '综合评分',
-      dataIndex: 'overallScore',
-      key: 'overallScore',
+      dataIndex: 'overall_score',
+      key: 'overall_score',
       width: 120,
       render: (score: number) => (
         <Progress
           percent={score}
           size="small"
-          strokeColor={score >= 90 ? '#52c41a' : score >= 70 ? '#faad14' : '#f5222d'}
+          status={score >= 80 ? 'success' : score >= 60 ? 'normal' : 'exception'}
+          strokeColor={score >= 80 ? '#52c41a' : score >= 60 ? '#faad14' : '#f5222d'}
+          format={() => `${score}%`}
+          style={{ width: 100 }}
         />
       ),
     },
@@ -151,8 +130,8 @@ const PageSpeedAnalyzer: React.FC = () => {
     },
     {
       title: '加载时间',
-      dataIndex: 'loadTime',
-      key: 'loadTime',
+      dataIndex: 'load_time',
+      key: 'load_time',
       width: 100,
       render: (time: number) => (
         <Tag color={time < 2 ? 'success' : time < 4 ? 'warning' : 'error'}>
@@ -162,23 +141,26 @@ const PageSpeedAnalyzer: React.FC = () => {
     },
     {
       title: '页面大小',
-      dataIndex: 'pageSize',
-      key: 'pageSize',
+      dataIndex: 'page_size',
+      key: 'page_size',
       width: 100,
       render: (size: number) => `${size}MB`,
     },
     {
       title: '问题数',
       key: 'issues',
-      width: 100,
-      render: (_: unknown, record: SpeedTestResult) => {
-        const errors = record.issues.filter(i => i.type === 'error').length;
-        const warnings = record.issues.filter(i => i.type === 'warning').length;
+      width: 80,
+      render: (_: unknown, record: PageSpeedItem) => {
+        const issueCount = record.issue_count || 0;
         return (
           <Space>
-            {errors > 0 && <Badge count={errors} style={{ backgroundColor: '#f5222d' }} />}
-            {warnings > 0 && <Badge count={warnings} style={{ backgroundColor: '#faad14' }} />}
-            {record.issues.length === 0 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+            {issueCount > 0 && (
+              <Badge 
+                count={issueCount} 
+                style={{ backgroundColor: issueCount > 2 ? '#f5222d' : '#faad14' }} 
+              />
+            )}
+            {issueCount === 0 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
           </Space>
         );
       },
@@ -187,39 +169,84 @@ const PageSpeedAnalyzer: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_: unknown, record: SpeedTestResult) => (
+      fixed: 'right' as const,
+      render: (_: unknown, record: PageSpeedItem) => (
         <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
-          <Button type="link" icon={<ReloadOutlined />} onClick={() => handleRetest(record)}>重测</Button>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
+          <Button type="link" icon={<ReloadOutlined />} onClick={() => handleRetest(record)}>
+            重测
+          </Button>
         </Space>
       ),
     },
   ];
 
-  const handleViewDetail = (record: SpeedTestResult) => {
-    setSelectedResult(record);
-    setDetailModalVisible(true);
+  const handleViewDetail = async (record: PageSpeedItem) => {
+    try {
+      const response = await seoApi.getPageSpeedDetail(record.id);
+      if (response.code === 200 && response.data) {
+        setSelectedResult(response.data);
+        setDetailModalVisible(true);
+      } else {
+        message.error('获取详情失败');
+      }
+    } catch (error) {
+      console.error('获取页面速度详情失败:', error);
+      message.error('获取详情失败，请稍后重试');
+    }
   };
 
-  const handleRetest = (record: SpeedTestResult) => {
-    message.loading(`正在重新测试 ${record.url}...`, 1.5);
-    setTimeout(() => {
-      message.success('测试完成');
-    }, 1500);
+  const handleRetest = async (record: PageSpeedItem) => {
+    message.loading(`正在重新测试 ${record.page_path}...`, 1.5);
+    try {
+      const response = await seoApi.testPageSpeed({
+        page_path: record.page_path,
+        platform: 'page',
+      });
+      if (response.code === 200 || response.code === 201) {
+        message.success('重新测试已提交');
+        fetchPageSpeedList();
+        fetchStatistics();
+      } else {
+        message.error(response.message || '重新测试失败');
+      }
+    } catch (error) {
+      message.error('重新测试失败，请稍后重试');
+    }
   };
 
-  const handleTest = () => {
+  const handleTest = async () => {
     if (!testUrl) {
       message.warning('请输入要测试的页面URL');
       return;
     }
+    
     setTesting(true);
-    setTimeout(() => {
+    try {
+      const response = await seoApi.testPageSpeed({
+        page_path: testUrl.startsWith('/') ? testUrl : `/${testUrl}`,
+        platform: 'page',
+      });
+      
+      // 支持200和201状态码都视为成功
+      if (response.code === 200 || response.code === 201) {
+        message.success('页面速度测试已提交，正在后台处理');
+        setTestModalVisible(false);
+        setTestUrl('');
+        // 刷新统计数据和列表
+        fetchStatistics();
+        fetchPageSpeedList();
+      } else {
+        message.error(response.message || '测试提交失败');
+      }
+    } catch (error: any) {
+      console.error('页面速度测试失败:', error);
+      message.error(error?.message || '测试提交失败，请稍后重试');
+    } finally {
       setTesting(false);
-      message.success('页面速度测试完成');
-      setTestModalVisible(false);
-      setTestUrl('');
-    }, 2000);
+    }
   };
 
   const getIssueIcon = (category: string) => {
@@ -247,12 +274,6 @@ const PageSpeedAnalyzer: React.FC = () => {
     }
   };
 
-  // 计算统计数据
-  const totalTests = testResults.length;
-  const avgScore = Math.floor(testResults.reduce((sum, r) => sum + r.overallScore, 0) / totalTests);
-  const avgLoadTime = (testResults.reduce((sum, r) => sum + r.loadTime, 0) / totalTests).toFixed(1);
-  const totalIssues = testResults.reduce((sum, r) => sum + r.issues.length, 0);
-
   return (
     <div style={{ padding: 24 }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
@@ -260,33 +281,63 @@ const PageSpeedAnalyzer: React.FC = () => {
         <Breadcrumb.Item>页面速度分析</Breadcrumb.Item>
       </Breadcrumb>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="已测试页面" value={totalTests} prefix={<ThunderboltOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="平均评分" value={avgScore} suffix="分" valueStyle={{ color: avgScore >= 80 ? '#3f8600' : '#cf1322' }} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="平均加载时间" value={avgLoadTime} suffix="秒" valueStyle={{ color: Number(avgLoadTime) < 2 ? '#3f8600' : '#cf1322' }} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="待优化问题" value={totalIssues} suffix="个" valueStyle={{ color: '#cf1322' }} />
-          </Card>
-        </Col>
-      </Row>
+      <Spin spinning={loading}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="已测试页面" 
+                value={statistics?.total_count || 0} 
+                prefix={<ThunderboltOutlined />} 
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="平均评分" 
+                value={statistics?.avg_score || 0} 
+                suffix="分" 
+                valueStyle={{ 
+                  color: (statistics?.avg_score || 0) >= 80 ? '#3f8600' : '#cf1322' 
+                }} 
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="优秀页面" 
+                value={statistics?.excellent_count || 0} 
+                suffix="个" 
+                valueStyle={{ color: '#3f8600' }} 
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="待优化页面" 
+                value={statistics?.needs_improvement_count || 0} 
+                suffix="个" 
+                valueStyle={{ color: '#cf1322' }} 
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Spin>
 
       <Card
         title="Core Web Vitals 测试"
         extra={
-          <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => setTestModalVisible(true)}>
+          <Button 
+            type="primary" 
+            icon={<PlayCircleOutlined />} 
+            onClick={() => {
+              setTestUrl('');  // 清空输入框
+              setTestModalVisible(true);
+            }}
+          >
             测试新页面
           </Button>
         }
@@ -298,7 +349,25 @@ const PageSpeedAnalyzer: React.FC = () => {
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <Table columns={columns} dataSource={testResults} rowKey="id" />
+        <Table
+          columns={columns}
+          dataSource={pageSpeedList}
+          rowKey="id"
+          loading={listLoading}
+          pagination={false}
+        />
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={total}
+            showSizeChanger
+            showQuickJumper
+            showTotal={(total) => `共 ${total} 条`}
+            onChange={handlePageChange}
+            onShowSizeChange={handlePageChange}
+          />
+        </div>
       </Card>
 
       {/* 测试新页面弹窗 */}
@@ -308,14 +377,23 @@ const PageSpeedAnalyzer: React.FC = () => {
         onOk={handleTest}
         onCancel={() => setTestModalVisible(false)}
         confirmLoading={testing}
+        okButtonProps={{ disabled: !testUrl }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Input
-            placeholder="输入页面路径，如 /wallpaper/nature"
-            value={testUrl}
-            onChange={(e) => setTestUrl(e.target.value)}
-            prefix="/"
-          />
+          <Form.Item
+            label="页面路径"
+            required
+            validateStatus={!testUrl ? 'error' : ''}
+            help={!testUrl ? '请输入页面路径' : ''}
+          >
+            <Input
+              placeholder="输入页面路径，如 /wallpaper/nature"
+              value={testUrl}
+              onChange={(e) => setTestUrl(e.target.value)}
+              prefix="/"
+              status={!testUrl ? 'error' : ''}
+            />
+          </Form.Item>
           <Alert
             message="测试内容"
             description="系统将测试FCP、LCP、FID、CLS等Core Web Vitals指标，分析页面加载性能和用户体验。"
@@ -344,10 +422,11 @@ const PageSpeedAnalyzer: React.FC = () => {
           <Tabs defaultActiveKey="vitals">
             <TabPane tab="Core Web Vitals" key="vitals">
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Alert
-                  message={`综合评分: ${selectedResult.overallScore}/100`}
-                  type={selectedResult.overallScore >= 90 ? 'success' : selectedResult.overallScore >= 70 ? 'warning' : 'error'}
-                  showIcon
+                <Progress
+                  type="circle"
+                  percent={selectedResult.overall_score}
+                  width={80}
+                  status={selectedResult.overall_score >= 90 ? 'success' : selectedResult.overall_score >= 70 ? 'normal' : 'exception'}
                 />
                 <Row gutter={16}>
                   <Col span={12}>
@@ -385,10 +464,10 @@ const PageSpeedAnalyzer: React.FC = () => {
               <Card size="small" title="页面资源统计">
                 <Row gutter={16}>
                   <Col span={8}>
-                    <Statistic title="页面大小" value={selectedResult.pageSize} suffix="MB" />
+                    <Statistic title="页面大小" value={selectedResult.page_size} suffix="MB" />
                   </Col>
                   <Col span={8}>
-                    <Statistic title="资源数量" value={selectedResult.resourceCount} suffix="个" />
+                    <Statistic title="资源数量" value={selectedResult.resource_count} suffix="个" />
                   </Col>
                   <Col span={8}>
                     <Statistic title="TTFB" value={selectedResult.ttfb} suffix="秒" />
@@ -402,8 +481,8 @@ const PageSpeedAnalyzer: React.FC = () => {
                   <Timeline.Item color={selectedResult.lcp < 2.5 ? 'green' : 'orange'}>
                     LCP: {selectedResult.lcp}秒 - 最大内容绘制
                   </Timeline.Item>
-                  <Timeline.Item color={selectedResult.loadTime < 3 ? 'green' : 'red'}>
-                    完全加载: {selectedResult.loadTime}秒
+                  <Timeline.Item color={selectedResult.load_time < 3 ? 'green' : 'red'}>
+                    完全加载: {selectedResult.load_time}秒
                   </Timeline.Item>
                 </Timeline>
               </Card>

@@ -804,7 +804,7 @@ export const getBacklinks = async (params: {
   page?: number;
   pageSize?: number;
   status?: string;
-  source_page?: string;
+  search?: string;
 }): Promise<ApiResponse<PaginatedResponse<Backlink>>> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.getBacklinks(params) as Promise<ApiResponse<PaginatedResponse<Backlink>>>;
@@ -1510,7 +1510,149 @@ export const testRobotsRule = async (data: RobotsTestData): Promise<ApiResponse<
   });
 };
 
-// ==================== 11. 域名分析 API ====================
+// ==================== 12. 页面速度统计 API ====================
+
+/**
+ * 页面速度统计数据接口
+ */
+export interface PageSpeedStatistics {
+  total_count: number;         // 已测试页面总数
+  avg_score: number;           // 平均评分
+  excellent_count: number;     // 优秀数量（>=90分）
+  needs_improvement_count: number;  // 需要改进数量
+}
+
+/**
+ * 获取页面速度统计数据
+ * @returns 页面速度统计数据
+ */
+export const getPageSpeedStatistics = async (): Promise<ApiResponse<PageSpeedStatistics>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockStats: PageSpeedStatistics = {
+      total_count: 125,
+      avg_score: 82.5,
+      excellent_count: 45,
+      needs_improvement_count: 80,
+    };
+    return Promise.resolve({
+      code: 200,
+      data: mockStats,
+      message: 'success',
+    }) as Promise<ApiResponse<PageSpeedStatistics>>;
+  }
+  return request<PageSpeedStatistics>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/statistics/`,
+    method: 'GET',
+    params: {
+      platform: 'page',
+    },
+  });
+};
+
+/**
+ * 页面速度测试请求参数
+ */
+export interface PageSpeedTestRequest {
+  page_path: string;  // 页面路径（必填）
+  platform: 'page';   // 平台（固定为'page'）
+}
+
+/**
+ * 页面速度测试响应数据
+ */
+export interface PageSpeedTestResult {
+  test_id: number;
+  page_path: string;
+  status: string;  // 'pending' | 'running' | 'completed' | 'failed'
+  message: string;
+}
+
+/**
+ * 测试页面速度
+ * @param params 测试参数
+ * @returns 测试结果
+ */
+export const testPageSpeed = async (params: PageSpeedTestRequest): Promise<ApiResponse<PageSpeedTestResult>> => {
+  return request<PageSpeedTestResult>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/test/`,
+    method: 'POST',
+    data: params,
+  });
+};
+
+/**
+ * 页面速度列表项数据类型
+ */
+export interface PageSpeedItem {
+  id: number;
+  page_path: string;           // 页面路径
+  overall_score: number;       // 综合评分
+  fcp: number;                 // 首次内容绘制（秒）
+  lcp: number;                 // 最大内容绘制（秒）
+  fid: number;                 // 首次输入延迟（毫秒）
+  cls: number;                 // 累积布局偏移
+  ttfb: number;                // 首字节时间（秒）
+  load_time: number;           // 加载时间（秒）
+  page_size: number;           // 页面大小（MB）
+  resource_count: number;      // 资源数量
+  issue_count: number;         // 问题数量
+  tested_at: string;           // 测试时间
+}
+
+/**
+ * 页面速度详情数据类型
+ */
+export interface PageSpeedDetail extends PageSpeedItem {
+  issues: SpeedIssue[];        // 问题列表
+  platform: string;            // 平台
+}
+
+/**
+ * 速度问题类型
+ */
+export interface SpeedIssue {
+  type: 'error' | 'warning' | 'info';
+  category: string;
+  message: string;
+  impact: 'high' | 'medium' | 'low';
+  solution: string;
+}
+
+/**
+ * 获取页面速度列表
+ * @param params 查询参数
+ * @returns 页面速度列表
+ */
+export const getPageSpeedList = async (params: {
+  currentPage?: number;
+  pageSize?: number;
+  platform?: string;
+}): Promise<ApiResponse<PaginatedResponse<PageSpeedItem>>> => {
+  return request<PaginatedResponse<PageSpeedItem>>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/`,
+    method: 'GET',
+    params: {
+      currentPage: params.currentPage || 1,
+      pageSize: params.pageSize || 10,
+      platform: params.platform || 'page',
+    },
+  });
+};
+
+/**
+ * 获取页面速度详情
+ * @param id 页面速度记录ID
+ * @returns 页面速度详情
+ */
+export const getPageSpeedDetail = async (id: number): Promise<ApiResponse<PageSpeedDetail>> => {
+  return request<PageSpeedDetail>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/${id}/`,
+    method: 'GET',
+  });
+};
+
+// ==================== 13. 域名分析 API ====================
 
 // 域名分析数据类型
 export interface DomainAnalysis {
@@ -1713,6 +1855,10 @@ export const seoApi = {
   
   // Robots测试
   testRobotsRule,
+  
+  // 页面速度
+  getPageSpeedStatistics,
+  testPageSpeed,
+  getPageSpeedList,
+  getPageSpeedDetail,
 };
-
-export default seoApi;
