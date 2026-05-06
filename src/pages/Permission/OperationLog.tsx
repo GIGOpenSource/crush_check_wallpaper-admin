@@ -33,10 +33,11 @@ const OperationLog: React.FC = () => {
   }>({});
 
   // 加载日志列表
-  const loadLogs = async (page: number = currentPage) => {
+  const loadLogs = async (page: number = currentPage, params?: typeof searchParams) => {
     setLoading(true);
     try {
-      const response = await getOperationLogList(page, pageSize, searchParams);
+      const queryParams = params || searchParams;
+      const response = await getOperationLogList(page, pageSize, queryParams);
       setLogs(response.results || []);
       setTotal(response.pagination?.total || 0);
     } catch (error) {
@@ -66,7 +67,7 @@ const OperationLog: React.FC = () => {
     
     setSearchParams(params);
     setCurrentPage(1);
-    loadLogs(1);
+    loadLogs(1, params);
   };
 
   // 重置搜索
@@ -74,7 +75,7 @@ const OperationLog: React.FC = () => {
     form.resetFields();
     setSearchParams({});
     setCurrentPage(1);
-    loadLogs(1);
+    loadLogs(1, {});
   };
 
   // 查看详情
