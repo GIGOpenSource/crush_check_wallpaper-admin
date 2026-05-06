@@ -792,11 +792,19 @@ export interface Backlink {
   updated_at: string;            // 更新时间
 }
 
+// 外链统计类型
+export interface BacklinkStatistics {
+  total_count: number;      // 总外链数
+  active_count: number;     // 有效外链数
+  inactive_count: number;   // 失效外链数
+  toxic_count: number;      // 有毒外链数
+}
+
 export const getBacklinks = async (params: {
   page?: number;
   pageSize?: number;
   status?: string;
-  search?: string;
+  source_page?: string;
 }): Promise<ApiResponse<PaginatedResponse<Backlink>>> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.getBacklinks(params) as Promise<ApiResponse<PaginatedResponse<Backlink>>>;
@@ -805,6 +813,28 @@ export const getBacklinks = async (params: {
     url: `${API_CONFIG.SEO_PREFIX}/backlink/`,
     method: 'GET',
     params,
+  });
+};
+
+// 获取外链统计
+export const getBacklinkStatistics = async (): Promise<ApiResponse<BacklinkStatistics>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockStats: BacklinkStatistics = {
+      total_count: 0,
+      active_count: 0,
+      inactive_count: 0,
+      toxic_count: 0,
+    };
+    return Promise.resolve({
+      code: 200,
+      data: mockStats,
+      message: 'success',
+    }) as Promise<ApiResponse<BacklinkStatistics>>;
+  }
+  return request<BacklinkStatistics>({
+    url: `${API_CONFIG.SEO_PREFIX}/backlink/statistics/`,
+    method: 'GET',
   });
 };
 
@@ -1480,6 +1510,130 @@ export const testRobotsRule = async (data: RobotsTestData): Promise<ApiResponse<
   });
 };
 
+// ==================== 11. 域名分析 API ====================
+
+// 域名分析数据类型
+export interface DomainAnalysis {
+  id: number;
+  domain: string;              // 域名
+  safety_score: number;        // 安全评分
+  status: string;              // 状态码
+  status_display: string;      // 状态显示文本
+  backlink_count?: number;     // 外链数量（可选）
+  remark?: string | null;      // 备注（可选）
+  created_at?: string;         // 创建时间（可选）
+  analyzed_at?: string;        // 分析时间（可选）
+}
+
+// 获取域名分析列表
+export const getDomainAnalysisList = async (params: {
+  page?: number;
+  pageSize?: number;
+  domain?: string;
+  status?: string;
+}): Promise<ApiResponse<PaginatedResponse<DomainAnalysis>>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    const mockData: DomainAnalysis[] = [
+      {
+        id: 1,
+        domain: 'example.com',
+        safety_score: 90,
+        status: 'safe',
+        status_display: '安全',
+        backlink_count: 150,
+        remark: null,
+        created_at: '2026-01-15T10:00:00Z',
+        analyzed_at: '2026-04-17T10:00:00Z',
+      },
+      {
+        id: 2,
+        domain: 'test-site.org',
+        safety_score: 45,
+        status: 'warning',
+        status_display: '需关注',
+        backlink_count: 30,
+        remark: null,
+        created_at: '2026-02-20T08:30:00Z',
+        analyzed_at: '2026-04-16T15:30:00Z',
+      },
+    ];
+    return Promise.resolve({
+      code: 200,
+      data: {
+        results: mockData,
+        pagination: {
+          total: mockData.length,
+          page: params?.page || 1,
+          page_size: params?.pageSize || 10,
+        },
+      },
+      message: 'success',
+    }) as Promise<ApiResponse<PaginatedResponse<DomainAnalysis>>>;
+  }
+  return request<PaginatedResponse<DomainAnalysis>>({
+    url: `${API_CONFIG.SEO_PREFIX}/domain_analysis/`,
+    method: 'GET',
+    params,
+  });
+};
+
+// 重新分析域名
+export const reAnalyzeDomain = async (ids: number[]): Promise<ApiResponse<{
+  total_count: number;
+  success_count: number;
+  failed_count: number;
+  results: Array<{
+    id: number;
+    domain: string;
+    status: string;
+    message: string;
+  }>;
+}>> => {
+  if (API_CONFIG.USE_MOCK) {
+    return Promise.resolve({
+      code: 200,
+      data: {
+        total_count: ids.length,
+        success_count: ids.length,
+        failed_count: 0,
+        results: ids.map(id => ({
+          id,
+          domain: 'example.com',
+          status: 'success',
+          message: '分析成功',
+        })),
+      },
+      message: 'success',
+    }) as Promise<ApiResponse<{
+      total_count: number;
+      success_count: number;
+      failed_count: number;
+      results: Array<{
+        id: number;
+        domain: string;
+        status: string;
+        message: string;
+      }>;
+    }>>;
+  }
+  return request<{
+    total_count: number;
+    success_count: number;
+    failed_count: number;
+    results: Array<{
+      id: number;
+      domain: string;
+      status: string;
+      message: string;
+    }>;
+  }>({
+    url: `${API_CONFIG.SEO_PREFIX}/domain_analysis/re-analyze/`,
+    method: 'POST',
+    data: { ids },
+  });
+};
+
 // ==================== 统一导出 ====================
 
 export const seoApi = {
@@ -1519,6 +1673,9 @@ export const seoApi = {
 
   // 外链
   getBacklinks,
+  getBacklinkStatistics,
+  getDomainAnalysisList,
+  reAnalyzeDomain,
   checkBacklink,
   batchCheckBacklinks,
   scanBacklinks,

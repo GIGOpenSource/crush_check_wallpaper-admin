@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, Select, message, Alert, Tabs, Statistic, Row, Col, Progress, Breadcrumb, Popconfirm, Timeline } from 'antd';
-import { PlusOutlined, DeleteOutlined, GlobalOutlined, LinkOutlined, ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, Select, App, Alert, Tabs, Statistic, Row, Col, Progress, Breadcrumb, Popconfirm, Timeline } from 'antd';
+import { PlusOutlined, DeleteOutlined, GlobalOutlined, LinkOutlined, ArrowLeftOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { seoApi } from '../../services/seoApi';
+import { seoApi, type DomainAnalysis } from '../../services/seoApi';
 
 const { Option } = Select;
 
@@ -23,6 +23,7 @@ interface Backlink {
 }
 
 const BacklinkManager: React.FC = () => {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -34,6 +35,37 @@ const BacklinkManager: React.FC = () => {
   const [backlinksLoading, setBacklinksLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   
+  // 外链统计数据
+  const [statistics, setStatistics] = useState({
+    total_count: 0,
+    active_count: 0,
+    inactive_count: 0,
+    toxic_count: 0,
+  });
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
+  
+  // 域名分析相关状态
+  const [domainAnalysis, setDomainAnalysis] = useState<DomainAnalysis[]>([]);
+  const [domainAnalysisLoading, setDomainAnalysisLoading] = useState(false);
+  const [domainPagination, setDomainPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [domainSearchText, setDomainSearchText] = useState('');
+  const [domainStatusFilter, setDomainStatusFilter] = useState<string | undefined>(undefined);
+
+  // 加载外链统计数据
+  const loadStatistics = async () => {
+    setStatisticsLoading(true);
+    try {
+      const res = await seoApi.getBacklinkStatistics();
+      if (res.code === 200 && res.data) {
+        setStatistics(res.data);
+      }
+    } catch (_err) {
+      message.error('加载统计数据失败');
+    } finally {
+      setStatisticsLoading(false);
+    }
+  };
+  
   // 加载外链数据
   const loadBacklinks = async () => {
     setBacklinksLoading(true);
@@ -41,7 +73,7 @@ const BacklinkManager: React.FC = () => {
       const res = await seoApi.getBacklinks({
         page: pagination.current,
         pageSize: pagination.pageSize,
-        search: searchText,
+        source_page: searchText,
       });
       if (res.code === 200) {
         // SEO模块API返回结构：pagination + results
@@ -62,14 +94,24 @@ const BacklinkManager: React.FC = () => {
     }
   };
 
+  // 加载外链和统计数据
   useEffect(() => {
-    // 使用setTimeout避免同步调用setState
+    loadStatistics();
     const timer = setTimeout(() => {
       loadBacklinks();
     }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.current, pagination.pageSize, searchText]);
+
+  // 加载域名分析数据
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadDomainAnalysis();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domainPagination.current, domainPagination.pageSize, domainSearchText, domainStatusFilter]);
 
   const columns = [
     { title: '来源页面', dataIndex: 'source_page', key: 'source_page', ellipsis: true },
@@ -221,27 +263,155 @@ const BacklinkManager: React.FC = () => {
     message.info('扫描功能开发中...');
   };
 
-  // 域名分析相关数据与列定义
-  const domainScores = [
-    { key: '1', domain: 'example.com', score: 90, status: 'safe' },
-    { key: '2', domain: 'test-site.org', score: 45, status: 'warning' },
-  ];
+  // 加载域名分析数据
+  const loadDomainAnalysis = async () => {
+    setDomainAnalysisLoading(true);
+    try {
+      const res = await seoApi.getDomainAnalysisList({
+        page: domainPagination.current,
+        pageSize: domainPagination.pageSize,
+        domain: domainSearchText,
+        status: domainStatusFilter,
+      });
+      if (res.code === 200) {
+        const results = res.data?.results || [];
+        const total = res.data?.pagination?.total || 0;
+        setDomainAnalysis(results);
+        setDomainPagination(prev => ({
+          ...prev,
+          total,
+          current: res.data?.pagination?.page || prev.current,
+          pageSize: res.data?.pagination?.page_size || prev.pageSize,
+        }));
+      }
+    } catch (_err) {
+      message.error('加载域名分析数据失败');
+    } finally {
+      setDomainAnalysisLoading(false);
+    }
+  };
 
+  // 域名分析表格列定义
   const domainColumns = [
-    { title: '域名', dataIndex: 'domain', key: 'domain' },
+    { 
+      title: '域名', 
+      dataIndex: 'domain', 
+      key: 'domain',
+      ellipsis: true,
+    },
     { 
       title: '安全评分', 
-      dataIndex: 'score', 
-      key: 'score',
-      render: (score: number) => <Progress percent={score} size="small" status={score > 60 ? 'success' : 'exception'} />
+      dataIndex: 'safety_score', 
+      key: 'safety_score',
+      width: 300,
+      align: 'center' as const,
+      render: (score: number) => {
+        // 空值保护
+        if (score === undefined || score === null) {
+          return <Tag>未评分</Tag>;
+        }
+        
+        const status = score >= 80 ? 'success' : score >= 60 ? 'normal' : 'exception';
+        const tagColor = score >= 80 ? 'success' : score >= 60 ? 'warning' : 'error';
+        
+        return (
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%'
+          }}>
+            <Progress 
+              percent={Math.min(100, Math.max(0, score))} 
+              size="small" 
+              status={status}
+              showInfo={true}
+              format={() => `${score}分`}
+              strokeColor={{
+                '0%': tagColor === 'success' ? '#52c41a' : tagColor === 'warning' ? '#faad14' : '#f5222d',
+                '100%': tagColor === 'success' ? '#73d13d' : tagColor === 'warning' ? '#ffc53d' : '#ff4d4f',
+              }}
+              style={{ flex: 1, maxWidth: '200px' }}
+            />
+          </div>
+        );
+      },
     },
     { 
       title: '状态', 
-      dataIndex: 'status', 
-      key: 'status',
-      render: (status: string) => <Tag color={status === 'safe' ? 'success' : 'warning'}>{status === 'safe' ? '安全' : '需关注'}</Tag>
+      dataIndex: 'status_display', 
+      key: 'status_display',
+      width: 100,
+      render: (text: string) => {
+        const colorMap: Record<string, string> = {
+          '安全': 'success',
+          '需关注': 'warning',
+          '危险': 'error',
+        };
+        return <Tag color={colorMap[text] || 'default'}>{text}</Tag>;
+      },
+    },
+    { 
+      title: '操作', 
+      key: 'action',
+      width: 100,
+      align: 'center' as const,
+      render: (_: any, record: DomainAnalysis) => (
+        <Popconfirm
+          title="确认开始分析"
+          description={`确定要重新分析域名 "${record.domain}" 吗？`}
+          onConfirm={() => handleReAnalyze([record.id])}
+          okText="确定"
+          cancelText="取消"
+        >
+          <Button 
+            type="link" 
+            size="small"
+          >
+            开始分析
+          </Button>
+        </Popconfirm>
+      ),
     },
   ];
+
+  // 重新分析域名
+  const handleReAnalyze = async (ids: number[]) => {
+    try {
+      const res = await seoApi.reAnalyzeDomain(ids);
+         console.log(res,'rrr')
+      // 根据日志输出，res 是完整的响应对象：{code: 200, message: '...', data: {...}}
+      if (res && res.code == 200) {
+        console.log(res);
+        message.success('分析成功');
+        // 刷新列表
+        loadDomainAnalysis();
+      } else {
+        message.error('分析失败');
+      }
+    } catch (err: any) {
+      message.error(err?.message || '分析失败');
+    }
+  };
+
+  // 批量分析
+  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (selectedKeys: React.Key[]) => {
+      setSelectedRowKeys(selectedKeys as number[]);
+    },
+  };
+
+  const handleBatchAnalyze = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要分析的域名');
+      return;
+    }
+    await handleReAnalyze(selectedRowKeys);
+  };
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
@@ -260,41 +430,26 @@ const BacklinkManager: React.FC = () => {
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="总外链数" value={pagination.total} prefix={<LinkOutlined />} />
+          <Card loading={statisticsLoading}>
+            <Statistic title="总外链数" value={statistics.total_count} prefix={<LinkOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="有效" value={backlinks?.filter(b => b.status_display === '有效').length || 0} valueStyle={{ color: '#52c41a' }} />
+          <Card loading={statisticsLoading}>
+            <Statistic title="有效" value={statistics.active_count} valueStyle={{ color: '#52c41a' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="失效" value={backlinks?.filter(b => b.status_display === '失效').length || 0} valueStyle={{ color: '#f5222d' }} />
+          <Card loading={statisticsLoading}>
+            <Statistic title="失效" value={statistics.inactive_count} valueStyle={{ color: '#f5222d' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="待审核" value={backlinks?.filter(b => b.status_display === '待审核').length || 0} valueStyle={{ color: '#faad14' }} />
+          <Card loading={statisticsLoading}>
+            <Statistic title="有毒" value={statistics.toxic_count} valueStyle={{ color: '#722ed1' }} />
           </Card>
         </Col>
       </Row>
-
-      {/* 操作栏 */}
-      <Card style={{ marginBottom: 24 }}>
-        <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-            添加外链
-          </Button>
-          <Input.Search
-            placeholder="搜索来源页面、目标页面或锚文本"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
-          />
-        </Space>
-      </Card>
 
       <Tabs 
         defaultActiveKey="backlinks"
@@ -311,6 +466,18 @@ const BacklinkManager: React.FC = () => {
                   showIcon
                   style={{ marginBottom: 16 }}
                 />
+                <Space style={{ marginBottom: 16 }}>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+                    添加外链
+                  </Button>
+                  <Input.Search
+                    placeholder="搜索来源页面"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    onSearch={loadBacklinks}
+                    style={{ width: 300 }}
+                  />
+                </Space>
                 <Table
                   columns={columns}
                   dataSource={backlinks}
@@ -342,10 +509,62 @@ const BacklinkManager: React.FC = () => {
                   showIcon
                   style={{ marginBottom: 16 }}
                 />
+                <Space style={{ marginBottom: 16 }}>
+                  <Input.Search
+                    placeholder="搜索域名"
+                    value={domainSearchText}
+                    onChange={(e) => setDomainSearchText(e.target.value)}
+                    onSearch={loadDomainAnalysis}
+                    style={{ width: 300 }}
+                  />
+                  <Select
+                    placeholder="状态筛选"
+                    allowClear
+                    value={domainStatusFilter}
+                    onChange={(value) => {
+                      setDomainStatusFilter(value);
+                      setDomainPagination(prev => ({ ...prev, current: 1 }));
+                    }}
+                    style={{ width: 150 }}
+                  >
+                    <Select.Option value="safe">安全</Select.Option>
+                    <Select.Option value="warning">需关注</Select.Option>
+                    <Select.Option value="danger">危险</Select.Option>
+                  </Select>
+                  <Button onClick={loadDomainAnalysis}>刷新</Button>
+                  <Popconfirm
+                    title="确认批量分析"
+                    description={`确定要重新分析选中的 ${selectedRowKeys.length} 个域名吗？`}
+                    onConfirm={handleBatchAnalyze}
+                    okText="确定"
+                    cancelText="取消"
+                    disabled={selectedRowKeys.length === 0}
+                  >
+                    <Button 
+                      type="primary" 
+                      icon={<ReloadOutlined />}
+                      disabled={selectedRowKeys.length === 0}
+                    >
+                      批量分析
+                    </Button>
+                  </Popconfirm>
+                </Space>
                 <Table
                   columns={domainColumns}
-                  dataSource={domainScores}
-                  rowKey="domain"
+                  dataSource={domainAnalysis}
+                  rowKey="id"
+                  loading={domainAnalysisLoading}
+                  pagination={{
+                    current: domainPagination.current,
+                    pageSize: domainPagination.pageSize,
+                    total: domainPagination.total,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    onChange: (page, pageSize) => {
+                      setDomainPagination(prev => ({ ...prev, current: page, pageSize: pageSize || prev.pageSize }));
+                    },
+                  }}
+                  rowSelection={rowSelection}
                 />
               </Card>
             ),

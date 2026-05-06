@@ -12,6 +12,16 @@ export interface RobotsConfig {
 }
 
 /**
+ * Robots统计数据响应类型
+ */
+export interface RobotsStatistics {
+  total_rules: number;
+  allow_count: number;
+  disallow_count: number;
+  last_updated: string;
+}
+
+/**
  * 获取Robots.txt内容
  */
 export function getRobotsContent() {
@@ -26,4 +36,11 @@ export function updateRobotsContent(content: string) {
   return http.post<RobotsConfig>('/site/update-robots-txt/', {
     content,
   });
+}
+
+/**
+ * 获取Robots统计数据
+ */
+export function getRobotsStatistics() {
+  return http.get<RobotsStatistics>('/site/robots-statistics/');
 }
