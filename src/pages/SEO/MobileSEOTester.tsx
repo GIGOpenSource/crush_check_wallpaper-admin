@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio, Pagination, Popconfirm } from 'antd';
-import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
-import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail } from '../../services/seoApi';
+import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail, type OptimizationSuggestion } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
 
@@ -22,6 +22,10 @@ const MobileSEOTester: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  
+  // 优化建议状态
+  const [optimizationSuggestions, setOptimizationSuggestions] = useState<OptimizationSuggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   // 获取页面速度统计数据
   useEffect(() => {
@@ -181,13 +185,26 @@ const MobileSEOTester: React.FC = () => {
 
   const handleViewDetail = async (record: PageSpeedItem) => {
     try {
-      const response = await seoApi.getPageSpeedDetail(record.id);
-      if (response.code === 200 && response.data) {
-        setSelectedResult(response.data);
-        setDetailModalVisible(true);
+      // 并行加载详情和优化建议
+      const [detailResponse, suggestionsResponse] = await Promise.all([
+        seoApi.getPageSpeedDetail(record.id),
+        seoApi.getOptimizationSuggestions(record.id),
+      ]);
+      
+      if (detailResponse.code === 200 && detailResponse.data) {
+        setSelectedResult(detailResponse.data);
       } else {
         message.error('获取详情失败');
+        return;
       }
+      
+      if (suggestionsResponse.code === 200 && suggestionsResponse.data) {
+        setOptimizationSuggestions(suggestionsResponse.data || []);
+      } else {
+        setOptimizationSuggestions([]);
+      }
+      
+      setDetailModalVisible(true);
     } catch (error) {
       console.error('获取页面速度详情失败:', error);
       message.error('获取详情失败，请稍后重试');
@@ -264,6 +281,25 @@ const MobileSEOTester: React.FC = () => {
         return 'warning';
       default:
         return 'info';
+    }
+  };
+
+  // 获取优化建议
+  const fetchOptimizationSuggestions = async (id: number) => {
+    setSuggestionsLoading(true);
+    try {
+      const response = await seoApi.getOptimizationSuggestions(id);
+      if (response.code === 200 && response.data) {
+        setOptimizationSuggestions(response.data || []);
+      } else {
+        setOptimizationSuggestions([]);
+      }
+    } catch (error) {
+      console.error('获取优化建议失败:', error);
+      message.error('获取优化建议失败');
+      setOptimizationSuggestions([]);
+    } finally {
+      setSuggestionsLoading(false);
     }
   };
 
@@ -461,32 +497,52 @@ const MobileSEOTester: React.FC = () => {
               </Space>
             </TabPane>
             <TabPane tab="问题详情" key="issues">
-              <List
-                dataSource={selectedResult.issues}
-                renderItem={(item) => (
-                  <List.Item>
-                    <Alert
-                      message={
-                        <Space>
-                          {getIssueIcon(item.type)}
-                          <strong>{item.category}</strong>
-                          <Tag color={item.impact === 'high' ? 'error' : item.impact === 'medium' ? 'warning' : 'default'}>
-                            {item.impact === 'high' ? '高影响' : item.impact === 'medium' ? '中影响' : '低影响'}
+              {optimizationSuggestions.length > 0 ? (
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  {optimizationSuggestions.map((item) => {
+                    const suggestionType = item.type || item.suggestion_type || 'unknown';
+                    const bgColor = item.priority === 'high' ? '#fff1f0' : item.priority === 'medium' ? '#fffbe6' : '#e6f4ff';
+                    const borderColor = item.priority === 'high' ? '#ffccc7' : item.priority === 'medium' ? '#ffe58f' : '#91caff';
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        style={{
+                          backgroundColor: bgColor,
+                          border: `1px solid ${borderColor}`,
+                          borderRadius: 8,
+                          padding: 16,
+                        }}
+                      >
+                        <Space style={{ marginBottom: 12 }}>
+                          {suggestionType === 'image' && <FileImageOutlined />}
+                          {suggestionType === 'script' && <CodeOutlined />}
+                          {suggestionType === 'css' && <CodeOutlined />}
+                          {suggestionType === 'server' && <DatabaseOutlined />}
+                          <strong style={{ fontSize: 16 }}>{suggestionType.toUpperCase()}</strong>
+                          <Tag color={item.priority === 'high' ? 'error' : item.priority === 'medium' ? 'warning' : 'default'}>
+                            {item.priority === 'high' ? '高优先级' : item.priority === 'medium' ? '中优先级' : '低优先级'}
                           </Tag>
                         </Space>
-                      }
-                      description={
-                        <div>
-                          <p>{item.message}</p>
-                          <p style={{ color: '#52c41a' }}><strong>解决方案：</strong>{item.solution}</p>
+                        <div style={{ marginBottom: 12, color: '#333' }}>
+                         
+                          {item.title}
                         </div>
-                      }
-                      type={item.type === 'error' ? 'error' : item.type === 'warning' ? 'warning' : 'info'}
-                      style={{ width: '100%' }}
-                    />
-                  </List.Item>
-                )}
-              />
+                        <div style={{ color: '#52c41a', fontWeight: 'bold' }}>
+                          <strong>解决方案：</strong> {item.description || item.title}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Space>
+              ) : (
+                <Alert
+                  message="暂无问题"
+                  description="当前页面移动端适配良好，暂无优化建议。"
+                  type="success"
+                  showIcon
+                />
+              )}
             </TabPane>
           </Tabs>
         )}

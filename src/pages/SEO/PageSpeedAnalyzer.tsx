@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio, Pagination, Popconfirm, Spin, Timeline } from 'antd';
-import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined, DashboardOutlined, ThunderboltOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail } from '../../services/seoApi';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Pagination, Popconfirm, Spin, Timeline } from 'antd';
+import { CheckCircleOutlined, EyeOutlined, ReloadOutlined, ThunderboltOutlined, PlayCircleOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail, type ResourceAnalysis, type OptimizationSuggestion } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
 
@@ -22,6 +22,11 @@ const PageSpeedAnalyzer: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+
+  // 详情数据状态
+  const [resourceAnalysis, setResourceAnalysis] = useState<ResourceAnalysis | null>(null);
+  const [optimizationSuggestions, setOptimizationSuggestions] = useState<OptimizationSuggestion[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // 获取页面速度统计数据
   useEffect(() => {
@@ -192,10 +197,31 @@ const PageSpeedAnalyzer: React.FC = () => {
   ];
 
   const handleViewDetail = async (record: PageSpeedItem) => {
+    setDetailLoading(true);
     try {
+      // 获取基础详情
       const response = await seoApi.getPageSpeedDetail(record.id);
       if (response.code === 200 && response.data) {
         setSelectedResult(response.data);
+        
+        // 并行获取资源分析和优化建议
+        const [resourceRes, suggestionRes] = await Promise.all([
+          seoApi.getResourceAnalysis(record.id),
+          seoApi.getOptimizationSuggestions(record.id)
+        ]);
+        
+        if (resourceRes.code === 200 && resourceRes.data) {
+          setResourceAnalysis(resourceRes.data);
+        } else {
+          setResourceAnalysis(null);
+        }
+        
+        if (suggestionRes.code === 200 && suggestionRes.data) {
+          setOptimizationSuggestions(suggestionRes.data);
+        } else {
+          setOptimizationSuggestions([]);
+        }
+        
         setDetailModalVisible(true);
       } else {
         message.error('获取详情失败');
@@ -203,6 +229,8 @@ const PageSpeedAnalyzer: React.FC = () => {
     } catch (error) {
       console.error('获取页面速度详情失败:', error);
       message.error('获取详情失败，请稍后重试');
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -257,28 +285,16 @@ const PageSpeedAnalyzer: React.FC = () => {
     }
   };
 
-  const getIssueIcon = (category: string) => {
-    switch (category) {
-      case 'image':
-        return <FileImageOutlined />;
-      case 'script':
-      case 'css':
-        return <CodeOutlined />;
-      case 'server':
-        return <DatabaseOutlined />;
-      default:
-        return <DashboardOutlined />;
-    }
-  };
-
-  const getImpactColor = (impact: string) => {
-    switch (impact) {
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
       case 'high':
-        return 'error';
+        return 'red';
       case 'medium':
-        return 'warning';
+        return 'orange';
+      case 'low':
+        return 'blue';
       default:
-        return 'info';
+        return 'default';
     }
   };
 
@@ -342,7 +358,7 @@ const PageSpeedAnalyzer: React.FC = () => {
             type="primary" 
             icon={<PlayCircleOutlined />} 
             onClick={() => {
-              setTestUrl('');  // 清空输入框
+              setTestUrl('');
               setTestModalVisible(true);
             }}
           >
@@ -415,10 +431,18 @@ const PageSpeedAnalyzer: React.FC = () => {
       <Modal
         title="页面速度详情"
         open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        width={800}
+        onCancel={() => {
+          setDetailModalVisible(false);
+          setResourceAnalysis(null);
+          setOptimizationSuggestions([]);
+        }}
+        width={1000}
         footer={[
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>关闭</Button>,
+          <Button key="close" onClick={() => {
+            setDetailModalVisible(false);
+            setResourceAnalysis(null);
+            setOptimizationSuggestions([]);
+          }}>关闭</Button>,
           selectedResult && (
             <Popconfirm
               key="retest"
@@ -427,6 +451,8 @@ const PageSpeedAnalyzer: React.FC = () => {
               onConfirm={() => {
                 handleRetest(selectedResult);
                 setDetailModalVisible(false);
+                setResourceAnalysis(null);
+                setOptimizationSuggestions([]);
               }}
               okText="确定"
               cancelText="取消"
@@ -438,103 +464,147 @@ const PageSpeedAnalyzer: React.FC = () => {
           ),
         ]}
       >
-        {selectedResult && (
-          <Tabs defaultActiveKey="vitals">
-            <TabPane tab="Core Web Vitals" key="vitals">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Progress
-                  type="circle"
-                  percent={selectedResult.overall_score}
-                  width={80}
-                  status={selectedResult.overall_score >= 90 ? 'success' : selectedResult.overall_score >= 70 ? 'normal' : 'exception'}
-                />
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Card size="small" title="FCP (首次内容绘制)">
-                      <Statistic value={selectedResult.fcp} suffix="秒" />
-                      <Progress percent={Math.min(100, (2.5 / selectedResult.fcp) * 50)} size="small" status={selectedResult.fcp < 1.8 ? 'success' : 'exception'} />
-                      <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 1.8秒</div>
+        <Spin spinning={detailLoading}>
+          {selectedResult && (
+            <Tabs defaultActiveKey="vitals">
+              <TabPane tab="Core Web Vitals" key="vitals">
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Progress
+                    type="circle"
+                    percent={selectedResult.overall_score}
+                    width={80}
+                    status={selectedResult.overall_score >= 90 ? 'success' : selectedResult.overall_score >= 70 ? 'normal' : 'exception'}
+                  />
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Card size="small" title="FCP (首次内容绘制)">
+                        <Statistic value={selectedResult.fcp} suffix="秒" />
+                        <Progress percent={Math.min(100, (2.5 / selectedResult.fcp) * 50)} size="small" status={selectedResult.fcp < 1.8 ? 'success' : 'exception'} />
+                        <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 1.8秒</div>
+                      </Card>
+                    </Col>
+                    <Col span={12}>
+                      <Card size="small" title="LCP (最大内容绘制)">
+                        <Statistic value={selectedResult.lcp} suffix="秒" />
+                        <Progress percent={Math.min(100, (2.5 / selectedResult.lcp) * 50)} size="small" status={selectedResult.lcp < 2.5 ? 'success' : 'exception'} />
+                        <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 2.5秒</div>
+                      </Card>
+                    </Col>
+                    <Col span={12} style={{ marginTop: 16 }}>
+                      <Card size="small" title="FID (首次输入延迟)">
+                        <Statistic value={selectedResult.fid} suffix="毫秒" />
+                        <Progress percent={Math.min(100, (100 / selectedResult.fid) * 50)} size="small" status={selectedResult.fid < 100 ? 'success' : 'exception'} />
+                        <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 100毫秒</div>
+                      </Card>
+                    </Col>
+                    <Col span={12} style={{ marginTop: 16 }}>
+                      <Card size="small" title="CLS (累积布局偏移)">
+                        <Statistic value={selectedResult.cls} />
+                        <Progress percent={Math.min(100, (0.1 / selectedResult.cls) * 50)} size="small" status={selectedResult.cls < 0.1 ? 'success' : 'exception'} />
+                        <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 0.1</div>
+                      </Card>
+                    </Col>
+                  </Row>
+                </Space>
+              </TabPane>
+              <TabPane tab="资源分析" key="resources">
+                {resourceAnalysis ? (
+                  <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <Card size="small" title="页面资源统计">
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <Statistic title="页面大小" value={resourceAnalysis.page_size} suffix="MB" />
+                        </Col>
+                        <Col span={8}>
+                          <Statistic title="资源数量" value={resourceAnalysis.resource_count} suffix="个" />
+                        </Col>
+                        <Col span={8}>
+                          <Statistic title="TTFB" value={resourceAnalysis.ttfb} suffix="秒" />
+                        </Col>
+                      </Row>
                     </Card>
-                  </Col>
-                  <Col span={12}>
-                    <Card size="small" title="LCP (最大内容绘制)">
-                      <Statistic value={selectedResult.lcp} suffix="秒" />
-                      <Progress percent={Math.min(100, (2.5 / selectedResult.lcp) * 50)} size="small" status={selectedResult.lcp < 2.5 ? 'success' : 'exception'} />
-                      <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 2.5秒</div>
+                    <Card size="small" title="加载时间线" style={{ marginTop: 16 }}>
+                      <Timeline
+                        items={[
+                          {
+                            color: 'green',
+                            children: `TTFB: ${resourceAnalysis.loading_timeline?.ttfb || 0}秒 - 首字节时间`,
+                          },
+                          {
+                            color: 'green',
+                            children: `FCP: ${resourceAnalysis.loading_timeline?.fcp || 0}秒 - 首次内容绘制`,
+                          },
+                          {
+                            color: (resourceAnalysis.loading_timeline?.lcp || 0) < 2.5 ? 'green' : 'orange',
+                            children: `LCP: ${resourceAnalysis.loading_timeline?.lcp || 0}秒 - 最大内容绘制`,
+                          },
+                          {
+                            color: (resourceAnalysis.loading_timeline?.full_load || 0) < 3 ? 'green' : 'red',
+                            children: `完全加载: ${resourceAnalysis.loading_timeline?.full_load || 0}秒`,
+                          },
+                        ]}
+                      />
                     </Card>
-                  </Col>
-                  <Col span={12} style={{ marginTop: 16 }}>
-                    <Card size="small" title="FID (首次输入延迟)">
-                      <Statistic value={selectedResult.fid} suffix="毫秒" />
-                      <Progress percent={Math.min(100, (100 / selectedResult.fid) * 50)} size="small" status={selectedResult.fid < 100 ? 'success' : 'exception'} />
-                      <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 100毫秒</div>
-                    </Card>
-                  </Col>
-                  <Col span={12} style={{ marginTop: 16 }}>
-                    <Card size="small" title="CLS (累积布局偏移)">
-                      <Statistic value={selectedResult.cls} />
-                      <Progress percent={Math.min(100, (0.1 / selectedResult.cls) * 50)} size="small" status={selectedResult.cls < 0.1 ? 'success' : 'exception'} />
-                      <div style={{ fontSize: 12, color: '#999' }}>目标: &lt; 0.1</div>
-                    </Card>
-                  </Col>
-                </Row>
-              </Space>
-            </TabPane>
-            <TabPane tab="资源分析" key="resources">
-              <Card size="small" title="页面资源统计">
-                <Row gutter={16}>
-                  <Col span={8}>
-                    <Statistic title="页面大小" value={selectedResult.page_size} suffix="MB" />
-                  </Col>
-                  <Col span={8}>
-                    <Statistic title="资源数量" value={selectedResult.resource_count} suffix="个" />
-                  </Col>
-                  <Col span={8}>
-                    <Statistic title="TTFB" value={selectedResult.ttfb} suffix="秒" />
-                  </Col>
-                </Row>
-              </Card>
-              <Card size="small" title="加载时间线" style={{ marginTop: 16 }}>
-                <Timeline>
-                  <Timeline.Item color="green">TTFB: {selectedResult.ttfb}秒 - 首字节时间</Timeline.Item>
-                  <Timeline.Item color="green">FCP: {selectedResult.fcp}秒 - 首次内容绘制</Timeline.Item>
-                  <Timeline.Item color={selectedResult.lcp < 2.5 ? 'green' : 'orange'}>
-                    LCP: {selectedResult.lcp}秒 - 最大内容绘制
-                  </Timeline.Item>
-                  <Timeline.Item color={selectedResult.load_time < 3 ? 'green' : 'red'}>
-                    完全加载: {selectedResult.load_time}秒
-                  </Timeline.Item>
-                </Timeline>
-              </Card>
-            </TabPane>
-            <TabPane tab="优化建议" key="issues">
-              <List
-                dataSource={selectedResult.issues}
-                renderItem={(item) => (
-                  <List.Item>
-                    <Alert
-                      message={
-                        <Space>
-                          {getIssueIcon(item.category)}
-                          <strong>{item.category.toUpperCase()}</strong>
-                          <Tag color={getImpactColor(item.impact)}>{item.impact}</Tag>
-                        </Space>
-                      }
-                      description={
-                        <div>
-                          <p>{item.message}</p>
-                          <p style={{ color: '#52c41a' }}><strong>解决方案：</strong>{item.solution}</p>
-                        </div>
-                      }
-                      type={item.type as any}
-                      style={{ width: '100%' }}
-                    />
-                  </List.Item>
+                  </Space>
+                ) : (
+                  <Alert
+                    message="暂无资源分析数据"
+                    description="该页面尚未进行资源分析，请先完成页面速度测试。"
+                    type="info"
+                    showIcon
+                  />
                 )}
-              />
-            </TabPane>
-          </Tabs>
-        )}
+              </TabPane>
+              <TabPane tab="优化建议" key="issues">
+                {optimizationSuggestions.length > 0 ? (
+                  <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                    {optimizationSuggestions.map((item) => {
+                      const suggestionType = item.type || item.suggestion_type || 'unknown';
+                      const bgColor = item.priority === 'high' ? '#fff1f0' : item.priority === 'medium' ? '#fffbe6' : '#e6f4ff';
+                      const borderColor = item.priority === 'high' ? '#ffccc7' : item.priority === 'medium' ? '#ffe58f' : '#91caff';
+                      
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            backgroundColor: bgColor,
+                            border: `1px solid ${borderColor}`,
+                            borderRadius: 8,
+                            padding: 16,
+                          }}
+                        >
+                          <Space style={{ marginBottom: 12 }}>
+                            {suggestionType === 'image' && <FileImageOutlined />}
+                            {suggestionType === 'script' && <CodeOutlined />}
+                            {suggestionType === 'css' && <CodeOutlined />}
+                            {suggestionType === 'server' && <DatabaseOutlined />}
+                            <strong style={{ fontSize: 16 }}>{suggestionType.toUpperCase()}</strong>
+                            <Tag color={getPriorityColor(item.priority)}>
+                              {item.priority}
+                            </Tag>
+                          </Space>
+                          <div style={{ marginBottom: 12, color: '#333' }}>
+                            {item.title}
+                          </div>
+                          <div style={{ color: '#52c41a', fontWeight: 'bold' }}>
+                            <strong>解决方案：</strong>{item.description || item.title}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </Space>
+                ) : (
+                  <Alert
+                    message="暂无优化建议"
+                    description="当前页面性能良好，暂无优化建议。"
+                    type="success"
+                    showIcon
+                  />
+                )}
+              </TabPane>
+            </Tabs>
+          )}
+        </Spin>
       </Modal>
     </div>
   );

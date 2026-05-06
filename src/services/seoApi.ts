@@ -801,7 +801,7 @@ export interface BacklinkStatistics {
 }
 
 export const getBacklinks = async (params: {
-  page?: number;
+  currentPage?: number;
   pageSize?: number;
   status?: string;
   search?: string;
@@ -812,7 +812,12 @@ export const getBacklinks = async (params: {
   return request<PaginatedResponse<Backlink>>({
     url: `${API_CONFIG.SEO_PREFIX}/backlink/`,
     method: 'GET',
-    params,
+    params: {
+      currentPage: params.currentPage || 1,
+      pageSize: params.pageSize || 10,
+      status: params.status,
+      search: params.search,
+    },
   });
 };
 
@@ -1734,20 +1739,20 @@ export const getMobilePageSpeedStatistics = async (): Promise<ApiResponse<Mobile
  * @param params 查询参数
  * @returns 移动端页面速度列表
  */
-export const getMobilePageSpeedList = async (params: {
-  currentPage?: number;
-  pageSize?: number;
-}): Promise<ApiResponse<PaginatedResponse<PageSpeedItem>>> => {
-  return request<PaginatedResponse<PageSpeedItem>>({
-    url: `${API_CONFIG.SEO_PREFIX}/page_speed/`,
-    method: 'GET',
-    params: {
-      currentPage: params.currentPage || 1,
-      pageSize: params.pageSize || 10,
-      platform: 'phone',
-    },
-  });
-};
+// export const getMobilePageSpeedList = async (params: {
+//   currentPage?: number;
+//   pageSize?: number;
+// }): Promise<ApiResponse<PaginatedResponse<PageSpeedItem>>> => {
+//   return request<PaginatedResponse<PageSpeedItem>>({
+//     url: `${API_CONFIG.SEO_PREFIX}/page_speed/`,
+//     method: 'GET',
+//     params: {
+//       currentPage: params.currentPage || 1,
+//       pageSize: params.pageSize || 10,
+//       platform: 'phone',
+//     },
+//   });
+// };
 
 // ==================== 13. 域名分析 API ====================
 
@@ -1766,7 +1771,7 @@ export interface DomainAnalysis {
 
 // 获取域名分析列表
 export const getDomainAnalysisList = async (params: {
-  page?: number;
+  currentPage?: number;
   pageSize?: number;
   domain?: string;
   status?: string;
@@ -1803,7 +1808,7 @@ export const getDomainAnalysisList = async (params: {
         results: mockData,
         pagination: {
           total: mockData.length,
-          page: params?.page || 1,
+          page: params?.currentPage || 1,
           page_size: params?.pageSize || 10,
         },
       },
@@ -1813,7 +1818,12 @@ export const getDomainAnalysisList = async (params: {
   return request<PaginatedResponse<DomainAnalysis>>({
     url: `${API_CONFIG.SEO_PREFIX}/domain_analysis/`,
     method: 'GET',
-    params,
+    params: {
+      currentPage: params.currentPage || 1,
+      pageSize: params.pageSize || 10,
+      domain: params.domain,
+      status: params.status,
+    },
   });
 };
 
@@ -1870,6 +1880,118 @@ export const reAnalyzeDomain = async (ids: number[]): Promise<ApiResponse<{
     url: `${API_CONFIG.SEO_PREFIX}/domain_analysis/re-analyze/`,
     method: 'POST',
     data: { ids },
+  });
+};
+
+// ==================== 14. 检测日志 API ====================
+
+/**
+ * 检测日志数据类型
+ */
+export interface DetectionLog {
+  id: number;                  // 日志ID
+  check_time: string;          // 检测时间
+  category_display: string;    // 检测类型显示文本
+  content: string;             // 检测内容
+  result_summary: string;      // 检测结果摘要
+  message: string;             // 状态消息
+  operator?: string;           // 操作人（可选）
+}
+
+/**
+ * 获取检测日志列表
+ * @param params 查询参数
+ * @returns 检测日志列表
+ */
+export const getDetectionLogs = async (params: {
+  currentPage?: number;
+  pageSize?: number;
+  search?: string;
+}): Promise<ApiResponse<PaginatedResponse<DetectionLog>>> => {
+  return request<PaginatedResponse<DetectionLog>>({
+    url: `${API_CONFIG.SEO_PREFIX}/detection-log/`,
+    method: 'GET',
+    params: {
+      currentPage: params.currentPage || 1,
+      pageSize: params.pageSize || 10,
+      search: params.search,
+    },
+  });
+};
+
+/**
+ * 资源分析数据类型
+ */
+export interface ResourceAnalysis {
+  page_size: number;                // 页面大小
+  resource_count: number;           // 资源数量
+  ttfb: number;                     // TTFB（首字节时间）
+  loading_timeline: {               // 加载时间线
+    ttfb: number;                   // 首字节时间（秒）
+    fcp: number;                    // 首次内容绘制（秒）
+    lcp: number;                    // 最大内容绘制（秒）
+    full_load: number;              // 完全加载（秒）
+  };
+}
+
+/**
+ * 优化建议数据类型
+ */
+export interface OptimizationSuggestion {
+  id: number;
+  page_speed_id: number;
+  type: string;                     // 建议类型（image/script/css/server等）
+  suggestion_type?: string;         // 建议类型（兼容字段）
+  priority: string;                 // 优先级（high/medium/low）
+  title: string;                    // 建议标题
+  description: string;              // 建议描述
+  estimated_improvement?: string;   // 预估提升（可选）
+  created_at: string;               // 创建时间
+}
+
+/**
+ * 获取资源分析
+ * @param id 页面速度记录ID
+ * @returns 资源分析数据
+ */
+export const getResourceAnalysis = async (id: number): Promise<ApiResponse<ResourceAnalysis>> => {
+  return request<ResourceAnalysis>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/resource-analysis/`,
+    method: 'GET',
+    params: { id },
+  });
+};
+
+/**
+ * 获取优化建议
+ * @param id 页面速度记录ID
+ * @returns 优化建议列表
+ */
+export const getOptimizationSuggestions = async (id: number): Promise<ApiResponse<OptimizationSuggestion[]>> => {
+  return request<OptimizationSuggestion[]>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/optimization-suggestions/`,
+    method: 'GET',
+    params: { id },
+  });
+};
+
+/**
+ * 获取移动端页面速度列表
+ * @param params 查询参数
+ * @returns 移动端页面速度列表
+ */
+export const getMobilePageSpeedList = async (params: {
+  currentPage?: number;
+  pageSize?: number;
+}): Promise<ApiResponse<PaginatedResponse<PageSpeedItem>>> => {
+  return request<PaginatedResponse<PageSpeedItem>>({
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/`,
+    method: 'GET',
+    params: {
+      currentPage: params.currentPage || 1,
+      pageSize: params.pageSize || 10,
+      platform: 'phone',
+    },
   });
 };
 
@@ -1962,4 +2084,9 @@ export const seoApi = {
   testMobilePageSpeed,
   getMobilePageSpeedStatistics,
   getMobilePageSpeedList,
+  getResourceAnalysis,
+  getOptimizationSuggestions,
+
+  // 检测日志
+  getDetectionLogs,
 };

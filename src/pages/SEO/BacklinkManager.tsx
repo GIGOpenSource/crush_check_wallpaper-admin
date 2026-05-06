@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, Select, App, Alert, Tabs, Statistic, Row, Col, Progress, Breadcrumb, Popconfirm, Timeline } from 'antd';
-import { PlusOutlined, DeleteOutlined, GlobalOutlined, LinkOutlined, ArrowLeftOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, Select, App, Alert, Tabs, Statistic, Row, Col, Progress, Breadcrumb, Popconfirm, Timeline, Pagination, message } from 'antd';
+import { PlusOutlined, DeleteOutlined, GlobalOutlined, LinkOutlined, ArrowLeftOutlined, EditOutlined, ReloadOutlined, ClockCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { seoApi, type DomainAnalysis } from '../../services/seoApi';
+import { seoApi, type DomainAnalysis, type DetectionLog } from '../../services/seoApi';
 
 const { Option } = Select;
 
@@ -50,6 +50,12 @@ const BacklinkManager: React.FC = () => {
   const [domainSearchText, setDomainSearchText] = useState('');
   const [domainStatusFilter, setDomainStatusFilter] = useState<string | undefined>(undefined);
 
+  // 检测日志相关状态
+  const [detectionLogs, setDetectionLogs] = useState<DetectionLog[]>([]);
+  const [detectionLogsLoading, setDetectionLogsLoading] = useState(false);
+  const [detectionLogPagination, setDetectionLogPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [detectionLogSearchText, setDetectionLogSearchText] = useState('');
+
   // 加载外链统计数据
   const loadStatistics = async () => {
     setStatisticsLoading(true);
@@ -70,7 +76,7 @@ const BacklinkManager: React.FC = () => {
     setBacklinksLoading(true);
     try {
       const res = await seoApi.getBacklinks({
-        page: pagination.current,
+        currentPage: pagination.current,
         pageSize: pagination.pageSize,
         search: searchText,
       });
@@ -82,7 +88,7 @@ const BacklinkManager: React.FC = () => {
         setPagination(prev => ({ 
           ...prev, 
           total,
-          page: res.data?.pagination?.page || prev.current,
+          current: res.data?.pagination?.page || prev.current,
           pageSize: res.data?.pagination?.page_size || prev.pageSize,
         }));
       }
@@ -111,6 +117,35 @@ const BacklinkManager: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domainPagination.current, domainPagination.pageSize, domainSearchText, domainStatusFilter]);
+
+  // 加载检测日志数据
+  const loadDetectionLogs = async () => {
+    setDetectionLogsLoading(true);
+    try {
+      const res = await seoApi.getDetectionLogs({
+        currentPage: 1,
+        pageSize: 999,
+        search: detectionLogSearchText || undefined,
+      });
+      if (res.code === 200 && res.data) {
+        const logs = res.data.results || [];
+        setDetectionLogs(logs);
+      }
+    } catch (err) {
+      message.error('加载检测日志失败');
+      console.error('加载检测日志失败:', err);
+    } finally {
+      setDetectionLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadDetectionLogs();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const columns = [
     { title: '来源页面', dataIndex: 'source_page', key: 'source_page', ellipsis: true },
@@ -267,7 +302,7 @@ const BacklinkManager: React.FC = () => {
     setDomainAnalysisLoading(true);
     try {
       const res = await seoApi.getDomainAnalysisList({
-        page: domainPagination.current,
+        currentPage: domainPagination.current,
         pageSize: domainPagination.pageSize,
         domain: domainSearchText,
         status: domainStatusFilter,
@@ -576,14 +611,51 @@ const BacklinkManager: React.FC = () => {
             label: '检测日志',
             children: (
               <Card>
-                <Timeline
-                  items={[
-                    { color: 'green', children: <><strong>2026-04-17 10:00</strong><p>完成全站外链扫描，发现 3 个新外链</p></> },
-                    { color: 'red', children: <><strong>2026-04-17 09:30</strong><p>检测到 1 个外链失效：suspicious-site.com</p></> },
-                    { color: 'orange', children: <><strong>2026-04-16 08:00</strong><p>发现 1 个可疑域名：spam-site.com</p></> },
-                    { color: 'green', children: <><strong>2026-04-15 10:00</strong><p>外链健康度检查完成，整体良好</p></> },
-                  ]}
-                />
+                {/* <Space style={{ marginBottom: 16 }}>
+                  <Button onClick={loadDetectionLogs}>刷新</Button>
+                </Space> */}
+                <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
+                  <Timeline
+                    mode="left"
+                    style={{ textAlign: 'left', margin: '0', padding: '0', width: '100%' }}
+                    items={detectionLogs.map((log) => {
+                      // 根据检测结果确定颜色
+                      let color = 'green';
+                      if (log.result_summary?.includes('异常') || log.result_summary?.includes('失败')) {
+                        color = 'red';
+                      } else if (log.result_summary?.includes('警告')) {
+                        color = 'orange';
+                      }
+
+                      // 格式化时间
+                      const formattedTime = log.check_time 
+                        ? new Date(log.check_time).toLocaleString('zh-CN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }).replace(/\//g, '-')
+                        : '--';
+
+                      return {
+                        color,
+                        children: (
+                          <div style={{ paddingLeft: '8px' }}>
+                            <div style={{ marginBottom: '4px' }}>
+                              <strong style={{ fontSize: '14px', marginRight: '8px' }}>
+                                {formattedTime}
+                              </strong>
+                            </div>
+                            <div style={{ color: '#666', paddingLeft: '0' }}>
+                              {log.content || log.result_summary || '--'}
+                            </div>
+                          </div>
+                        ),
+                      };
+                    })}
+                  />
+                </div>
               </Card>
             ),
           },
