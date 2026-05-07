@@ -777,6 +777,21 @@ export const getSitemapStatus = async (): Promise<ApiResponse<{
 // ==================== 4. 外链管理 API ====================
 
 export interface Backlink {
+}
+
+// ==================== 5. 内链管理 API ====================
+
+export interface InternalLink {
+}
+
+// ==================== 6. 站点地图 API ====================
+
+export interface SiteMap {
+}
+
+// ==================== 7. 关键词研究 API ====================
+
+export interface Keyword {
   id: number;
   source_page: string;           // 来源页面URL
   target_page: string;           // 目标页面URL
@@ -1322,31 +1337,33 @@ export interface GSCData {
   impressions: number;
   ctr: number;
   position: number;
-  dates: { date: string; clicks: number; impressions: number }[];
+  dates: { date: string; clicks: number; impressions: number; ctr: number; position: number }[];
 }
 
 export const getSearchConsoleData = async (params: {
-  startDate?: string;
-  endDate?: string;
+  site_url: string;
+  start_timestamp: number;
+  end_timestamp: number;
 }): Promise<ApiResponse<GSCData>> => {
   if (API_CONFIG.USE_MOCK) {
-    return seoMockApi.getSearchConsoleData(params);
+    return seoMockApi.getSearchConsoleData(params) as Promise<ApiResponse<GSCData>>;
   }
   return request<GSCData>({
-    url: `${API_CONFIG.SEO_PREFIX}/gsc/data`,
+    url: `${API_CONFIG.SEO_PREFIX}/data_analysis/data-analysis/`,
     method: 'GET',
     params,
   });
 };
 
 export const getIndexTrend = async (params: {
-  days?: number;
-}): Promise<ApiResponse<{ date: string; google: number; indexed: number; discovered: number }[]>> => {
+  startDate?: string;
+  endDate?: string;
+}): Promise<ApiResponse<GSCData>> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.getIndexTrend(params);
   }
-  return request({
-    url: `${API_CONFIG.SEO_PREFIX}/gsc/index-trend`,
+  return request<GSCData>({
+    url: `${API_CONFIG.SEO_PREFIX}/data_analysis/index-trend/`,
     method: 'GET',
     params,
   });
@@ -1377,35 +1394,6 @@ export const getKeywordRankings = async (params: {
   });
 };
 
-// ==================== 7. 关键词研究 API ====================
-
-export interface Keyword {
-  id: number;
-  keyword: string;
-  searchVolume: number;
-  difficulty: number;
-  cpc: number;
-  trend: 'up' | 'down' | 'stable';
-  competition: 'high' | 'medium' | 'low';
-  relatedCount: number;
-  category: string;
-}
-
-export const searchKeywords = async (params: {
-  keyword: string;
-  page?: number;
-  pageSize?: number;
-}): Promise<ApiResponse<PaginatedResponse<Keyword>>> => {
-  if (API_CONFIG.USE_MOCK) {
-    return seoMockApi.searchKeywords(params) as Promise<ApiResponse<PaginatedResponse<Keyword>>>;
-  }
-  return request<PaginatedResponse<Keyword>>({
-    url: `${API_CONFIG.SEO_PREFIX}/keywords/search`,
-    method: 'GET',
-    params,
-  });
-};
-
 export interface LongTailKeyword {
   id: number;
   keyword: string;
@@ -1414,6 +1402,59 @@ export interface LongTailKeyword {
   difficulty: number;
   recommendation: string;
 }
+
+/**
+ * 数据分析详细数据类型
+ */
+export interface DataAnalysisDetail {
+  index_trend: Array<{
+    date: string;
+    indexed_count: number;
+  }>;
+  keyword_rankings: Array<{
+    keyword: string;
+    current_rank: number;
+    previous_rank: number;
+    search_volume: number;
+    url: string;
+  }>;
+  landing_pages: Array<{
+    page_path: string;
+    visits: number;
+    bounce_rate: number;
+    avg_duration: string;
+    conversion_rate: number;
+  }>;
+}
+
+/**
+ * 获取数据分析详细数据
+ * @param params 查询参数
+ * @returns 数据分析详细数据
+ */
+export const getDataAnalysisDetail = async (params: {
+  site_url: string;
+  start_timestamp: number;
+  end_timestamp: number;
+}): Promise<ApiResponse<DataAnalysisDetail>> => {
+  if (API_CONFIG.USE_MOCK) {
+    // Mock 数据
+    return Promise.resolve({
+      code: 200,
+      data: {
+        index_trend: [],
+        keyword_rankings: [],
+        landing_pages: [],
+      },
+      message: 'success',
+    }) as Promise<ApiResponse<DataAnalysisDetail>>;
+  }
+  return request<DataAnalysisDetail>({
+    url: `${API_CONFIG.SEO_PREFIX}/data_analysis/data-analysis/`,
+    method: 'GET',
+    params,
+  });
+};
 
 export const generateLongTailKeywords = async (data: {
   coreKeyword: string;
@@ -1428,6 +1469,7 @@ export const generateLongTailKeywords = async (data: {
     data,
   });
 };
+
 
 // ==================== 8. 定时任务 API ====================
 
@@ -2010,15 +2052,37 @@ export const getOptimizationSuggestions = async (id: number): Promise<ApiRespons
   return request<OptimizationSuggestion[]>({
     url: `${API_CONFIG.SEO_PREFIX}/page_speed/optimization-suggestions/`,
     method: 'GET',
-    params: { id },
   });
 };
 
+// ==================== 14. 数据分析 API ====================
+
 /**
- * 获取移动端页面速度列表
- * @param params 查询参数
- * @returns 移动端页面速度列表
+ * 数据分析仪表盘数据类型
  */
+export interface DataAnalysisDashboard {
+  total_indexed: number;                    // 总收录量
+  total_indexed_weekly_increment: number;   // 收录量周增量
+  seo_traffic: number;                      // SEO流量
+  seo_traffic_weekly_increment: number;     // 流量周增量
+  avg_ranking: number;                      // 平均排名
+  avg_ranking_weekly_increment: number;     // 排名周增量
+  backlink_count: number;                   // 外链数量
+  backlink_count_weekly_increment: number;  // 外链周增量
+}
+
+/**
+ * 获取数据分析仪表盘数据
+ * @param site_url 站点URL（必填）
+ * @returns 数据分析仪表盘数据
+ */
+export const getDataAnalysisDashboard = async (site_url: string): Promise<ApiResponse<DataAnalysisDashboard>> => {
+  return request<DataAnalysisDashboard>({
+    url: `${API_CONFIG.SEO_PREFIX}/data_analysis/dashboard/`,
+    method: 'GET',
+    params: { site_url },
+  });
+};
 export const getMobilePageSpeedList = async (params: {
   currentPage?: number;
   pageSize?: number;
@@ -2083,6 +2147,9 @@ export const seoApi = {
   updateBacklink,
   deleteBacklink,
   scanBacklinkOpportunities,
+  
+  // TDK管理
+  getTDKList,
   deleteTDK,
   createTDKTemplate,
   updateTDKTemplate,
@@ -2091,17 +2158,12 @@ export const seoApi = {
   
   // Google Search Console
   getSearchConsoleData,
-  getIndexTrend,
-  getKeywordRankings,
+  
+  // 数据分析
+  getDataAnalysisDashboard,
+  getDataAnalysisDetail,
   
   // 关键词
-  searchKeywords,
-  generateLongTailKeywords,
-  
-  // 定时任务
-  getScheduledTasks,
-  addScheduledTask,
-  updateScheduledTask,
   deleteScheduledTask,
   executeScheduledTask,
   

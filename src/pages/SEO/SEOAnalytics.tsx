@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Row, Col, DatePicker, Select, Button, Table, Tag, Statistic, Tabs, Progress, Space, Alert, Breadcrumb, message, Spin, Dropdown } from 'antd';
 import { Line, Pie } from '@ant-design/charts';
-import { RiseOutlined, FallOutlined, GlobalOutlined, SearchOutlined, LinkOutlined, ArrowLeftOutlined, ReloadOutlined, DownloadOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { GlobalOutlined, SearchOutlined, LinkOutlined, ArrowLeftOutlined, ReloadOutlined, DownloadOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import type { Dayjs } from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import { seoApi } from '../../services/seoApi';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -31,32 +31,12 @@ interface TrafficSource {
   avgDuration: string;
 }
 
-// 静态数据（作为初始值）
-const indexTrendDataStatic = [
-  { date: '04-11', google: 8500, indexed: 8200, discovered: 300 },
-  { date: '04-12', google: 8620, indexed: 8320, discovered: 280 },
-  { date: '04-13', google: 8740, indexed: 8450, discovered: 250 },
-  { date: '04-14', google: 8850, indexed: 8560, discovered: 320 },
-  { date: '04-15', google: 8920, indexed: 8650, discovered: 290 },
-  { date: '04-16', google: 8980, indexed: 8720, discovered: 310 },
-  { date: '04-17', google: 9050, indexed: 8800, discovered: 280 },
-];
-
 const trafficDataStatic: TrafficSource[] = [
   { source: 'Google Search', visits: 68420, percentage: 68.2, bounceRate: 28.5, avgDuration: '4:25' },
   { source: 'Google Discover', visits: 12560, percentage: 12.5, bounceRate: 32.1, avgDuration: '3:45' },
   { source: 'Google News', visits: 8420, percentage: 8.4, bounceRate: 25.8, avgDuration: '5:12' },
   { source: 'Google Images', visits: 6890, percentage: 6.9, bounceRate: 35.2, avgDuration: '2:35' },
   { source: 'Google Video', visits: 3890, percentage: 3.9, bounceRate: 42.5, avgDuration: '6:18' },
-];
-
-const keywordDataStatic: KeywordRanking[] = [
-  { id: 1, keyword: '4k wallpaper', searchEngine: 'Google', currentRank: 3, previousRank: 5, change: 2, searchVolume: 185000, url: '/category/4k' },
-  { id: 2, keyword: 'hd wallpaper', searchEngine: 'Google', currentRank: 5, previousRank: 6, change: 1, searchVolume: 148000, url: '/category/hd' },
-  { id: 3, keyword: 'anime wallpaper', searchEngine: 'Google', currentRank: 2, previousRank: 4, change: 2, searchVolume: 256000, url: '/category/anime' },
-  { id: 4, keyword: 'nature wallpaper', searchEngine: 'Google', currentRank: 8, previousRank: 12, change: 4, searchVolume: 95000, url: '/category/nature' },
-  { id: 5, keyword: 'mobile wallpaper', searchEngine: 'Google', currentRank: 6, previousRank: 8, change: 2, searchVolume: 167000, url: '/category/mobile' },
-  { id: 6, keyword: 'live wallpaper', searchEngine: 'Google', currentRank: 4, previousRank: 7, change: 3, searchVolume: 129000, url: '/category/live' },
 ];
 
 const landingPageDataStatic = [
@@ -70,8 +50,11 @@ const landingPageDataStatic = [
 const SEOAnalytics: React.FC = () => {
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null);
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
-  const [searchEngine, setSearchEngine] = useState<string>('all');
+  
+  // 初始化默认时间范围（最近7天）
+  const defaultDateRange: [Dayjs, Dayjs] = [dayjs().subtract(7, 'day'), dayjs()];
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>(defaultDateRange);
+  const [selectedPath, setSelectedPath] = useState<string>('https://www.markwallpapers.com/');
   const [loading, setLoading] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
   const [_gscData, setGscData] = useState({
@@ -81,38 +64,208 @@ const SEOAnalytics: React.FC = () => {
     position: 8.5,
   });
   
+  // 收录趋势数据
+  const [inclusionTrendData, setInclusionTrendData] = useState<Array<{
+    date: string;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    position: number;
+  }>>([]);
+  
   // 动态数据状态
-  const [indexTrendData, setIndexTrendData] = useState(indexTrendDataStatic);
-  const [keywordData, setKeywordData] = useState<KeywordRanking[]>(keywordDataStatic);
   const [landingPageData] = useState(landingPageDataStatic);
   const [trafficData, setTrafficData] = useState<TrafficSource[]>(trafficDataStatic);
   
-  // 核心指标
-  const [coreMetrics, _setCoreMetrics] = useState({
-    totalIndexed: 28280,
-    weeklyChange: 680,
-    seoTraffic: 100380,
-    trafficChange: 12.5,
-    avgRank: 4.2,
-    rankChange: -0.8,
-    backlinks: 12580,
-    backlinkChange: 320,
+  // 核心指标 - 从API获取
+  const [coreMetrics, setCoreMetrics] = useState({
+    totalIndexed: 0,
+    totalIndexedWeeklyIncrement: 0,
+    seoTraffic: 0,
+    seoTrafficWeeklyIncrement: 0,
+    avgRanking: 0,
+    avgRankingWeeklyIncrement: 0,
+    backlinkCount: 0,
+    backlinkCountWeeklyIncrement: 0,
   });
 
-  // 图表配置
+  // 数据分析详细数据
+  const [analysisDetail, setAnalysisDetail] = useState({
+    indexTrend: [] as Array<{ date: string; indexed_count: number }>,
+    keywordRankings: [] as Array<{
+      keyword: string;
+      current_rank: number;
+      previous_rank: number;
+      search_volume: number;
+      url: string;
+    }>,
+    landingPages: [] as Array<{
+      page_path: string;
+      visits: number;
+      bounce_rate: number;
+      avg_duration: string;
+      conversion_rate: number;
+    }>,
+  });
+
+  // 计算默认时间范围（最近7天）
+  const getDefaultTimeRange = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    return {
+      startTimestamp: Math.floor(start.getTime() / 1000),
+      endTimestamp: Math.floor(end.getTime() / 1000),
+    };
+  };
+
+  // 加载核心指标数据
+  const loadCoreMetrics = async () => {
+    try {
+      const res = await seoApi.getDataAnalysisDashboard(selectedPath);
+      if (res && res.data) {
+        setCoreMetrics({
+          totalIndexed: res.data.total_indexed || 0,
+          totalIndexedWeeklyIncrement: res.data.total_indexed_weekly_increment || 0,
+          seoTraffic: res.data.seo_traffic || 0,
+          seoTrafficWeeklyIncrement: res.data.seo_traffic_weekly_increment || 0,
+          avgRanking: res.data.avg_ranking || 0,
+          avgRankingWeeklyIncrement: res.data.avg_ranking_weekly_increment || 0,
+          backlinkCount: res.data.backlink_count || 0,
+          backlinkCountWeeklyIncrement: res.data.backlink_count_weekly_increment || 0,
+        });
+      }
+    } catch (err) {
+      console.error('加载核心指标数据失败:', err);
+      message.error('加载数据失败');
+    }
+  };
+
+  // 加载数据分析详细数据
+  const loadAnalysisDetail = async () => {
+    try {
+      const { startTimestamp, endTimestamp } = getDefaultTimeRange();
+      const res = await seoApi.getDataAnalysisDetail({
+        site_url: selectedPath,
+        start_timestamp: startTimestamp,
+        end_timestamp: endTimestamp,
+      });
+      if (res && res.data) {
+        setAnalysisDetail({
+          indexTrend: res.data.index_trend || [],
+          keywordRankings: res.data.keyword_rankings || [],
+          landingPages: res.data.landing_pages || [],
+        });
+      }
+    } catch (err) {
+      console.error('加载数据分析详细数据失败:', err);
+      message.error('加载详细数据失败');
+    }
+  };
+
+  // 图表配置 - 收录趋势（四个指标分开展示）
   const lineConfig = {
-    data: indexTrendData.flatMap(d => [
-      { date: d.date, value: d.google, category: 'Google发现' },
-      { date: d.date, value: d.indexed, category: '已收录' },
-      { date: d.date, value: d.discovered, category: '新发现' },
-    ]),
+    data: [
+      // 点击次数数据
+      ...inclusionTrendData.map(item => ({
+        date: item.date,
+        value: item.clicks,
+        category: '点击量',
+      })),
+      // 曝光量数据
+      ...inclusionTrendData.map(item => ({
+        date: item.date,
+        value: item.impressions,
+        category: '曝光量',
+      })),
+      // 点击率数据（乘以1000以便在同一坐标系展示）
+      ...inclusionTrendData.map(item => ({
+        date: item.date,
+        value: Math.round(item.ctr * 10),
+        category: '点击率(x10)',
+      })),
+      // 平均排名数据（乘以100以便在同一坐标系展示）
+      ...inclusionTrendData.map(item => ({
+        date: item.date,
+        value: Math.round(item.position * 100),
+        category: '平均排名(x100)',
+      })),
+    ],
     xField: 'date',
     yField: 'value',
     seriesField: 'category',
     smooth: true,
     animation: { appear: { animation: 'path-in', duration: 1000 } },
-    color: ['#1890ff', '#52c41a', '#722ed1'],
+    color: ['#1890ff', '#722ed1', '#52c41a', '#fa8c16'],
   };
+
+  // 收录趋势表格列定义
+  const inclusionTrendColumns = [
+    { title: '当天日期', dataIndex: 'date', key: 'date', width: 120 },
+    { 
+      title: '曝光 / 展现量', 
+      dataIndex: 'impressions', 
+      key: 'impressions', 
+      width: 150,
+      render: (v: number) => v.toLocaleString() 
+    },
+    { 
+      title: '点击量', 
+      dataIndex: 'clicks', 
+      key: 'clicks', 
+      width: 120,
+      render: (v: number) => v.toLocaleString() 
+    },
+    { 
+      title: '点击率', 
+      dataIndex: 'ctr', 
+      key: 'ctr', 
+      width: 120,
+      render: (v: number) => `${v.toFixed(2)}%` 
+    },
+    { 
+      title: '平均排名', 
+      dataIndex: 'position', 
+      key: 'position', 
+      width: 120,
+      render: (v: number) => v.toFixed(1) 
+    },
+  ];
+
+  // 关键词排名表格列定义
+  const keywordColumns = [
+    { title: '关键词', dataIndex: 'keyword', key: 'keyword', ellipsis: true },
+    { title: '当前排名', dataIndex: 'current_rank', key: 'current_rank', render: (v: number) => <Tag color={v <= 10 ? 'success' : v <= 30 ? 'warning' : 'default'}>{v}</Tag> },
+    { title: '上次排名', dataIndex: 'previous_rank', key: 'previous_rank' },
+    { 
+      title: '排名变化', 
+      key: 'change',
+      render: (_: any, record: any) => {
+        const change = record.previous_rank - record.current_rank;
+        return (
+          <Tag color={change > 0 ? 'success' : change < 0 ? 'error' : 'default'}>
+            {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '-'}
+          </Tag>
+        );
+      }
+    },
+    { title: '搜索量', dataIndex: 'search_volume', key: 'search_volume', render: (v: number) => v.toLocaleString() },
+    { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
+  ];
+
+  // 着陆页表格列定义
+  const landingColumns = [
+    { title: '着陆页', dataIndex: 'page_path', key: 'page_path', ellipsis: true },
+    { title: '访问量', dataIndex: 'visits', key: 'visits', render: (v: number) => v.toLocaleString() },
+    { title: '跳出率', dataIndex: 'bounce_rate', key: 'bounce_rate', render: (v: number) => `${v}%` },
+    { title: '平均停留', dataIndex: 'avg_duration', key: 'avg_duration' },
+    {
+      title: '转化率',
+      dataIndex: 'conversion_rate',
+      key: 'conversion_rate',
+      render: (v: number) => <Progress percent={v} size="small" status={v > 10 ? 'success' : 'normal'} />,
+    },
+  ];
 
   const pieConfig = {
     data: trafficData.map(d => ({ type: d.source, value: d.visits })),
@@ -125,9 +278,17 @@ const SEOAnalytics: React.FC = () => {
   // 加载Google Search Console数据
   const loadGSCData = async () => {
     try {
+      const { startTimestamp, endTimestamp } = dateRange 
+        ? { 
+            startTimestamp: Math.floor(dateRange[0]?.valueOf() / 1000), 
+            endTimestamp: Math.floor(dateRange[1]?.valueOf() / 1000) 
+          }
+        : getDefaultTimeRange();
+      
       const res = await seoApi.getSearchConsoleData({
-        startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
-        endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
+        site_url: selectedPath,
+        start_timestamp: startTimestamp,
+        end_timestamp: endTimestamp,
       });
       if (res.code === 200) {
         setGscData({
@@ -136,42 +297,34 @@ const SEOAnalytics: React.FC = () => {
           ctr: res.data.ctr,
           position: res.data.position,
         });
+        // 保存收录趋势数据
+        if (res.data.dates && res.data.dates.length > 0) {
+          setInclusionTrendData(res.data.dates.map(item => ({
+            date: item.date,
+            impressions: item.impressions,
+            clicks: item.clicks,
+            ctr: item.ctr,
+            position: item.position,
+          })));
+        }
       }
     } catch (_err) {
       message.error('加载GSC数据失败');
     }
   };
 
-  // 加载关键词排名数据
-  const loadKeywordRankings = async () => {
-    try {
-      const res = await seoApi.getKeywordRankings({ page: 1, pageSize: 10 });
-      if (res.code === 200) {
-        setKeywordData(res.data.items);
-      }
-    } catch (_err) {
-      message.error('加载关键词数据失败');
-    }
-  };
-
-  // 加载收录趋势数据
-  const loadIndexTrend = async () => {
-    try {
-      const res = await seoApi.getIndexTrend({ days: 7 });
-      if (res.code === 200) {
-        setIndexTrendData(res.data);
-      }
-    } catch (_err) {
-      message.error('加载收录趋势失败');
-    }
-  };
-
   // 初始加载
   useEffect(() => {
     loadGSCData();
-    loadKeywordRankings();
-    loadIndexTrend();
+    loadCoreMetrics();
+    loadAnalysisDetail();
   }, []);
+
+  // 当路径改变时重新加载数据
+  useEffect(() => {
+    loadCoreMetrics();
+    loadAnalysisDetail();
+  }, [selectedPath]);
 
   // 刷新数据
   const handleRefresh = async () => {
@@ -181,11 +334,11 @@ const SEOAnalytics: React.FC = () => {
     try {
       await Promise.all([
         loadGSCData(),
-        loadKeywordRankings(),
-        loadIndexTrend(),
+        loadCoreMetrics(),
+        loadAnalysisDetail(),
       ]);
       message.success('数据刷新成功！');
-    } catch (_err) {
+    } catch (err) {
       message.error('刷新失败');
     } finally {
       setLoading(false);
@@ -198,7 +351,6 @@ const SEOAnalytics: React.FC = () => {
       title: 'SEO数据分析报告',
       date: new Date().toLocaleString(),
       metrics: coreMetrics,
-      keywords: keywordData,
       traffic: trafficData,
       landingPages: landingPageData,
     };
@@ -285,9 +437,9 @@ const SEOAnalytics: React.FC = () => {
     
     setTimeout(() => {
       // 根据筛选条件过滤数据
-      if (searchEngine !== 'all') {
+      if (selectedPath !== 'all') {
         const filteredTraffic = trafficDataStatic.filter(t => 
-          t.source.toLowerCase().includes(searchEngine.toLowerCase())
+          t.source.toLowerCase().includes(selectedPath.toLowerCase())
         );
         setTrafficData(filteredTraffic.length > 0 ? filteredTraffic : trafficDataStatic);
       } else {
@@ -298,35 +450,6 @@ const SEOAnalytics: React.FC = () => {
       message.success('查询完成！');
     }, 800);
   };
-
-  const keywordColumns = [
-    { title: '关键词', dataIndex: 'keyword', key: 'keyword', width: 150 },
-    { title: '搜索引擎', dataIndex: 'searchEngine', key: 'searchEngine', width: 100 },
-    {
-      title: '当前排名',
-      dataIndex: 'currentRank',
-      key: 'currentRank',
-      width: 100,
-      render: (rank: number) => (
-        <Tag color={rank <= 3 ? 'success' : rank <= 10 ? 'processing' : 'default'}>
-          第{rank}位
-        </Tag>
-      ),
-    },
-    {
-      title: '排名变化',
-      dataIndex: 'change',
-      key: 'change',
-      width: 100,
-      render: (change: number) => {
-        if (change > 0) return <Tag icon={<RiseOutlined />} color="success">↑{change}</Tag>;
-        if (change < 0) return <Tag icon={<FallOutlined />} color="error">↓{Math.abs(change)}</Tag>;
-        return <Tag>-</Tag>;
-      },
-    },
-    { title: '搜索量', dataIndex: 'searchVolume', key: 'searchVolume', render: (v: number) => v.toLocaleString() },
-    { title: '着陆页', dataIndex: 'url', key: 'url', ellipsis: true },
-  ];
 
   const trafficColumns = [
     { title: '流量来源', dataIndex: 'source', key: 'source' },
@@ -339,19 +462,6 @@ const SEOAnalytics: React.FC = () => {
     },
     { title: '跳出率', dataIndex: 'bounceRate', key: 'bounceRate', render: (v: number) => `${v}%` },
     { title: '平均停留', dataIndex: 'avgDuration', key: 'avgDuration' },
-  ];
-
-  const landingColumns = [
-    { title: '着陆页', dataIndex: 'page', key: 'page', ellipsis: true },
-    { title: '访问量', dataIndex: 'visits', key: 'visits', render: (v: number) => v.toLocaleString() },
-    { title: '跳出率', dataIndex: 'bounceRate', key: 'bounceRate', render: (v: number) => `${v}%` },
-    { title: '平均停留', dataIndex: 'avgTime', key: 'avgTime' },
-    {
-      title: '转化率',
-      dataIndex: 'conversion',
-      key: 'conversion',
-      render: (v: number) => <Progress percent={v} size="small" status={v > 10 ? 'success' : 'normal'} />,
-    },
   ];
 
   return (
@@ -368,22 +478,23 @@ const SEOAnalytics: React.FC = () => {
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 24 }}>
         <Space>
-          <RangePicker onChange={setDateRange} />
+          <RangePicker 
+            value={dateRange}
+            onChange={setDateRange}
+            format="YYYY-MM-DD"
+          />
           <Select 
-            placeholder="Google服务" 
-            style={{ width: 150 }} 
-            allowClear
-            value={searchEngine}
-            onChange={setSearchEngine}
+            placeholder="选择路径" 
+            style={{ width: 280 }} 
+            value={selectedPath}
+            onChange={setSelectedPath}
           >
-            <Option value="search">Google Search</Option>
-            <Option value="discover">Google Discover</Option>
-            <Option value="news">Google News</Option>
-            <Option value="images">Google Images</Option>
-            <Option value="all">全部</Option>
+            <Option value="https://www.markwallpapers.com/">https://www.markwallpapers.com/</Option>
+            <Option value="https://markwallpapers.com/">https://markwallpapers.com/</Option>
           </Select>
-          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>查询</Button>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>刷新数据</Button>
+        
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleRefresh} loading={loading}>搜索</Button>
+           {/* <Button  icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>重置</Button> */}
           <Dropdown menu={{ items: [
             { key: 'pdf', label: '导出PDF', icon: <FilePdfOutlined />, onClick: handleExportPDF },
             { key: 'json', label: '导出JSON', icon: <FileExcelOutlined />, onClick: handleExportJSON },
@@ -406,7 +517,7 @@ const SEOAnalytics: React.FC = () => {
                 valueStyle={{ color: '#1890ff' }}
               />
               <div style={{ marginTop: 8 }}>
-                <Tag color="success">+{coreMetrics.weeklyChange} 本周</Tag>
+                <Tag color="success">+{coreMetrics.totalIndexedWeeklyIncrement} 本周</Tag>
               </div>
             </Card>
           </Col>
@@ -419,8 +530,8 @@ const SEOAnalytics: React.FC = () => {
                 valueStyle={{ color: '#52c41a' }}
               />
               <div style={{ marginTop: 8 }}>
-                <Tag color={coreMetrics.trafficChange >= 0 ? 'success' : 'error'}>
-                  {coreMetrics.trafficChange >= 0 ? '+' : ''}{coreMetrics.trafficChange}%
+                <Tag color={coreMetrics.seoTrafficWeeklyIncrement >= 0 ? 'success' : 'error'}>
+                  {coreMetrics.seoTrafficWeeklyIncrement >= 0 ? '+' : ''}{coreMetrics.seoTrafficWeeklyIncrement}
                 </Tag>
               </div>
             </Card>
@@ -429,13 +540,13 @@ const SEOAnalytics: React.FC = () => {
             <Card>
               <Statistic
                 title="平均排名"
-                value={coreMetrics.avgRank}
+                value={coreMetrics.avgRanking}
                 prefix={<SearchOutlined />}
                 valueStyle={{ color: '#722ed1' }}
               />
               <div style={{ marginTop: 8 }}>
-                <Tag color={coreMetrics.rankChange <= 0 ? 'success' : 'error'}>
-                  {coreMetrics.rankChange <= 0 ? '↑' : '↓'} {Math.abs(coreMetrics.rankChange)}
+                <Tag color={coreMetrics.avgRankingWeeklyIncrement <= 0 ? 'success' : 'error'}>
+                  {coreMetrics.avgRankingWeeklyIncrement <= 0 ? '↑' : '↓'} {Math.abs(coreMetrics.avgRankingWeeklyIncrement)}
                 </Tag>
               </div>
             </Card>
@@ -444,12 +555,12 @@ const SEOAnalytics: React.FC = () => {
             <Card>
               <Statistic
                 title="外链数量"
-                value={coreMetrics.backlinks}
+                value={coreMetrics.backlinkCount}
                 prefix={<LinkOutlined />}
                 valueStyle={{ color: '#fa8c16' }}
               />
               <div style={{ marginTop: 8 }}>
-                <Tag color="success">+{coreMetrics.backlinkChange} 本周</Tag>
+                <Tag color="success">+{coreMetrics.backlinkCountWeeklyIncrement} 本周</Tag>
               </div>
             </Card>
           </Col>
@@ -458,33 +569,21 @@ const SEOAnalytics: React.FC = () => {
         <Tabs defaultActiveKey="trend">
           <TabPane tab="收录趋势" key="trend">
             <Row gutter={[16, 16]}>
-              <Col xs={24} lg={16}>
+              <Col xs={24} lg={24}>
                 <Card title="Google收录趋势">
-                  <Line {...lineConfig} height={300} />
-                </Card>
-              </Col>
-              <Col xs={24} lg={8}>
-                <Card title="流量来源分布">
-                  <Pie {...pieConfig} height={300} />
+                  <Line {...lineConfig} height={400} />
                 </Card>
               </Col>
             </Row>
           </TabPane>
 
           <TabPane tab="关键词排名" key="keywords">
-            <Card title="核心关键词排名">
-              <Alert
-                message="Google关键词排名监控"
-                description="跟踪核心关键词在Google搜索结果中的排名变化"
-                type="info"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
+            <Card title="关键词排名监控">
               <Table
                 columns={keywordColumns}
-                dataSource={keywordData}
-                rowKey="id"
-                pagination={false}
+                dataSource={analysisDetail.keywordRankings}
+                rowKey="keyword"
+                pagination={{ pageSize: 10 }}
               />
             </Card>
           </TabPane>
@@ -493,8 +592,8 @@ const SEOAnalytics: React.FC = () => {
             <Card title="Top着陆页表现">
               <Table
                 columns={landingColumns}
-                dataSource={landingPageData}
-                rowKey="page"
+                dataSource={analysisDetail.landingPages}
+                rowKey="page_path"
                 pagination={false}
               />
             </Card>

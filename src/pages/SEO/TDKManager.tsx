@@ -288,7 +288,13 @@ const TDKManager: React.FC = () => {
   ];
 
   const pageColumns = [
-    { title: '页面URL', dataIndex: 'url_content', key: 'url_content', width: 200 },
+    { 
+      title: <span style={{ whiteSpace: 'nowrap' }}>页面类型</span>, 
+      dataIndex: 'page_type_display', 
+      key: 'page_type_display', 
+      width: 100 
+    },
+    { title: '页面URL', dataIndex: 'url_content', key: 'url_content', width: 280, ellipsis: true, },
     {
       title: 'Title',
       dataIndex: 'title',
@@ -310,6 +316,7 @@ const TDKManager: React.FC = () => {
       dataIndex: 'description',
       key: 'description',
       width: 300,
+       ellipsis: true,
       render: (text: string, record: ApiPageTDK) => {
         const descLength = text ? text.length : 0;
         return (
@@ -326,6 +333,7 @@ const TDKManager: React.FC = () => {
       title: 'Keywords',
       dataIndex: 'keywords',
       key: 'keywords',
+      width: 300, ellipsis: true,
       render: (keywords: string[] | string) => {
         // 防御性处理：确保keywords是数组
         const keywordArray = Array.isArray(keywords) ? keywords : (typeof keywords === 'string' ? [keywords] : []);
@@ -336,12 +344,7 @@ const TDKManager: React.FC = () => {
         );
       },
     },
-    { 
-      title: <span style={{ whiteSpace: 'nowrap' }}>页面类型</span>, 
-      dataIndex: 'page_type_display', 
-      key: 'page_type_display', 
-      width: 100 
-    },
+    
     {
       title: '操作',
       key: 'action',
