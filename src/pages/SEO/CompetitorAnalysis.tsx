@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, Avatar } from 'antd';
-import { PlusOutlined, EyeOutlined, RiseOutlined, FallOutlined, TrophyOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, Avatar, Spin, Popconfirm } from 'antd';
+import { PlusOutlined, EyeOutlined, RiseOutlined, FallOutlined, TrophyOutlined, DeleteOutlined } from '@ant-design/icons';
+import { competitorApi, type CompetitorItem, type CompetitorStatistics as CompetitorStatisticsType } from '../../services/competitorApi';
 
 interface Competitor {
   id: number;
-  domain: string;
   name: string;
-  traffic: number;
-  keywords: number;
-  backlinks: number;
-  authority: number;
-  growth: number;
-  topKeywords: string[];
+  url: string;
+  domain_authority: number;
+  backlink_count: number;
+  keyword_count: number;
+  monthly_traffic: number;
+  growth_trend: string;
+  growth_trend_display: string;
+  last_synced_at?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface KeywordGap {
@@ -29,52 +33,85 @@ const CompetitorAnalysis: React.FC = () => {
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [statistics, setStatistics] = useState<CompetitorStatisticsType | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [competitors, setCompetitors] = useState<Competitor[]>([]);
+  const [keywordGaps, setKeywordGaps] = useState<KeywordGap[]>([]);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  const [tableLoading, setTableLoading] = useState(false);
 
-  // 竞争对手数据
-  const competitors: Competitor[] = [
-    {
-      id: 1,
-      domain: 'wallpaperhub.com',
-      name: 'Wallpaper Hub',
-      traffic: 1250000,
-      keywords: 28500,
-      backlinks: 45000,
-      authority: 78,
-      growth: 12.5,
-      topKeywords: ['4k wallpaper', 'hd wallpaper', 'anime wallpaper'],
-    },
-    {
-      id: 2,
-      domain: 'unsplash.com',
-      name: 'Unsplash',
-      traffic: 8500000,
-      keywords: 45600,
-      backlinks: 120000,
-      authority: 92,
-      growth: 8.3,
-      topKeywords: ['free photos', 'stock images', 'nature wallpaper'],
-    },
-    {
-      id: 3,
-      domain: 'pexels.com',
-      name: 'Pexels',
-      traffic: 3200000,
-      keywords: 32400,
-      backlinks: 85000,
-      authority: 88,
-      growth: -2.1,
-      topKeywords: ['free wallpaper', 'mobile wallpaper', 'hd background'],
-    },
-  ];
+  // 获取竞争对手统计数据
+  useEffect(() => {
+    fetchStatistics();
+    fetchCompetitorList();
+  }, []);
 
-  // 关键词差距数据
-  const keywordGaps: KeywordGap[] = [
-    { keyword: '4k wallpaper download', ourRank: 15, competitorRank: 3, searchVolume: 185000, difficulty: 65 },
-    { keyword: 'hd wallpaper for pc', ourRank: 8, competitorRank: 2, searchVolume: 148000, difficulty: 58 },
-    { keyword: 'anime wallpaper 4k', ourRank: 12, competitorRank: 5, searchVolume: 256000, difficulty: 72 },
-    { keyword: 'nature wallpaper hd', ourRank: null, competitorRank: 4, searchVolume: 95000, difficulty: 45 },
-    { keyword: 'mobile wallpaper hd', ourRank: 6, competitorRank: 1, searchVolume: 167000, difficulty: 62 },
-  ];
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      const response = await competitorApi.getCompetitorStatistics();
+      if (response.code === 200 || response.code === 201) {
+        setStatistics(response.data);
+      } else {
+        message.error(response.message || '获取统计数据失败');
+      }
+    } catch (error) {
+      console.error('获取竞争对手统计数据失败:', error);
+      message.error('获取统计数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 获取竞争对手列表
+  const fetchCompetitorList = async (page = 1, pageSize = 10, name = '') => {
+    setTableLoading(true);
+    try {
+      const response = await competitorApi.getCompetitorList({
+        currentPage: page,
+        pageSize: pageSize,
+        name: name || undefined,
+      });
+      
+      if (response.code === 200 || response.code === 201) {
+        const data = response.data;
+        // 直接使用后端返回的数据，不做额外转换
+        setCompetitors(data.results || []);
+        setPagination({
+          current: data.pagination?.page || data.page || page,
+          pageSize: data.pagination?.page_size || data.pageSize || pageSize,
+          total: data.pagination?.total || data.total || 0,
+        });
+      } else {
+        message.error(response.message || '获取竞争对手列表失败');
+      }
+    } catch (error) {
+      console.error('获取竞争对手列表失败:', error);
+      message.error('获取竞争对手列表失败');
+    } finally {
+      setTableLoading(false);
+    }
+  };
+
+  // 处理分页变化
+  const handleTableChange = (newPagination: any) => {
+    fetchCompetitorList(newPagination.current, newPagination.pageSize, searchText);
+  };
+
+  // 处理搜索
+  const handleSearch = () => {
+    fetchCompetitorList(1, pagination.pageSize, searchText);
+  };
+
+  // 处理重置
+  const handleReset = () => {
+    setSearchText('');
+    fetchCompetitorList(1, pagination.pageSize, '');
+  };
 
   const columns = [
     {
@@ -86,51 +123,59 @@ const CompetitorAnalysis: React.FC = () => {
           <Avatar style={{ backgroundColor: '#1890ff' }}>{text[0]}</Avatar>
           <div>
             <div style={{ fontWeight: 500 }}>{text}</div>
-            <div style={{ fontSize: 12, color: '#999' }}>{record.domain}</div>
+            <div style={{ fontSize: 12, color: '#999' }}>{record.url}</div>
           </div>
         </Space>
       ),
     },
     {
       title: '域名权重',
-      dataIndex: 'authority',
-      key: 'authority',
+      dataIndex: 'domain_authority',
+      key: 'domain_authority',
       width: 120,
       render: (score: number) => (
-        <Progress percent={score} size="small" strokeColor={score >= 80 ? '#52c41a' : score >= 60 ? '#faad14' : '#f5222d'} />
+        <Progress percent={score || 0} size="small" strokeColor={score >= 80 ? '#52c41a' : score >= 60 ? '#faad14' : '#f5222d'} />
       ),
     },
     {
       title: '月流量',
-      dataIndex: 'traffic',
-      key: 'traffic',
+      dataIndex: 'monthly_traffic',
+      key: 'monthly_traffic',
       width: 120,
-      render: (v: number) => `${(v / 10000).toFixed(1)}万`,
+      render: (v: number) => v ? `${((v || 0) / 10000).toFixed(1)}万` : '--',
     },
     {
       title: '关键词数',
-      dataIndex: 'keywords',
-      key: 'keywords',
+      dataIndex: 'keyword_count',
+      key: 'keyword_count',
       width: 100,
-      render: (v: number) => v.toLocaleString(),
+      render: (v: number) => (v || 0).toLocaleString(),
     },
     {
       title: '外链数',
-      dataIndex: 'backlinks',
-      key: 'backlinks',
+      dataIndex: 'backlink_count',
+      key: 'backlink_count',
       width: 100,
-      render: (v: number) => `${(v / 1000).toFixed(1)}K`,
+      render: (v: number) => v ? `${((v || 0) / 1000).toFixed(1)}K` : '--',
     },
     {
       title: '增长趋势',
-      dataIndex: 'growth',
-      key: 'growth',
+      dataIndex: 'growth_trend',
+      key: 'growth_trend',
       width: 100,
-      render: (growth: number) => (
-        <Tag color={growth >= 0 ? 'success' : 'error'} icon={growth >= 0 ? <RiseOutlined /> : <FallOutlined />}>
-          {growth >= 0 ? '+' : ''}{growth}%
-        </Tag>
-      ),
+      render: (trend: string, record: Competitor) => {
+        const trendMap: Record<string, { color: string; icon: React.ReactNode; text: string }> = {
+          up: { color: 'success', icon: <RiseOutlined />, text: '增长' },
+          stable: { color: 'warning', icon: null, text: '稳定' },
+          down: { color: 'error', icon: <FallOutlined />, text: '下降' },
+        };
+        const trendInfo = trendMap[trend] || { color: 'default', icon: null, text: record.growth_trend_display || '--' };
+        return (
+          <Tag color={trendInfo.color} icon={trendInfo.icon}>
+            {trendInfo.text}
+          </Tag>
+        );
+      },
     },
     {
       title: '操作',
@@ -138,9 +183,18 @@ const CompetitorAnalysis: React.FC = () => {
       width: 200,
       render: (_: unknown, record: Competitor) => (
         <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
           <Button type="link" onClick={() => handleAnalyzeGap(record)}>关键词差距</Button>
-          <Button type="link" danger onClick={() => message.success('已删除')}>删除</Button>
+          <Popconfirm
+            title="确认删除"
+            description={`确定要删除竞争对手 "${record.name}" 吗？此操作不可撤销。`}
+            onConfirm={() => handleDelete(record.id, record.name)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -179,59 +233,131 @@ const CompetitorAnalysis: React.FC = () => {
     setAnalyzing(true);
     setGapModalVisible(true);
     
+    // 模拟分析过程
     setTimeout(() => {
       setAnalyzing(false);
+      // 这里可以设置真实的 keywordGaps 数据
+      setKeywordGaps([
+        { keyword: '示例关键词 1', ourRank: null, competitorRank: 3, searchVolume: 5000, difficulty: 45 },
+        { keyword: '示例关键词 2', ourRank: 15, competitorRank: 5, searchVolume: 12000, difficulty: 65 },
+      ]);
     }, 1000);
   };
 
-  const handleAdd = () => {
-    form.validateFields().then(() => {
-      message.success('竞争对手添加成功');
-      setAddModalVisible(false);
-      form.resetFields();
-    });
+  const handleAdd = async () => {
+    try {
+      const values = await form.validateFields();
+      const response = await competitorApi.addCompetitor({
+        name: values.name,
+        url: values.url,
+      });
+      
+      if (response.code === 200 || response.code === 201) {
+        message.success(response.message || '竞争对手添加成功');
+        setAddModalVisible(false);
+        form.resetFields();
+        // 刷新列表和统计数据
+        fetchCompetitorList();
+        fetchStatistics();
+      } else {
+        message.error(response.message || '添加失败');
+      }
+    } catch (error) {
+      console.error('添加竞争对手失败:', error);
+      message.error('添加竞争对手失败');
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    try {
+      const response = await competitorApi.deleteCompetitor(id);
+      
+      if (response.code === 200 || response.code === 201) {
+        message.success(response.message || `已成功删除竞争对手：${name}`);
+        // 刷新列表和统计数据
+        fetchCompetitorList();
+        fetchStatistics();
+      } else {
+        message.error(response.message || '删除失败');
+      }
+    } catch (error) {
+      console.error('删除竞争对手失败:', error);
+      message.error('删除竞争对手失败');
+    }
   };
 
   return (
     <div style={{ padding: 24 }}>
-      <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>SEO管理</Breadcrumb.Item>
-        <Breadcrumb.Item>竞争对手分析</Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb 
+        style={{ marginBottom: 16 }}
+        items={[
+          { title: 'SEO管理' },
+          { title: '竞争对手分析' },
+        ]}
+      />
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="监控竞争对手" value={competitors.length} prefix={<TrophyOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="关键词差距" value={128} suffix="个" valueStyle={{ color: '#cf1322' }} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="外链差距" value={3500} suffix="个" valueStyle={{ color: '#cf1322' }} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={6}>
-          <Card>
-            <Statistic title="平均权重" value={86} suffix="分" valueStyle={{ color: '#3f8600' }} />
-          </Card>
-        </Col>
-      </Row>
+      <Spin spinning={loading}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="监控竞争对手" 
+                value={statistics?.total_count || 0} 
+                prefix={<TrophyOutlined />} 
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="总关键词数" 
+                value={statistics?.total_keywords || 0} 
+                suffix="个" 
+                valueStyle={{ color: '#1890ff' }} 
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="总外链数" 
+                value={statistics?.total_backlinks || 0} 
+                suffix="个" 
+                valueStyle={{ color: '#722ed1' }} 
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={6}>
+            <Card>
+              <Statistic 
+                title="月流量总计" 
+                value={statistics?.total_monthly_traffic || 0} 
+                suffix="PV" 
+                valueStyle={{ color: '#3f8600' }} 
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Spin>
 
       <Card
         title="竞争对手列表"
         extra={
           <Space>
-            <Input.Search
-              placeholder="搜索竞争对手"
+            <Input
+              placeholder="搜索竞争对手名称"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
+              onPressEnter={handleSearch}
               style={{ width: 250 }}
+              allowClear
             />
+            <Button type="primary" onClick={handleSearch}>
+              搜索
+            </Button>
+            <Button onClick={handleReset}>
+              重置
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
               添加竞争对手
             </Button>
@@ -245,7 +371,18 @@ const CompetitorAnalysis: React.FC = () => {
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <Table columns={columns} dataSource={competitors} rowKey="id" />
+        <Table 
+          columns={columns} 
+          dataSource={competitors} 
+          rowKey="id" 
+          loading={tableLoading}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
+          onChange={handleTableChange}
+        />
       </Card>
 
       {/* 添加竞争对手弹窗 */}
@@ -256,14 +393,14 @@ const CompetitorAnalysis: React.FC = () => {
         onCancel={() => setAddModalVisible(false)}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="domain" label="网站域名" rules={[{ required: true }]}>
-            <Input placeholder="example.com" />
+          <Form.Item name="name" label="网站名称" rules={[{ required: true, message: '请输入网站名称' }]}>
+            <Input placeholder="例如：wallpapers" />
           </Form.Item>
-          <Form.Item name="name" label="网站名称" rules={[{ required: true }]}>
-            <Input placeholder="网站名称" />
-          </Form.Item>
-          <Form.Item name="note" label="备注">
-            <Input.TextArea rows={3} placeholder="添加备注信息" />
+          <Form.Item name="url" label="网站URL" rules={[
+            { required: true, message: '请输入网站URL' },
+            { type: 'url', message: '请输入有效的URL地址' }
+          ]}>
+            <Input placeholder="例如：https://4kwallpapers.com/" />
           </Form.Item>
         </Form>
       </Modal>
