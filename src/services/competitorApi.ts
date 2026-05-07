@@ -222,6 +222,65 @@ export const deleteCompetitor = async (id: number): Promise<ApiResponse<any>> =>
   }
 };
 
+// ==================== 内容优化相关接口 ====================
+
+/**
+ * 获取优化建议
+ * @param id 内容优化任务ID
+ * @returns 优化建议列表
+ */
+export const getContentOptimizationSuggestions = async (id: number): Promise<ApiResponse<any>> => {
+  try {
+    const response = await request<any>({
+      url: `${API_CONFIG.SEO_PREFIX}/content_optimization/suggestions/`,
+      method: 'GET',
+      params: { id },
+    });
+    return response;
+  } catch (error) {
+    console.error('获取优化建议失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * 获取问题检测
+ * @param id 内容优化任务ID
+ * @returns 问题检测列表
+ */
+export const getContentOptimizationIssues = async (id: number): Promise<ApiResponse<any>> => {
+  try {
+    const response = await request<any>({
+      url: `${API_CONFIG.SEO_PREFIX}/content_optimization/issues/`,
+      method: 'GET',
+      params: { id },
+    });
+    return response;
+  } catch (error) {
+    console.error('获取问题检测失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * 获取内容分析概览
+ * @param id 内容优化任务ID
+ * @returns 内容分析数据
+ */
+export const getContentOptimizationAnalysisOverview = async (id: number): Promise<ApiResponse<any>> => {
+  try {
+    const response = await request<any>({
+      url: `${API_CONFIG.SEO_PREFIX}/content_optimization/analysis-overview/`,
+      method: 'GET',
+      params: { id },
+    });
+    return response;
+  } catch (error) {
+    console.error('获取内容分析失败:', error);
+    throw error;
+  }
+};
+
 // ==================== 统一导出 ====================
 
 export const competitorApi = {
@@ -229,4 +288,7 @@ export const competitorApi = {
   getCompetitorStatistics,
   addCompetitor,
   deleteCompetitor,
+  getContentOptimizationSuggestions,
+  getContentOptimizationIssues,
+  getContentOptimizationAnalysisOverview,
 };

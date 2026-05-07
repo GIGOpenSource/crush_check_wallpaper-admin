@@ -848,7 +848,7 @@ const RecommendationManagerV2: React.FC = () => {
             <Button type="primary" onClick={handleAddStrategy} icon={<PlusOutlined />}>
               添加策略
             </Button>
-            <Popconfirm
+            {/* <Popconfirm
               title="确定批量删除吗？"
               description="删除后策略内的所有推荐内容将失效"
               onConfirm={handleBatchDeleteStrategies}
@@ -858,7 +858,7 @@ const RecommendationManagerV2: React.FC = () => {
               <Button type="primary" danger icon={<DeleteOutlined />}>
                 批量删除
               </Button>
-            </Popconfirm>
+            </Popconfirm> */}
           </Space>
         </Col>
         <Col span={12}>

@@ -2245,7 +2245,8 @@ export interface ContentOptimizationPage {
   word_count: number;          // 字数
   issue_count: number;         // 问题数量
   issues?: ContentIssue[];     // 问题列表（可选）
-  optimization_suggestions?: string[]; // 优化建议（可选）
+  optimization_suggestions?: any[]; // 优化建议（可选）
+  optimization_checklist?: any[]; // 优化检查清单（可选）
   last_optimized_at: string;   // 最后优化时间
   created_at?: string;         // 创建时间
 }

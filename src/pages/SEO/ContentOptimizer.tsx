@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Tag, Space, Input, Modal, Form, App, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Typography, Tabs, Badge, Pagination, Popconfirm } from 'antd';
 import { EditOutlined, CheckCircleOutlined, WarningOutlined, FileTextOutlined, SearchOutlined, BulbOutlined, EyeOutlined, SyncOutlined, ReloadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { competitorApi } from '../../services/competitorApi';
 import { seoApi, type ContentOptimizationDashboard, type ContentOptimizationPage } from '../../services/seoApi';
 
 const { Text } = Typography;
@@ -242,9 +243,29 @@ const ContentOptimizer: React.FC = () => {
     }
   };
 
-  const handleOptimize = (record: ContentOptimizationPage) => {
+  const handleOptimize = async (record: ContentOptimizationPage) => {
     setSelectedPage(record);
     setOptimizeModalVisible(true);
+    
+    // 并行加载三个接口的数据
+    try {
+      const [suggestionsRes, issuesRes, overviewRes] = await Promise.all([
+        competitorApi.getContentOptimizationSuggestions(record.id),
+        competitorApi.getContentOptimizationIssues(record.id),
+        competitorApi.getContentOptimizationAnalysisOverview(record.id),
+      ]);
+      
+      // 更新选中页面的数据
+      setSelectedPage({
+        ...record,
+        optimization_suggestions: suggestionsRes.data || [],
+        issues: issuesRes.data || [],
+        ...overviewRes.data, // 展开内容分析概览数据（包含 content_score, word_count, issue_count, optimization_checklist）
+      });
+    } catch (error) {
+      console.error('获取优化数据失败:', error);
+      message.error('获取优化数据失败');
+    }
   };
 
   const handleAnalyze = async () => {
@@ -423,22 +444,30 @@ const ContentOptimizer: React.FC = () => {
         width={700}
         footer={[
           <Button key="close" onClick={() => setOptimizeModalVisible(false)}>关闭</Button>,
-          <Button key="edit" type="primary" icon={<EditOutlined />} onClick={() => message.info('跳转编辑页面')}>编辑页面</Button>,
+          // <Button key="edit" type="primary" icon={<EditOutlined />} onClick={() => message.info('跳转编辑页面')}>编辑页面</Button>,
         ]}
       >
         {selectedPage && (
           <Tabs defaultActiveKey="issues">
             <TabPane tab="问题检测" key="issues">
               <List
-                dataSource={selectedPage.issues}
-                renderItem={(item) => (
+                dataSource={selectedPage.issues || []}
+                renderItem={(item: any) => (
                   <List.Item>
                     <Alert
-                      message={item.message}
-                      description={`位置: ${item.location}`}
-                      type={getIssueColor(item.type) as any}
-                      icon={getIssueIcon(item.type)}
-                      showIcon
+                      message={
+                        <Space>
+                          <span>{item.title || '未知问题'}</span>
+                          {item.severity && (
+                            <Tag color={item.severity === 'high' ? 'error' : item.severity === 'medium' ? 'warning' : 'default'}>
+                              {item.severity === 'high' ? '高' : item.severity === 'medium' ? '中' : '低'}优先级
+                            </Tag>
+                          )}
+                        </Space>
+                      }
+                      description={item.description || '暂无描述'}
+                      type={getIssueColor(item.severity || item.type) as any}
+                      showIcon={false}
                       style={{ width: '100%' }}
                     />
                   </List.Item>
@@ -448,12 +477,24 @@ const ContentOptimizer: React.FC = () => {
             <TabPane tab="优化建议" key="suggestions">
               <List
                 dataSource={selectedPage.optimization_suggestions || []}
-                renderItem={(item) => (
+                renderItem={(item: any) => (
                   <List.Item>
-                    <Space>
-                      <BulbOutlined style={{ color: '#1890ff' }} />
-                      <Text>{item}</Text>
-                    </Space>
+                    <Alert
+                      message={
+                        <Space>
+                          <span>{item.title || '优化建议'}</span>
+                          {item.priority && (
+                            <Tag color={item.priority === 'high' ? 'error' : item.priority === 'medium' ? 'warning' : 'default'}>
+                              {item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}优先级
+                            </Tag>
+                          )}
+                        </Space>
+                      }
+                      description={item.description || '暂无描述'}
+                      type="info"
+                      showIcon={false}
+                      style={{ width: '100%' }}
+                    />
                   </List.Item>
                 )}
               />
@@ -463,10 +504,15 @@ const ContentOptimizer: React.FC = () => {
                 <Card size="small" title="基础指标">
                   <Row gutter={16}>
                     <Col span={8}>
-                      <Statistic title="内容评分" value={selectedPage.content_score} suffix="/100" />
+                      <Statistic 
+                        title="内容评分" 
+                        value={selectedPage.content_score || 0} 
+                        suffix="/100" 
+                        valueStyle={{ color: (selectedPage.content_score || 0) >= 70 ? '#3f8600' : '#cf1322' }}
+                      />
                     </Col>
                     <Col span={8}>
-                      <Statistic title="字数统计" value={selectedPage.word_count} />
+                      <Statistic title="字数统计" value={selectedPage.word_count || 0} />
                     </Col>
                     <Col span={8}>
                       <Statistic title="问题数量" value={selectedPage.issues?.length || 0} />
@@ -474,28 +520,21 @@ const ContentOptimizer: React.FC = () => {
                   </Row>
                 </Card>
                 <Card size="small" title="优化检查清单">
-                  <List>
-                    <List.Item>
-                      <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                      标题包含目标关键词
-                    </List.Item>
-                    <List.Item>
-                      {selectedPage.word_count >= 800 ? (
-                        <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                      ) : (
-                        <WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />
-                      )}
-                      内容长度达标 (建议≥800字)
-                    </List.Item>
-                    <List.Item>
-                      <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                      图片已优化
-                    </List.Item>
-                    <List.Item>
-                      <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                      包含内链
-                    </List.Item>
-                  </List>
+                  <List
+                    dataSource={selectedPage.optimization_checklist || []}
+                    renderItem={(item: any) => (
+                      <List.Item>
+                        <Space>
+                          {item.is_passed || item.is_passed === true ? (
+                            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                          ) : (
+                            <WarningOutlined style={{ color: '#faad14' }} />
+                          )}
+                          <span>{item.title || item.description || '检查项'}</span>
+                        </Space>
+                      </List.Item>
+                    )}
+                  />
                 </Card>
               </Space>
             </TabPane>
