@@ -94,10 +94,11 @@ const SEOAnalytics: React.FC = () => {
     indexTrend: [] as Array<{ date: string; indexed_count: number }>,
     keywordRankings: [] as Array<{
       keyword: string;
-      current_rank: number;
-      previous_rank: number;
-      search_volume: number;
-      url: string;
+      search_engine: string;
+      current_position: number;
+      position_change: number;
+      estimated_volume: number;
+      landing_page: string;
     }>,
     landingPages: [] as Array<{
       page_path: string;
@@ -144,16 +145,41 @@ const SEOAnalytics: React.FC = () => {
   // 加载数据分析详细数据
   const loadAnalysisDetail = async () => {
     try {
-      const { startTimestamp, endTimestamp } = getDefaultTimeRange();
+      // 使用用户选择的日期范围，如果没有选择则使用默认最近7天
+      const { startTimestamp, endTimestamp } = dateRange && dateRange[0] && dateRange[1]
+        ? { 
+            startTimestamp: Math.floor(dateRange[0].valueOf() / 1000), 
+            endTimestamp: Math.floor(dateRange[1].valueOf() / 1000) 
+          }
+        : getDefaultTimeRange();
+      
       const res = await seoApi.getDataAnalysisDetail({
         site_url: selectedPath,
         start_timestamp: startTimestamp,
         end_timestamp: endTimestamp,
       });
       if (res && res.data) {
+        // 设置收录趋势数据（inclusion_trend）
+        if (res.data.inclusion_trend && res.data.inclusion_trend.length > 0) {
+          setInclusionTrendData(res.data.inclusion_trend.map((item: any) => ({
+            date: item.date,
+            impressions: item.impressions,
+            clicks: item.clicks,
+            ctr: item.ctr,
+            position: item.position,
+          })));
+        }
+        
         setAnalysisDetail({
           indexTrend: res.data.index_trend || [],
-          keywordRankings: res.data.keyword_rankings || [],
+          keywordRankings: res.data.keyword_rankings.map((item: any) => ({
+            keyword: item.keyword,
+            search_engine: item.search_engine,
+            current_position: item.current_position,
+            position_change: item.position_change,
+            estimated_volume: item.estimated_volume,
+            landing_page: item.landing_page,
+          })) || [],
           landingPages: res.data.landing_pages || [],
         });
       }
@@ -234,35 +260,90 @@ const SEOAnalytics: React.FC = () => {
 
   // 关键词排名表格列定义
   const keywordColumns = [
-    { title: '关键词', dataIndex: 'keyword', key: 'keyword', ellipsis: true },
-    { title: '当前排名', dataIndex: 'current_rank', key: 'current_rank', render: (v: number) => <Tag color={v <= 10 ? 'success' : v <= 30 ? 'warning' : 'default'}>{v}</Tag> },
-    { title: '上次排名', dataIndex: 'previous_rank', key: 'previous_rank' },
     { 
-      title: '排名变化', 
-      key: 'change',
-      render: (_: any, record: any) => {
-        const change = record.previous_rank - record.current_rank;
+      title: '关键词', 
+      dataIndex: 'keyword', 
+      key: 'keyword', 
+      ellipsis: true, 
+      width: 200,
+    },
+    { 
+      title: '搜索引擎', 
+      dataIndex: 'search_engine', 
+      key: 'search_engine', 
+      width: 120,
+    },
+    { 
+      title: '当前平均排名', 
+      dataIndex: 'current_position', 
+      key: 'current_position', 
+      width: 140,
+      render: (v: number) => <Tag color={v <= 10 ? 'success' : v <= 30 ? 'warning' : 'default'} style={{ fontSize: '14px', padding: '4px 12px' }}>{v}</Tag> 
+    },
+    { 
+      title: '排名涨跌变化', 
+      dataIndex: 'position_change', 
+      key: 'position_change',
+      width: 140,
+      render: (v: number) => {
+        if (v === 0) return <Tag color="default" style={{ fontSize: '14px', padding: '4px 12px' }}>-</Tag>;
         return (
-          <Tag color={change > 0 ? 'success' : change < 0 ? 'error' : 'default'}>
-            {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '-'}
+          <Tag color={v > 0 ? 'success' : 'error'} style={{ fontSize: '14px', padding: '4px 12px' }}>
+            {v > 0 ? `↑${v}` : `↓${Math.abs(v)}`}
           </Tag>
         );
       }
     },
-    { title: '搜索量', dataIndex: 'search_volume', key: 'search_volume', render: (v: number) => v.toLocaleString() },
-    { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
+    { 
+      title: '搜索量', 
+      dataIndex: 'estimated_volume', 
+      key: 'estimated_volume', 
+      width: 120, 
+      render: (v: number) => v.toLocaleString() 
+    },
+    { 
+      title: '落地页', 
+      dataIndex: 'landing_page', 
+      key: 'landing_page', 
+      ellipsis: true,
+      width: 300,
+    },
   ];
 
   // 着陆页表格列定义
   const landingColumns = [
-    { title: '着陆页', dataIndex: 'page_path', key: 'page_path', ellipsis: true },
-    { title: '访问量', dataIndex: 'visits', key: 'visits', render: (v: number) => v.toLocaleString() },
-    { title: '跳出率', dataIndex: 'bounce_rate', key: 'bounce_rate', render: (v: number) => `${v}%` },
-    { title: '平均停留', dataIndex: 'avg_duration', key: 'avg_duration' },
+    { 
+      title: '着陆页', 
+      dataIndex: 'page', 
+      key: 'page', 
+      ellipsis: true,
+      width: 300,
+    },
+    { 
+      title: '访问量', 
+      dataIndex: 'visits', 
+      key: 'visits', 
+      width: 120,
+      render: (v: number) => v.toLocaleString() 
+    },
+    { 
+      title: '跳出率', 
+      dataIndex: 'bounce_rate', 
+      key: 'bounce_rate', 
+      width: 120,
+      render: (v: number) => `${v.toFixed(1)}%` 
+    },
+    { 
+      title: '平均停留', 
+      dataIndex: 'avg_time_on_page', 
+      key: 'avg_time_on_page',
+      width: 120,
+    },
     {
       title: '转化率',
       dataIndex: 'conversion_rate',
       key: 'conversion_rate',
+      width: 150,
       render: (v: number) => <Progress percent={v} size="small" status={v > 10 ? 'success' : 'normal'} />,
     },
   ];
@@ -325,6 +406,14 @@ const SEOAnalytics: React.FC = () => {
     loadCoreMetrics();
     loadAnalysisDetail();
   }, [selectedPath]);
+
+  // 当日期范围改变时重新加载数据
+  useEffect(() => {
+    if (dateRange[0] && dateRange[1]) {
+      loadGSCData();
+      loadAnalysisDetail();
+    }
+  }, [dateRange]);
 
   // 刷新数据
   const handleRefresh = async () => {
@@ -583,7 +672,17 @@ const SEOAnalytics: React.FC = () => {
                 columns={keywordColumns}
                 dataSource={analysisDetail.keywordRankings}
                 rowKey="keyword"
-                pagination={{ pageSize: 10 }}
+                size="middle"
+                bordered
+                scroll={{ x: 'max-content' }}
+                pagination={{ 
+                  pageSize: 10,
+                  position: ['bottomRight'],
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total) => `共 ${total} 条`
+                }}
+                rowClassName={() => 'keyword-row'}
               />
             </Card>
           </TabPane>

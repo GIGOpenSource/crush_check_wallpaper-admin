@@ -1407,16 +1407,24 @@ export interface LongTailKeyword {
  * 数据分析详细数据类型
  */
 export interface DataAnalysisDetail {
+  inclusion_trend: Array<{
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>;
   index_trend: Array<{
     date: string;
     indexed_count: number;
   }>;
   keyword_rankings: Array<{
     keyword: string;
-    current_rank: number;
-    previous_rank: number;
-    search_volume: number;
-    url: string;
+    search_engine: string;
+    current_position: number;
+    position_change: number;
+    estimated_volume: number;
+    landing_page: string;
   }>;
   landing_pages: Array<{
     page_path: string;
@@ -2050,7 +2058,7 @@ export const getResourceAnalysis = async (id: number): Promise<ApiResponse<Resou
  */
 export const getOptimizationSuggestions = async (id: number): Promise<ApiResponse<OptimizationSuggestion[]>> => {
   return request<OptimizationSuggestion[]>({
-    url: `${API_CONFIG.SEO_PREFIX}/page_speed/optimization-suggestions/`,
+    url: `${API_CONFIG.SEO_PREFIX}/page_speed/optimization-suggestions/?id=${id}`,
     method: 'GET',
   });
 };
