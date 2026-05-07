@@ -161,16 +161,19 @@ const ContentOptimizer: React.FC = () => {
       dataIndex: 'issue_count',
       key: 'issue_count',
       width: 100,
-      render: (count: number, record: ContentOptimizationPage) => {
-        const issues = record.issues || [];
-        const errors = issues.filter(i => i.type === 'error').length;
-        const warnings = issues.filter(i => i.type === 'warning').length;
+      render: (count: number) => {
+        if (count === 0 || count === undefined) {
+          return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+        }
         return (
-          <Space>
-            {errors > 0 && <Badge count={errors} style={{ backgroundColor: '#f5222d' }} />}
-            {warnings > 0 && <Badge count={warnings} style={{ backgroundColor: '#faad14' }} />}
-            {count === 0 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
-          </Space>
+          <Badge 
+            count={count} 
+            style={{ 
+              backgroundColor: count > 5 ? '#f5222d' : count > 2 ? '#faad14' : '#d9d9d9',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }} 
+          />
         );
       },
     },
