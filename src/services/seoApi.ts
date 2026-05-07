@@ -1404,6 +1404,17 @@ export interface LongTailKeyword {
 }
 
 /**
+ * 流量来源数据类型
+ */
+export interface TrafficSource {
+  source: string;
+  visits: number;
+  percentage: number;
+  bounce_rate: number;
+  avg_time_on_page: number;
+}
+
+/**
  * 数据分析详细数据类型
  */
 export interface DataAnalysisDetail {
@@ -1426,13 +1437,14 @@ export interface DataAnalysisDetail {
     estimated_volume: number;
     landing_page: string;
   }>;
-  landing_pages: Array<{
-    page_path: string;
+  landing_page_analysis?: {
+    page: string;
     visits: number;
     bounce_rate: number;
-    avg_duration: string;
+    avg_time_on_page: number;
     conversion_rate: number;
-  }>;
+  };
+  traffic_sources: TrafficSource[];
 }
 
 /**

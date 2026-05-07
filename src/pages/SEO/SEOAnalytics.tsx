@@ -180,7 +180,7 @@ const SEOAnalytics: React.FC = () => {
             estimated_volume: item.estimated_volume,
             landing_page: item.landing_page,
           })) || [],
-          landingPages: res.data.landing_pages || [],
+          landingPages: res.data.landing_page_analysis ? [res.data.landing_page_analysis] : [],
         });
       }
     } catch (err) {
@@ -324,27 +324,31 @@ const SEOAnalytics: React.FC = () => {
       dataIndex: 'visits', 
       key: 'visits', 
       width: 120,
-      render: (v: number) => v.toLocaleString() 
+      render: (v: number) => v != null ? v.toLocaleString() : '--'
     },
     { 
       title: '跳出率', 
       dataIndex: 'bounce_rate', 
       key: 'bounce_rate', 
       width: 120,
-      render: (v: number) => `${v.toFixed(1)}%` 
+      render: (v: number) => v != null ? `${v.toFixed(1)}%` : '--'
     },
     { 
       title: '平均停留', 
       dataIndex: 'avg_time_on_page', 
       key: 'avg_time_on_page',
       width: 120,
+      render: (v: number) => v != null ? `${v}s` : '--'
     },
     {
       title: '转化率',
       dataIndex: 'conversion_rate',
       key: 'conversion_rate',
       width: 150,
-      render: (v: number) => <Progress percent={v} size="small" status={v > 10 ? 'success' : 'normal'} />,
+      render: (v: number) => {
+        if (v == null) return '--';
+        return <Progress percent={v} size="small" status={v > 10 ? 'success' : 'normal'} />;
+      },
     },
   ];
 
