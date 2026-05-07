@@ -230,28 +230,30 @@ const SEOAnalytics: React.FC = () => {
         value: item.clicks || 0,
         category: '点击量',
       })),
-      // 平均排名数据（乘以100以便在同一坐标系展示）
+      // 平均排名数据（直接使用原始值）
       ...inclusionTrendData.map(item => ({
         date: item.date,
-        value: Math.round((item.position || 0) * 100),
-        category: '平均排名(x100)',
+        value: item.position || 0,
+        category: '平均排名',
       })),
-      // 点击率数据（乘以10以便在同一坐标系展示）
+      // 点击率数据（直接使用原始值）
       ...inclusionTrendData.map(item => ({
         date: item.date,
-        value: Math.round((item.ctr || 0) * 10),
-        category: '点击率(x10)',
+        value: item.ctr || 0,
+        category: '点击率',
       })),
     ],
     xField: 'date',
     yField: 'value',
     seriesField: 'category',
     smooth: true,
+    autoFit: true,
     animation: { 
       appear: { animation: 'path-in', duration: 1000 },
       enter: { animation: 'wave-in', duration: 800 }
     },
-    // 使用数组形式指定颜色，配合seriesField自动映射
+    // 使用 colorField 配合 color 配置
+    colorField: 'category',
     color: ['#1890ff', '#52c41a', '#fa8c16', '#722ed1'],
     // 图例配置
     legend: {
@@ -263,7 +265,7 @@ const SEOAnalytics: React.FC = () => {
         },
       },
     },
-    // 提示框配置
+    // 提示框配置 - 优化显示数值
     tooltip: {
       showMarkers: true,
       shared: true,
@@ -271,19 +273,108 @@ const SEOAnalytics: React.FC = () => {
       crosshairs: {
         type: 'x' as const,
       },
+      // 自定义 tooltip 内容
+      customContent: (title: string, items: any[]) => {
+        if (!items || items.length === 0) return '';
+        
+        const container = document.createElement('div');
+        container.style.padding = '12px';
+        container.style.background = '#fff';
+        container.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+        container.style.borderRadius = '4px';
+        container.style.minWidth = '150px';
+        
+        // 标题（日期）
+        const titleEl = document.createElement('div');
+        titleEl.style.marginBottom = '8px';
+        titleEl.style.color = '#666';
+        titleEl.style.fontSize = '12px';
+        titleEl.textContent = title;
+        container.appendChild(titleEl);
+        
+        // 数据项列表
+        const listEl = document.createElement('div');
+        items.forEach((item: any) => {
+          const row = document.createElement('div');
+          row.style.display = 'flex';
+          row.style.alignItems = 'center';
+          row.style.marginBottom = '4px';
+          row.style.fontSize = '12px';
+          row.style.lineHeight = '20px';
+          
+          // 颜色点
+          const dot = document.createElement('span');
+          dot.style.display = 'inline-block';
+          dot.style.width = '8px';
+          dot.style.height = '8px';
+          dot.style.borderRadius = '50%';
+          dot.style.backgroundColor = item.color || '#1890ff';
+          dot.style.marginRight = '8px';
+          dot.style.flexShrink = '0';
+          
+          // 名称
+          const name = document.createElement('span');
+          name.style.flex = '1';
+          name.style.color = '#333';
+          name.textContent = item.name || '未知';
+          
+          // 数值 - 直接显示
+          const value = document.createElement('span');
+          value.style.color = '#666';
+          value.style.marginLeft = '12px';
+          value.style.fontWeight = '500';
+          value.style.flexShrink = '0';
+          
+          // 获取实际数值
+          const rawValue = item.data?.value ?? item.value ?? 0;
+          const seriesName = item.name || '';
+          
+          // 格式化数值
+          if (seriesName === '平均排名') {
+            value.textContent = rawValue.toFixed(1);
+          } else if (seriesName === '点击率') {
+            value.textContent = rawValue.toFixed(2) + '%';
+          } else if (seriesName === '曝光量' || seriesName === '点击量') {
+            value.textContent = Number(rawValue).toLocaleString();
+          } else {
+            value.textContent = String(rawValue);
+          }
+          
+          row.appendChild(dot);
+          row.appendChild(name);
+          row.appendChild(value);
+          listEl.appendChild(row);
+        });
+        
+        container.appendChild(listEl);
+        return container;
+      },
     },
     // 点样式
     point: {
-      size: 3,
+      size: 4,
       shape: 'circle',
-      style: {
-        fill: 'white',
-        stroke: 2,
-      },
     },
     // 折线样式
     lineStyle: {
       lineWidth: 2,
+    },
+    // X轴配置 - 调整间距从10开始
+    xAxis: {
+      label: {
+        autoRotate: false,
+        autoHide: false,
+        offset: 10,
+      },
+      tickLine: null,
+      grid: null,
+    },
+    // 确保Y轴从0开始，更好地展示所有数据线
+    meta: {
+      value: {
+        min: 0,
+        alias: '数值',
+      },
     },
   } as any : undefined;
 
@@ -484,6 +575,7 @@ const SEOAnalytics: React.FC = () => {
     
     loadGSCData();
     loadCoreMetrics();
+    loadAnalysisDetail(); // 加载详细数据分析
   }, []);
 
   // 注意：路径和日期改变时不再自动调用接口
@@ -728,7 +820,7 @@ const SEOAnalytics: React.FC = () => {
                     <div style={{ textAlign: 'center', padding: '60px' }}>
                       <Spin size="large" tip="数据加载中..." />
                     </div>
-                  ) : lineConfig ? (
+                  ) : inclusionTrendData.length > 0 ? (
                     <Line {...lineConfig} height={400} />
                   ) : (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
