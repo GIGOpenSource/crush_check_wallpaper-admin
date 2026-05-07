@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio, Pagination, Popconfirm } from 'antd';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, App, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio, Pagination, Popconfirm } from 'antd';
 import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail, type OptimizationSuggestion } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
 
 const MobileSEOTester: React.FC = () => {
+  const { message } = App.useApp();
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PageSpeedDetail | null>(null);
@@ -219,13 +220,15 @@ const MobileSEOTester: React.FC = () => {
         platform: 'phone',
       });
       if (response.code === 200 || response.code === 201) {
-        message.success('重新测试已提交');
+        // 优先使用后端返回的 message
+        message.success(response.message || '重新测试已提交');
         fetchPageSpeedList();
         fetchStatistics();
       } else {
         message.error(response.message || '重新测试失败');
       }
     } catch (error) {
+      console.error('重新测试失败:', error);
       message.error('重新测试失败，请稍后重试');
     }
   };

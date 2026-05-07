@@ -784,9 +784,16 @@ export interface Backlink {
   da_score: number;              // DA评分
   attribute: string;             // 链接属性 (dofollow/nofollow/ugc/sponsored)
   attribute_display: string;     // 属性显示文本
+  build_status: string;          // 建设状态 (pending/completed/cancelled)
+  build_status_display: string;  // 建设状态显示文本
   status: string;                // 状态 (active/inactive/pending/toxic)
   status_display: string;        // 状态显示文本
   quality_score: number;         // 质量评分
+  relevance: string;             // 相关性 (high/medium/low)
+  contact_info: {                // 联系信息
+    email: string;
+    phone: string;
+  };
   remark: string;                // 备注
   created_at: string;            // 创建时间
   updated_at: string;            // 更新时间
@@ -805,6 +812,7 @@ export const getBacklinks = async (params: {
   pageSize?: number;
   status?: string;
   source_page?: string;
+  build_status?: string;  // 外链建设状态筛选
 }): Promise<ApiResponse<PaginatedResponse<Backlink>>> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.getBacklinks(params) as Promise<ApiResponse<PaginatedResponse<Backlink>>>;
@@ -817,6 +825,7 @@ export const getBacklinks = async (params: {
       pageSize: params.pageSize || 10,
       status: params.status,
       source_page: params.source_page,
+      build_status: params.build_status,
     },
   });
 };
@@ -897,6 +906,7 @@ export const createBacklink = async (data: {
   attribute: string;
   quality_score?: number;
   remark?: string;
+  status?: string;
 }): Promise<ApiResponse<Backlink>> => {
   if (API_CONFIG.USE_MOCK) {
     // Mock数据
@@ -921,9 +931,16 @@ export const createBacklink = async (data: {
       da_score: data.da_score,
       attribute: data.attribute,
       attribute_display: attributeDisplayMap[data.attribute] || data.attribute,
-      status: 'pending',
-      status_display: '待审核',
+      build_status: 'pending',
+      build_status_display: '待建设',
+      status: data.status || 'pending',
+      status_display: statusDisplayMap[data.status || 'pending'] || '待审核',
       quality_score: data.quality_score || 0,
+      relevance: 'medium',
+      contact_info: {
+        email: 'contact@example.com',
+        phone: '+1-555-0123',
+      },
       remark: data.remark || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -975,9 +992,16 @@ export const updateBacklink = async (id: number, data: {
       da_score: data.da_score || 0,
       attribute: data.attribute || 'dofollow',
       attribute_display: attributeDisplayMap[data.attribute || 'dofollow'] || 'Dofollow',
+      build_status: 'pending',
+      build_status_display: '待建设',
       status: data.status || 'pending',
       status_display: statusDisplayMap[data.status || 'pending'] || '待审核',
       quality_score: data.quality_score || 0,
+      relevance: 'medium',
+      contact_info: {
+        email: 'contact@example.com',
+        phone: '+1-555-0123',
+      },
       remark: data.remark || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -1007,6 +1031,21 @@ export const deleteBacklink = async (id: number): Promise<ApiResponse<void>> => 
   return request<void>({
     url: `${API_CONFIG.SEO_PREFIX}/backlink/${id}/`,
     method: 'DELETE',
+  });
+};
+
+// 一键扫描外链机会
+export const scanBacklinkOpportunities = async (): Promise<ApiResponse<void>> => {
+  if (API_CONFIG.USE_MOCK) {
+    return Promise.resolve({
+      code: 200,
+      data: undefined,
+      message: '扫描成功',
+    }) as Promise<ApiResponse<void>>;
+  }
+  return request<void>({
+    url: `${API_CONFIG.SEO_PREFIX}/backlink/find-opportunities/`,
+    method: 'POST',
   });
 };
 
@@ -2043,9 +2082,7 @@ export const seoApi = {
   createBacklink,
   updateBacklink,
   deleteBacklink,
-  
-  // TDK
-  getTDKList,
+  scanBacklinkOpportunities,
   deleteTDK,
   createTDKTemplate,
   updateTDKTemplate,

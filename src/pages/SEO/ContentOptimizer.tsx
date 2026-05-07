@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Typography, Tabs, Badge, Pagination, Popconfirm } from 'antd';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, App, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Typography, Tabs, Badge, Pagination, Popconfirm } from 'antd';
 import { EditOutlined, CheckCircleOutlined, WarningOutlined, FileTextOutlined, SearchOutlined, BulbOutlined, EyeOutlined, SyncOutlined } from '@ant-design/icons';
 import { seoApi, type ContentOptimizationDashboard, type ContentOptimizationPage } from '../../services/seoApi';
 
@@ -24,6 +24,7 @@ interface ContentIssue {
 }
 
 const ContentOptimizer: React.FC = () => {
+  const { message } = App.useApp();
   const [analyzeModalVisible, setAnalyzeModalVisible] = useState(false);
   const [optimizeModalVisible, setOptimizeModalVisible] = useState(false);
   const [selectedPage, setSelectedPage] = useState<ContentOptimizationPage | null>(null);

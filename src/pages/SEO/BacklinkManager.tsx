@@ -1,29 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Space, Input, Modal, Form, Select, App, Alert, Tabs, Statistic, Row, Col, Progress, Breadcrumb, Popconfirm, Timeline, Pagination, message } from 'antd';
-import { PlusOutlined, DeleteOutlined, GlobalOutlined, LinkOutlined, ArrowLeftOutlined, EditOutlined, ReloadOutlined, ClockCircleOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Button, Table, Tag, Space, Input, Modal, Form, Select, App, Alert, Tabs, Statistic, Row, Col, Progress, Breadcrumb, Popconfirm, Timeline, Pagination, Divider, Descriptions, Typography } from 'antd';
+import { PlusOutlined, DeleteOutlined, GlobalOutlined, LinkOutlined, ArrowLeftOutlined, EditOutlined, ReloadOutlined, ClockCircleOutlined, EyeOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { seoApi, type DomainAnalysis, type DetectionLog } from '../../services/seoApi';
+import { seoApi, type DomainAnalysis, type DetectionLog, type Backlink } from '../../services/seoApi';
 
 const { Option } = Select;
-
-interface Backlink {
-  id: number;
-  source_page: string;
-  target_page: string;
-  anchor_text: string;
-  da_score: number;
-  attribute: string;
-  attribute_display: string;
-  status: string;
-  status_display: string;
-  quality_score: number;
-  remark: string;
-  created_at: string;
-  updated_at: string;
-}
+const { Title, Paragraph } = Typography;
 
 const BacklinkManager: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [form] = Form.useForm();
@@ -48,13 +34,23 @@ const BacklinkManager: React.FC = () => {
   const [domainAnalysisLoading, setDomainAnalysisLoading] = useState(false);
   const [domainPagination, setDomainPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [domainSearchText, setDomainSearchText] = useState('');
-  const [domainStatusFilter, setDomainStatusFilter] = useState<string | undefined>(undefined);
-
+  const [domainStatusFilter, setDomainStatusFilter] = useState<string>('');
+  
   // 检测日志相关状态
   const [detectionLogs, setDetectionLogs] = useState<DetectionLog[]>([]);
   const [detectionLogsLoading, setDetectionLogsLoading] = useState(false);
-  const [detectionLogPagination, setDetectionLogPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [detectionLogSearchText, setDetectionLogSearchText] = useState('');
+  
+  // 外链建设相关状态
+  const [buildBacklinks, setBuildBacklinks] = useState<Backlink[]>([]);
+  const [buildBacklinksLoading, setBuildBacklinksLoading] = useState(false);
+  const [buildPagination, setBuildPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [buildSearchText, setBuildSearchText] = useState('');
+  
+  // 联系弹窗相关状态
+  const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [selectedBuildBacklink, setSelectedBuildBacklink] = useState<Backlink | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
 
   // 加载外链统计数据
   const loadStatistics = async () => {
@@ -146,6 +142,77 @@ const BacklinkManager: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 加载外链建设数据
+  const loadBuildBacklinks = async () => {
+    setBuildBacklinksLoading(true);
+    try {
+      const res = await seoApi.getBacklinks({
+        currentPage: buildPagination.current,
+        pageSize: buildPagination.pageSize,
+        source_page: buildSearchText,
+        build_status: 'pending',
+      });
+      if (res.code === 200) {
+        const results = res.data?.results || [];
+        const total = res.data?.pagination?.total || res.data?.total || 0;
+        setBuildBacklinks(results);
+        setBuildPagination(prev => ({ 
+          ...prev, 
+          total,
+          current: res.data?.pagination?.page || prev.current,
+          pageSize: res.data?.pagination?.page_size || prev.pageSize,
+        }));
+      }
+    } catch (_err) {
+      message.error('加载外链建设数据失败');
+    } finally {
+      setBuildBacklinksLoading(false);
+    }
+  };
+
+  // 打开联系弹窗
+  const handleShowContact = (record: Backlink) => {
+    setSelectedBuildBacklink(record);
+    setContactModalVisible(true);
+  };
+
+  // 关闭联系弹窗
+  const handleContactModalClose = () => {
+    setContactModalVisible(false);
+    setSelectedBuildBacklink(null);
+  };
+
+  // 一键扫描外链机会
+  const handleScanOpportunities = async () => {
+    setScanLoading(true);
+    try {
+      const res = await seoApi.scanBacklinkOpportunities();
+      console.log('扫描接口返回:', res);
+      // 根据项目规范：检查 res.code 是否为 200 或 201
+      if (res.code === 200 || res.code === 201) {
+        // 优先使用后端返回的 message，如果没有则使用默认提示
+        message.success(res.message || '扫描成功');
+        loadBuildBacklinks();
+      } else {
+        message.error(res.message || '扫描失败');
+      }
+    } catch (err) {
+      console.error('扫描失败:', err);
+      message.error('扫描失败');
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  // 监听外链建设标签页的筛选条件变化
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadBuildBacklinks();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildPagination.current, buildPagination.pageSize, buildSearchText]);
 
   const columns = [
     { title: '来源页面', dataIndex: 'source_page', key: 'source_page', ellipsis: true },
@@ -664,37 +731,99 @@ const BacklinkManager: React.FC = () => {
             key: 'build',
             label: '外链建设',
             children: (
-              <Card title="外链建设建议">
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Alert
-                    message="高质量外链来源"
-                    description="行业相关博客、权威媒体、合作伙伴网站、社交媒体"
-                    type="success"
-                    showIcon
+              <Card>
+                <Alert
+                  message="外链建设建议"
+                  description="管理待处理的外链建设任务，跟踪外链获取进度"
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+                
+                {/* 操作栏 */}
+                <Space style={{ marginBottom: 16 }}>
+                  <Input.Search
+                    placeholder="搜索来源页面"
+                    value={buildSearchText}
+                    onChange={(e) => setBuildSearchText(e.target.value)}
+                    onSearch={loadBuildBacklinks}
+                    style={{ width: 300 }}
                   />
-                  <Alert
-                    message="避免的外链类型"
-                    description="链接农场、PBN网络、自动生成的外链、与内容无关的外链"
-                    type="error"
-                    showIcon
-                  />
-                  <Card type="inner" title="待联系网站">
-                    <Table
-                      columns={[
-                        { title: '网站', dataIndex: 'site' },
-                        { title: 'DA评分', dataIndex: 'da' },
-                        { title: '相关性', dataIndex: 'relevance', render: (r: string) => <Tag color="blue">{r}</Tag> },
-                        { title: '操作', render: () => <Button type="primary" size="small" onClick={() => message.info('联系功能开发中')}>联系</Button> },
-                      ]}
-                      dataSource={[
-                        { site: 'designhub.com', da: 78, relevance: '高' },
-                        { site: 'wallpaperhub.net', da: 65, relevance: '高' },
-                        { site: 'techblog.com', da: 82, relevance: '中' },
-                      ]}
-                      pagination={false}
-                    />
-                  </Card>
+                  <Button onClick={loadBuildBacklinks}>刷新</Button>
+                  <Popconfirm
+                    title="确认扫描"
+                    description="确定要扫描新的外链机会吗？"
+                    onConfirm={handleScanOpportunities}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button type="primary" icon={<ReloadOutlined />} loading={scanLoading}>
+                      一键扫描
+                    </Button>
+                  </Popconfirm>
                 </Space>
+
+                <Table
+                  columns={[
+                    { 
+                      title: '来源页面', 
+                      dataIndex: 'source_page', 
+                      key: 'source_page', 
+                      width: 250,
+                      ellipsis: true,
+                    },
+                    { 
+                      title: '目标页面', 
+                      dataIndex: 'target_page', 
+                      key: 'target_page', 
+                      width: 250,
+                      ellipsis: true,
+                    },
+                    {
+                      title: 'DA评分',
+                      dataIndex: 'da_score',
+                      key: 'da_score',
+                      width: 150,
+                      render: (score: number) => <Progress percent={score} size="small" status={score > 50 ? 'success' : 'normal'} />,
+                    },
+                    {
+                      title: '相关性',
+                      dataIndex: 'relevance',
+                      key: 'relevance',
+                      width: 100,
+                      render: (text: string) => {
+                        const relevanceMap: Record<string, string> = {
+                          'high': '高',
+                          'medium': '中',
+                          'low': '低',
+                        };
+                        return <Tag color="blue">{relevanceMap[text] || text}</Tag>;
+                      },
+                    },
+                    {
+                      title: '操作',
+                      key: 'action',
+                      width: 120,
+                      render: (_: any, record: Backlink) => (
+                        <Button type="primary" onClick={() => handleShowContact(record)}>联系</Button>
+                      ),
+                    },
+                  ]}
+                  dataSource={buildBacklinks}
+                  rowKey="id"
+                  loading={buildBacklinksLoading}
+                  scroll={{ x: 'max-content' }}
+                  pagination={{
+                    current: buildPagination.current,
+                    pageSize: buildPagination.pageSize,
+                    total: buildPagination.total,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    onChange: (page, pageSize) => {
+                      setBuildPagination(prev => ({ ...prev, current: page, pageSize: pageSize || prev.pageSize }));
+                    },
+                  }}
+                />
               </Card>
             ),
           },
@@ -788,6 +917,72 @@ const BacklinkManager: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* 联系信息弹窗 */}
+      <Modal
+        title="联系信息"
+        open={contactModalVisible}
+        onCancel={handleContactModalClose}
+        footer={[
+          <Button key="close" onClick={handleContactModalClose}>
+            关闭
+          </Button>,
+        ]}
+        width={600}
+      >
+        {selectedBuildBacklink && (
+          <div style={{ padding: '16px 0' }}>
+            {/* <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="来源页面">
+                <a href={selectedBuildBacklink.source_page} target="_blank" rel="noopener noreferrer">
+                  {selectedBuildBacklink.source_page}
+                </a>
+              </Descriptions.Item>
+              <Descriptions.Item label="目标页面">
+                <a href={selectedBuildBacklink.target_page} target="_blank" rel="noopener noreferrer">
+                  {selectedBuildBacklink.target_page}
+                </a>
+              </Descriptions.Item>
+              <Descriptions.Item label="锚文本">{selectedBuildBacklink.anchor_text || '--'}</Descriptions.Item>
+              <Descriptions.Item label="链接属性">
+                <Tag color="blue">{selectedBuildBacklink.attribute_display}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="建设状态">
+                <Tag color="orange">{selectedBuildBacklink.build_status_display}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="相关性">
+                <Tag color="blue">
+                  {{
+                    'high': '高',
+                    'medium': '中',
+                    'low': '低',
+                  }[selectedBuildBacklink.relevance] || selectedBuildBacklink.relevance}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="DA评分">
+                <Progress percent={selectedBuildBacklink.da_score} size="small" status={selectedBuildBacklink.da_score > 50 ? 'success' : 'normal'} />
+              </Descriptions.Item>
+              <Descriptions.Item label="质量评分">{selectedBuildBacklink.quality_score || '--'}</Descriptions.Item>
+            </Descriptions> */}
+
+            {/* <Divider /> */}
+
+            <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="邮箱">{selectedBuildBacklink.contact_info?.email || '--'}</Descriptions.Item>
+              <Descriptions.Item label="电话">{selectedBuildBacklink.contact_info?.phone || '--'}</Descriptions.Item>
+            </Descriptions>
+
+            {selectedBuildBacklink.remark && (
+              <>
+                <Divider />
+                <div>
+                  <Title level={5}>备注</Title>
+                  <Paragraph>{selectedBuildBacklink.remark}</Paragraph>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
