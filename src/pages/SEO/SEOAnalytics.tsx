@@ -51,6 +51,12 @@ const SEOAnalytics: React.FC = () => {
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null);
   
+  // 防止重复加载的标志位
+  const hasLoadedInitialData = useRef(false);
+  
+  // 防止并发请求的标志位
+  const isRefreshing = useRef(false);
+  
   // 初始化默认时间范围（最近7天）
   const defaultDateRange: [Dayjs, Dayjs] = [dayjs().subtract(7, 'day'), dayjs()];
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>(defaultDateRange);
@@ -101,11 +107,18 @@ const SEOAnalytics: React.FC = () => {
       landing_page: string;
     }>,
     landingPages: [] as Array<{
-      page_path: string;
+      page: string;
       visits: number;
       bounce_rate: number;
-      avg_duration: string;
+      avg_time_on_page: number;
       conversion_rate: number;
+    }>,
+    trafficSources: [] as Array<{
+      source: string;
+      visits: number;
+      percentage: number;
+      bounce_rate: number;
+      avg_time_on_page: number;
     }>,
   });
 
@@ -137,7 +150,6 @@ const SEOAnalytics: React.FC = () => {
         });
       }
     } catch (err) {
-      console.error('加载核心指标数据失败:', err);
       message.error('加载数据失败');
     }
   };
@@ -161,13 +173,18 @@ const SEOAnalytics: React.FC = () => {
       if (res && res.data) {
         // 设置收录趋势数据（inclusion_trend）
         if (res.data.inclusion_trend && res.data.inclusion_trend.length > 0) {
-          setInclusionTrendData(res.data.inclusion_trend.map((item: any) => ({
+          const trendData = res.data.inclusion_trend.map((item: any) => ({
             date: item.date,
             impressions: item.impressions,
             clicks: item.clicks,
             ctr: item.ctr,
             position: item.position,
-          })));
+          }));
+          console.log('📈 收录趋势原始数据:', res.data.inclusion_trend);
+          console.log('📈 收录趋势处理后数据:', trendData);
+          setInclusionTrendData(trendData);
+        } else {
+          console.warn('⚠️ inclusion_trend 数据为空:', res.data.inclusion_trend);
         }
         
         setAnalysisDetail({
@@ -180,50 +197,111 @@ const SEOAnalytics: React.FC = () => {
             estimated_volume: item.estimated_volume,
             landing_page: item.landing_page,
           })) || [],
-          landingPages: res.data.landing_page_analysis ? [res.data.landing_page_analysis] : [],
+          // 处理landing_page_analysis：后端可能返回数组或对象
+          landingPages: Array.isArray(res.data.landing_page_analysis) 
+            ? res.data.landing_page_analysis  // 如果已经是数组，直接使用
+            : (res.data.landing_page_analysis && res.data.landing_page_analysis.page)
+              ? [res.data.landing_page_analysis]  // 如果是对象且有效，包装成数组
+              : [],
+          // 使用接口返回的traffic_sources数据
+          trafficSources: res.data.traffic_sources || [],
         });
+        
+        console.log('✅ landingPages 数据已设置:', analysisDetail.landingPages);
       }
     } catch (err) {
-      console.error('加载数据分析详细数据失败:', err);
       message.error('加载详细数据失败');
     }
   };
 
   // 图表配置 - 收录趋势（四个指标分开展示）
-  const lineConfig = {
+  // 注意：当数据为空时，返回空数组避免报错
+  const lineConfig = inclusionTrendData.length > 0 ? {
     data: [
-      // 点击次数数据
-      ...inclusionTrendData.map(item => ({
-        date: item.date,
-        value: item.clicks,
-        category: '点击量',
-      })),
       // 曝光量数据
       ...inclusionTrendData.map(item => ({
         date: item.date,
-        value: item.impressions,
+        value: item.impressions || 0,
         category: '曝光量',
       })),
-      // 点击率数据（乘以1000以便在同一坐标系展示）
+      // 点击次数数据
       ...inclusionTrendData.map(item => ({
         date: item.date,
-        value: Math.round(item.ctr * 10),
-        category: '点击率(x10)',
+        value: item.clicks || 0,
+        category: '点击量',
       })),
       // 平均排名数据（乘以100以便在同一坐标系展示）
       ...inclusionTrendData.map(item => ({
         date: item.date,
-        value: Math.round(item.position * 100),
+        value: Math.round((item.position || 0) * 100),
         category: '平均排名(x100)',
+      })),
+      // 点击率数据（乘以10以便在同一坐标系展示）
+      ...inclusionTrendData.map(item => ({
+        date: item.date,
+        value: Math.round((item.ctr || 0) * 10),
+        category: '点击率(x10)',
       })),
     ],
     xField: 'date',
     yField: 'value',
     seriesField: 'category',
     smooth: true,
-    animation: { appear: { animation: 'path-in', duration: 1000 } },
-    color: ['#1890ff', '#722ed1', '#52c41a', '#fa8c16'],
-  };
+    animation: { 
+      appear: { animation: 'path-in', duration: 1000 },
+      enter: { animation: 'wave-in', duration: 800 }
+    },
+    // 使用数组形式指定颜色，配合seriesField自动映射
+    color: ['#1890ff', '#52c41a', '#fa8c16', '#722ed1'],
+    // 图例配置
+    legend: {
+      position: 'top' as const,
+      itemName: {
+        style: {
+          fontSize: 14,
+          fontWeight: 500,
+        },
+      },
+    },
+    // 提示框配置
+    tooltip: {
+      showMarkers: true,
+      shared: true,
+      showCrosshairs: true,
+      crosshairs: {
+        type: 'x' as const,
+      },
+    },
+    // 点样式
+    point: {
+      size: 3,
+      shape: 'circle',
+      style: {
+        fill: 'white',
+        stroke: 2,
+      },
+    },
+    // 折线样式
+    lineStyle: {
+      lineWidth: 2,
+    },
+  } as any : undefined;
+
+  // 调试：打印图表数据（只在数据存在时）
+  if (lineConfig) {
+    console.log('📊 图表数据:', {
+      'inclusionTrendData长度': inclusionTrendData.length,
+      '图表数据总数': lineConfig.data.length,
+      '分类列表': [...new Set(lineConfig.data.map((d: any) => d.category))],
+      '是否有数据': lineConfig.data.length > 0,
+    });
+    
+    if (lineConfig.data.length > 0) {
+      console.log(' 示例数据点:', lineConfig.data.slice(0, 4));
+    }
+  } else {
+    console.log('⏳ 图表数据加载中或暂无数据');
+  }
 
   // 收录趋势表格列定义
   const inclusionTrendColumns = [
@@ -393,34 +471,36 @@ const SEOAnalytics: React.FC = () => {
           })));
         }
       }
-    } catch (_err) {
+    } catch {
       message.error('加载GSC数据失败');
     }
   };
 
-  // 初始加载
+  // 初始加载（只调用一次）
   useEffect(() => {
+    // 防止React StrictMode导致的重复执行
+    if (hasLoadedInitialData.current) return;
+    hasLoadedInitialData.current = true;
+    
     loadGSCData();
     loadCoreMetrics();
-    loadAnalysisDetail();
   }, []);
 
-  // 当路径改变时重新加载数据
-  useEffect(() => {
-    loadCoreMetrics();
-    loadAnalysisDetail();
-  }, [selectedPath]);
+  // 注意：路径和日期改变时不再自动调用接口
+  // 用户需要手动点击"搜索"按钮来刷新数据
 
-  // 当日期范围改变时重新加载数据
-  useEffect(() => {
-    if (dateRange[0] && dateRange[1]) {
-      loadGSCData();
-      loadAnalysisDetail();
-    }
-  }, [dateRange]);
-
-  // 刷新数据
+  // 刷新数据（同时刷新详细分析数据）
   const handleRefresh = async () => {
+    // 防止并发请求
+    if (isRefreshing.current) {
+      console.warn('⚠️ 请求正在进行中，忽略重复调用');
+      return;
+    }
+    
+    // 防止重复点击
+    if (loading) return;
+    
+    isRefreshing.current = true;
     setLoading(true);
     message.loading('正在刷新数据...', 1);
     
@@ -435,6 +515,7 @@ const SEOAnalytics: React.FC = () => {
       message.error('刷新失败');
     } finally {
       setLoading(false);
+      isRefreshing.current = false;
     }
   };
 
@@ -515,46 +596,25 @@ const SEOAnalytics: React.FC = () => {
       
       pdf.save(`seo-analytics-${new Date().toISOString().split('T')[0]}.pdf`);
       message.success('PDF报告导出成功！');
-    } catch (err) {
+    } catch {
       message.error('PDF导出失败，请重试');
-      console.error('PDF export error:', err);
     } finally {
       setPdfExporting(false);
     }
   };
 
-  // 查询数据
-  const handleSearch = () => {
-    setLoading(true);
-    message.loading('正在查询数据...', 1);
-    
-    setTimeout(() => {
-      // 根据筛选条件过滤数据
-      if (selectedPath !== 'all') {
-        const filteredTraffic = trafficDataStatic.filter(t => 
-          t.source.toLowerCase().includes(selectedPath.toLowerCase())
-        );
-        setTrafficData(filteredTraffic.length > 0 ? filteredTraffic : trafficDataStatic);
-      } else {
-        setTrafficData(trafficDataStatic);
-      }
-      
-      setLoading(false);
-      message.success('查询完成！');
-    }, 800);
-  };
-
   const trafficColumns = [
-    { title: '流量来源', dataIndex: 'source', key: 'source' },
-    { title: '访问量', dataIndex: 'visits', key: 'visits', render: (v: number) => v.toLocaleString() },
+    { title: '流量来源', dataIndex: 'source', key: 'source', width: 200 },
+    { title: '访问量', dataIndex: 'visits', key: 'visits', width: 120, render: (v: number) => v != null ? v.toLocaleString() : '--' },
     {
       title: '占比',
       dataIndex: 'percentage',
       key: 'percentage',
-      render: (p: number) => <Progress percent={p} size="small" showInfo={false} />,
+      width: 150,
+      render: (p: number) => p != null ? <Progress percent={p} size="small" showInfo={false} /> : '--',
     },
-    { title: '跳出率', dataIndex: 'bounceRate', key: 'bounceRate', render: (v: number) => `${v}%` },
-    { title: '平均停留', dataIndex: 'avgDuration', key: 'avgDuration' },
+    { title: '跳出率', dataIndex: 'bounce_rate', key: 'bounce_rate', width: 120, render: (v: number) => v != null ? `${v.toFixed(1)}%` : '--' },
+    { title: '平均停留', dataIndex: 'avg_time_on_page', key: 'avg_time_on_page', width: 120, render: (v: number) => v != null ? `${v}s` : '--' },
   ];
 
   return (
@@ -664,7 +724,17 @@ const SEOAnalytics: React.FC = () => {
             <Row gutter={[16, 16]}>
               <Col xs={24} lg={24}>
                 <Card title="Google收录趋势">
-                  <Line {...lineConfig} height={400} />
+                  {loading ? (
+                    <div style={{ textAlign: 'center', padding: '60px' }}>
+                      <Spin size="large" tip="数据加载中..." />
+                    </div>
+                  ) : lineConfig ? (
+                    <Line {...lineConfig} height={400} />
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                      暂无数据，请点击搜索按钮加载数据
+                    </div>
+                  )}
                 </Card>
               </Col>
             </Row>
@@ -696,7 +766,7 @@ const SEOAnalytics: React.FC = () => {
               <Table
                 columns={landingColumns}
                 dataSource={analysisDetail.landingPages}
-                rowKey="page_path"
+                rowKey="page"
                 pagination={false}
               />
             </Card>
@@ -706,7 +776,7 @@ const SEOAnalytics: React.FC = () => {
             <Card title="Google流量来源细分">
               <Table
                 columns={trafficColumns}
-                dataSource={trafficData}
+                dataSource={analysisDetail.trafficSources}
                 rowKey="source"
                 pagination={false}
               />
