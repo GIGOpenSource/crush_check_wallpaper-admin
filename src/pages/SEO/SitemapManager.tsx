@@ -670,7 +670,7 @@ const SitemapManager: React.FC = () => {
           <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
           Sitemap管理
         </span>
-        <Button icon={<ReloadOutlined />} onClick={handleRefreshAll}>
+        <Button type="primary"  icon={<ReloadOutlined />} onClick={handleRefreshAll}>
           刷新数据
         </Button>
       </h2>

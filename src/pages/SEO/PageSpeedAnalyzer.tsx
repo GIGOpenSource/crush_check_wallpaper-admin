@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Tag, Space, Input, Modal, Form, App, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Pagination, Popconfirm, Spin, Timeline } from 'antd';
-import { CheckCircleOutlined, EyeOutlined, ReloadOutlined, ThunderboltOutlined, PlayCircleOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, EyeOutlined, ReloadOutlined, ThunderboltOutlined, PlayCircleOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail, type ResourceAnalysis, type OptimizationSuggestion } from '../../services/seoApi';
 
 const { TabPane } = Tabs;
 
 const PageSpeedAnalyzer: React.FC = () => {
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PageSpeedDetail | null>(null);
   const [testing, setTesting] = useState(false);
   const [testUrl, setTestUrl] = useState('');
+  
+  // 刷新状态
+  const [refreshing, setRefreshing] = useState(false);
   
   // 统计数据状态
   const [statistics, setStatistics] = useState<MobilePageSpeedStatistics | null>(null);
@@ -74,6 +79,23 @@ const PageSpeedAnalyzer: React.FC = () => {
     setCurrentPage(page);
     setPageSize(pageSize);
     fetchPageSpeedList(page, pageSize);
+  };
+
+  // 刷新所有数据
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchStatistics(),
+        fetchPageSpeedList(currentPage, pageSize),
+      ]);
+      message.success('数据刷新成功');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      message.error('刷新数据失败');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   // 表格列定义
@@ -243,15 +265,13 @@ const PageSpeedAnalyzer: React.FC = () => {
         platform: 'page',
       });
       if (response.code === 200 || response.code === 201) {
-        // 优先使用后端返回的 message
-        message.success(response.message || '重新测试已提交');
+        message.success('重新测试已提交');
         fetchPageSpeedList();
         fetchStatistics();
       } else {
         message.error(response.message || '重新测试失败');
       }
     } catch (error) {
-      console.error('重新测试失败:', error);
       message.error('重新测试失败，请稍后重试');
     }
   };
@@ -304,9 +324,24 @@ const PageSpeedAnalyzer: React.FC = () => {
   return (
     <div style={{ padding: 24 }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>SEO管理</Breadcrumb.Item>
+        <Breadcrumb.Item><a onClick={() => navigate('/seo')}>SEO管理</a></Breadcrumb.Item>
         <Breadcrumb.Item>页面速度分析</Breadcrumb.Item>
       </Breadcrumb>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
+          页面速度分析
+        </h2>
+        <Button 
+          type="primary" 
+          icon={<ReloadOutlined spin={refreshing} />} 
+          onClick={handleRefresh} 
+          loading={refreshing}
+        >
+          刷新数据
+        </Button>
+      </div>
 
       <Spin spinning={loading}>
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

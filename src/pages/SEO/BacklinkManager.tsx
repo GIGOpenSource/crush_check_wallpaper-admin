@@ -51,6 +51,26 @@ const BacklinkManager: React.FC = () => {
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [selectedBuildBacklink, setSelectedBuildBacklink] = useState<Backlink | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
+  
+  // 刷新状态
+  const [refreshing, setRefreshing] = useState(false);
+
+  // 刷新所有数据
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadStatistics(),
+        loadBacklinks(),
+      ]);
+      message.success('数据刷新成功');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      message.error('刷新数据失败');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // 加载外链统计数据
   const loadStatistics = async () => {
@@ -523,10 +543,20 @@ const BacklinkManager: React.FC = () => {
           { title: '外链管理' },
         ]}
       />
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
-        外链管理
-      </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
+          外链管理
+        </h2>
+        <Button 
+          type="primary" 
+          icon={<ReloadOutlined spin={refreshing} />} 
+          onClick={handleRefresh} 
+          loading={refreshing}
+        >
+          刷新数据
+        </Button>
+      </div>
 
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

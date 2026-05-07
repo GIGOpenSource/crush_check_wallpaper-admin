@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Input, Form, Alert, Tag, Space, Table, Modal, message, Tabs, Row, Col, Statistic, Breadcrumb, Select, Spin } from 'antd';
-import { SaveOutlined, EyeOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, ArrowLeftOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { Card, Button, Input, Form, Alert, Tag, Space, Table, Modal, message, Tabs, Row, Col, Statistic, Breadcrumb, Select, Spin, Popconfirm } from 'antd';
+import { SaveOutlined, EyeOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, ArrowLeftOutlined, ExperimentOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { getRobotsContent, updateRobotsContent } from '../../services/robotsApi';
+import { getRobotsContent, updateRobotsContent, getRobotsStatistics, getRobotsRules, deleteRobotsRule, addRobotsRule, testRobotsRule, convertBackendRuleToFrontend } from '../../services/robotsApi';
+import type { RobotsStatistics as RobotsStatsType, RobotsRuleItem, AddRobotsRuleParams, TestRobotsRuleParams } from '../../services/robotsApi';
 
 const { TabPane } = Tabs;
 const { TextArea } = Input;
@@ -25,36 +26,18 @@ const RobotsManager: React.FC = () => {
   const [testUrl, setTestUrl] = useState('');
   const [testUserAgent, setTestUserAgent] = useState('*');
   const [testResults, setTestResults] = useState<any[]>([]);
-  const [rules, setRules] = useState<RobotsRule[]>([
-    {
-      id: 1,
-      userAgent: '*',
-      allow: ['/wallpaper/', '/category/', '/tag/'],
-      disallow: ['/admin/', '/api/', '/private/', '/search?'],
-      crawlDelay: 1,
-      sitemap: 'https://example.com/sitemap.xml',
-    },
-    {
-      id: 2,
-      userAgent: 'Googlebot',
-      allow: ['/'],
-      disallow: ['/admin/'],
-      crawlDelay: 0,
-    },
-    {
-      id: 3,
-      userAgent: 'Googlebot-Image',
-      allow: ['/wallpaper/', '/category/'],
-      disallow: ['/admin/'],
-      crawlDelay: 0,
-    },
-  ]);
+  const [rules, setRules] = useState<RobotsRule[]>([]);
   const [addRuleForm] = Form.useForm();
   
   // 加载状态
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [rulesLoading, setRulesLoading] = useState(false);
   const [robotsContent, setRobotsContent] = useState('');
+  
+  // 统计数据状态
+  const [statistics, setStatistics] = useState<RobotsStatsType | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   
   // 规则验证状态
   const [validationResults, setValidationResults] = useState<{
@@ -63,6 +46,9 @@ const RobotsManager: React.FC = () => {
     details: string[];
   } | null>(null);
   const [validating, setValidating] = useState(false);
+  
+  // 刷新状态
+  const [refreshing, setRefreshing] = useState(false);
 
   const columns = [
     { title: 'User-agent', dataIndex: 'userAgent', key: 'userAgent', width: 150 },
@@ -86,15 +72,32 @@ const RobotsManager: React.FC = () => {
         </Space>
       ),
     },
-    { title: 'Crawl-delay', dataIndex: 'crawlDelay', key: 'crawlDelay', width: 100 },
+    { 
+      title: 'Crawl-delay', 
+      dataIndex: 'crawlDelay', 
+      key: 'crawlDelay', 
+      width: 120,
+      onHeaderCell: () => ({
+        style: { whiteSpace: 'nowrap' }
+      })
+    },
     {
       title: '操作',
       key: 'action',
       width: 120,
       render: (_: unknown, record: RobotsRule) => (
-        <Space>
+        <Space size={4}>
           <Button type="link" icon={<EyeOutlined />} onClick={() => message.info('查看功能开发中')}>查看</Button>
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDeleteRule(record.id)}>删除</Button>
+          <Popconfirm
+            title="删除规则"
+            description="确定要删除这条 Robots 规则吗？删除后将立即生效。"
+            onConfirm={() => handleDeleteRule(record.id)}
+            okText="确定"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -116,9 +119,70 @@ const RobotsManager: React.FC = () => {
     }
   };
 
+  // 加载规则列表
+  const loadRules = async () => {
+    setRulesLoading(true);
+    try {
+      const backendRules = await getRobotsRules();
+      const frontendRules = backendRules.map(convertBackendRuleToFrontend);
+      setRules(frontendRules);
+    } catch (error) {
+      console.error('加载规则列表失败:', error);
+      message.error('加载规则列表失败');
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  // 加载统计数据
+  const loadStatistics = async () => {
+    setStatsLoading(true);
+    try {
+      const data = await getRobotsStatistics();
+      setStatistics(data);
+    } catch (error) {
+      console.error('加载统计数据失败:', error);
+      message.error('加载统计数据失败');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadRobotsContent();
+    loadRules();
+    loadStatistics();
   }, []);
+
+  // 刷新所有数据
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadRobotsContent(),
+        loadRules(),
+        loadStatistics()
+      ]);
+      message.success('数据刷新成功');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      message.error('刷新数据失败');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Tab 切换时重新加载数据
+  const handleTabChange = async (key: string) => {
+    if (key === 'editor') {
+      // 切换到可视化编辑时，重新加载规则列表
+      await loadRules();
+    } else if (key === 'code') {
+      // 切换到代码编辑时，重新加载内容
+      await loadRobotsContent();
+    }
+    // 不再重新加载统计数据，仅在初始化时加载
+  };
 
   const handleSave = async () => {
     const content = form.getFieldValue('content');
@@ -132,8 +196,10 @@ const RobotsManager: React.FC = () => {
     try {
       await updateRobotsContent(content);
       message.success('Robots.txt 保存成功');
-      // 刷新内容
+      // 刷新内容、规则列表和统计数据
       await loadRobotsContent();
+      await loadRules();
+      await loadStatistics();
     } catch (error: any) {
       console.error('保存失败:', error);
       message.error(error?.message || '保存失败');
@@ -142,26 +208,47 @@ const RobotsManager: React.FC = () => {
     }
   };
 
-  const handleAddRule = () => {
-    addRuleForm.validateFields().then((values) => {
-      const newRule: RobotsRule = {
-        id: Date.now(),
-        userAgent: values.userAgent,
-        allow: values.allow ? values.allow.split('\n').filter((p: string) => p.trim()) : [],
-        disallow: values.disallow ? values.disallow.split('\n').filter((p: string) => p.trim()) : [],
-        crawlDelay: values.crawlDelay || 0,
-        sitemap: values.sitemap,
+  const handleAddRule = async () => {
+    try {
+      const values = await addRuleForm.validateFields();
+      
+      // 构建请求参数
+      const params: AddRobotsRuleParams = {
+        user_agent: values.userAgent,
+        allow_paths: values.allow ? values.allow.split('\n').filter((p: string) => p.trim()) : [],
+        disallow_paths: values.disallow ? values.disallow.split('\n').filter((p: string) => p.trim()) : [],
+        crawl_delay: values.crawlDelay || undefined,
       };
-      setRules([...rules, newRule]);
+      
+      await addRobotsRule(params);
       message.success('规则添加成功');
       setAddRuleModalVisible(false);
       addRuleForm.resetFields();
-    });
+      
+      // 刷新规则列表和统计数据
+      await loadRules();
+      await loadStatistics();
+    } catch (error: any) {
+      if (error.errorFields) {
+        // 表单验证错误
+        return;
+      }
+      console.error('添加规则失败:', error);
+      message.error(error?.message || '添加规则失败');
+    }
   };
 
-  const handleDeleteRule = (id: number) => {
-    setRules(rules.filter(r => r.id !== id));
-    message.success('规则已删除');
+  const handleDeleteRule = async (id: number) => {
+    try {
+      await deleteRobotsRule(id);
+      message.success('规则已删除');
+      // 刷新规则列表和统计数据
+      await loadRules();
+      await loadStatistics();
+    } catch (error) {
+      console.error('删除规则失败:', error);
+      message.error('删除规则失败');
+    }
   };
 
   // 验证Robots规则
@@ -237,58 +324,33 @@ const RobotsManager: React.FC = () => {
 
   const handleTest = async () => {
     if (!testUrl) {
-      message.warning('请输入要测试的URL');
+      message.warning('请输入要测试的URL路径');
       return;
     }
     
-    // 本地解析robots规则
-    const content = form.getFieldValue('content') || '';
-    const lines = content.split('\n');
-    const results: any[] = [];
+    // 确保路径以 / 开头
+    const urlPath = testUrl.startsWith('/') ? testUrl : `/${testUrl}`;
     
-    // 简单的robots规则解析
-    let currentUserAgent = '';
-    let matched = false;
-    let result = 'Allow';
-    let matchedRule = '';
-    
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
+    try {
+      const params: TestRobotsRuleParams = {
+        user_agent: testUserAgent,
+        url_path: urlPath,
+      };
       
-      if (trimmed.toLowerCase().startsWith('user-agent:')) {
-        currentUserAgent = trimmed.substring(11).trim();
-        // 检查是否匹配当前测试的User-Agent
-        if (currentUserAgent === testUserAgent || currentUserAgent === '*') {
-          matched = true;
-        } else {
-          matched = false;
-        }
-      } else if (matched) {
-        if (trimmed.toLowerCase().startsWith('disallow:')) {
-          const path = trimmed.substring(9).trim();
-          if (testUrl.startsWith(path)) {
-            result = 'Disallow';
-            matchedRule = `Disallow: ${path}`;
-          }
-        } else if (trimmed.toLowerCase().startsWith('allow:')) {
-          const path = trimmed.substring(6).trim();
-          if (testUrl.startsWith(path)) {
-            result = 'Allow';
-            matchedRule = `Allow: ${path}`;
-          }
-        }
-      }
+      const result = await testRobotsRule(params);
+      
+      setTestResults([{
+        userAgent: result.user_agent || testUserAgent,
+        result: result.result,
+        rule: result.rule || '无匹配规则',
+        explanation: result.explanation || (result.result === 'Allow' ? '搜索引擎可以抓取此URL' : '搜索引擎禁止抓取此URL'),
+      }]);
+      
+      message.success('测试完成');
+    } catch (error: any) {
+      console.error('测试失败:', error);
+      message.error(error?.message || '测试失败');
     }
-    
-    setTestResults([{
-      userAgent: testUserAgent,
-      result,
-      rule: matchedRule || '无匹配规则',
-      explanation: result === 'Allow' ? '搜索引擎可以抓取此URL' : '搜索引擎禁止抓取此URL',
-    }]);
-    
-    message.success('测试完成');
   };
 
   const generateRobotsContent = () => {
@@ -316,36 +378,63 @@ const RobotsManager: React.FC = () => {
         <Breadcrumb.Item><a onClick={() => navigate('/seo')}>SEO管理</a></Breadcrumb.Item>
         <Breadcrumb.Item>Robots.txt</Breadcrumb.Item>
       </Breadcrumb>
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
-        Robots.txt 管理
-      </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ margin: 0 }}>
+          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
+          Robots.txt 管理
+        </h2>
+        <Button 
+          type="primary" 
+          icon={<ReloadOutlined spin={refreshing} />} 
+          onClick={handleRefresh} 
+          loading={refreshing}
+        >
+          刷新数据
+        </Button>
+      </div>
 
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="规则数量" value={rules.length} prefix={<CheckCircleOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="Allow路径" value={8} valueStyle={{ color: '#52c41a' }} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="Disallow路径" value={12} valueStyle={{ color: '#f5222d' }} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic title="最后更新" value="2小时前" />
-          </Card>
-        </Col>
-      </Row>
+      <Spin spinning={statsLoading}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic 
+                title="规则数量" 
+                value={statistics?.total_rules || 0} 
+                prefix={<CheckCircleOutlined />} 
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic 
+                title="Allow路径" 
+                value={statistics?.allow_count || 0} 
+                valueStyle={{ color: '#52c41a' }} 
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic 
+                title="Disallow路径" 
+                value={statistics?.disallow_count || 0} 
+                valueStyle={{ color: '#f5222d' }} 
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic 
+                title="最后更新" 
+                value={statistics?.last_updated ? new Date(statistics.last_updated).toLocaleString('zh-CN') : '-'} 
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Spin>
 
-      <Tabs defaultActiveKey="editor">
+      <Tabs defaultActiveKey="editor" onChange={handleTabChange}>
         <TabPane tab="可视化编辑" key="editor">
           <Card>
             <Alert
@@ -375,14 +464,16 @@ const RobotsManager: React.FC = () => {
               />
             )}
             
-            <Table columns={columns} dataSource={rules} rowKey="id" pagination={false} />
+            <Spin spinning={rulesLoading}>
+              <Table columns={columns} dataSource={rules} rowKey="id" pagination={false} />
+            </Spin>
             <Space style={{ marginTop: 16 }}>
               <Button type="dashed" icon={<PlusOutlined />} onClick={() => setAddRuleModalVisible(true)}>
                 添加规则
               </Button>
-              <Button icon={<CheckCircleOutlined />} onClick={validateRules} loading={validating}>
+              {/* <Button icon={<CheckCircleOutlined />} onClick={validateRules} loading={validating}>
                 验证规则
-              </Button>
+              </Button> */}
             </Space>
           </Card>
         </TabPane>
@@ -580,12 +671,6 @@ Sitemap: https://example.com/sitemap.xml`}
             label="Crawl-delay (秒)"
           >
             <Input type="number" min={0} placeholder="抓取延迟秒数" />
-          </Form.Item>
-          <Form.Item
-            name="sitemap"
-            label="Sitemap 地址"
-          >
-            <Input placeholder="https://example.com/sitemap.xml" />
           </Form.Item>
         </Form>
       </Modal>

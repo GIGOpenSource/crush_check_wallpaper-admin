@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Tag, Space, Input, Modal, Form, App, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Typography, Tabs, Badge, Pagination, Popconfirm } from 'antd';
-import { EditOutlined, CheckCircleOutlined, WarningOutlined, FileTextOutlined, SearchOutlined, BulbOutlined, EyeOutlined, SyncOutlined } from '@ant-design/icons';
+import { EditOutlined, CheckCircleOutlined, WarningOutlined, FileTextOutlined, SearchOutlined, BulbOutlined, EyeOutlined, SyncOutlined, ReloadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { seoApi, type ContentOptimizationDashboard, type ContentOptimizationPage } from '../../services/seoApi';
 
 const { Text } = Typography;
@@ -24,6 +25,7 @@ interface ContentIssue {
 }
 
 const ContentOptimizer: React.FC = () => {
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [analyzeModalVisible, setAnalyzeModalVisible] = useState(false);
   const [optimizeModalVisible, setOptimizeModalVisible] = useState(false);
@@ -32,6 +34,9 @@ const ContentOptimizer: React.FC = () => {
   const [reAnalyzing, setReAnalyzing] = useState<number | null>(null);
   const [analyzeUrl, setAnalyzeUrl] = useState('');
   const [_form] = Form.useForm();
+  
+  // 刷新状态
+  const [refreshing, setRefreshing] = useState(false);
   
   // 统计数据状态
   const [statistics, setStatistics] = useState<ContentOptimizationDashboard | null>(null);
@@ -88,6 +93,23 @@ const ContentOptimizer: React.FC = () => {
     setCurrentPage(page);
     setPageSize(pageSize);
     fetchPagesList(page, pageSize);
+  };
+
+  // 刷新所有数据
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchStatistics(),
+        fetchPagesList(currentPage, pageSize),
+      ]);
+      message.success('数据刷新成功');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      message.error('刷新数据失败');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const columns = [
@@ -279,9 +301,24 @@ const ContentOptimizer: React.FC = () => {
   return (
     <div style={{ padding: 24 }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>SEO管理</Breadcrumb.Item>
+        <Breadcrumb.Item><a onClick={() => navigate('/seo')}>SEO管理</a></Breadcrumb.Item>
         <Breadcrumb.Item>内容优化建议</Breadcrumb.Item>
       </Breadcrumb>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
+          内容优化建议
+        </h2>
+        <Button 
+          type="primary" 
+          icon={<ReloadOutlined spin={refreshing} />} 
+          onClick={handleRefresh} 
+          loading={refreshing}
+        >
+          刷新数据
+        </Button>
+      </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={6}>
