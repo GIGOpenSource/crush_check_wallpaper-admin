@@ -248,15 +248,25 @@ const RecommendationManagerV2: React.FC = () => {
       key: 'apply_area',
       width: 120,
       render: (applyArea: string) => {
-        const areaMap: Record<string, { color: string; text: string }> = {
-          global: { color: 'blue', text: '全球' },
-          cn: { color: 'red', text: '中国大陆' },
-          overseas: { color: 'green', text: '海外' },
-          us: { color: 'orange', text: '美国' },
-          jp: { color: 'purple', text: '日本' },
-          kr: { color: 'cyan', text: '韩国' },
+        const languageMap: Record<string, { color: string; text: string }> = {
+          zh: { color: 'red', text: '中文' },
+          en: { color: 'blue', text: 'English' },
+          ja: { color: 'orange', text: '日语' },
+          ko: { color: 'cyan', text: '韩语' },
+          es: { color: 'green', text: '西班牙语' },
+          fr: { color: 'purple', text: '法语' },
+          de: { color: 'volcano', text: '德语' },
+          pt: { color: 'magenta', text: '葡萄牙语' },
+          ru: { color: 'gold', text: '俄语' },
+          ar: { color: 'geekblue', text: '阿拉伯语' },
+          hi: { color: 'lime', text: '印地语' },
+          th: { color: 'blue', text: '泰语' },
+          vi: { color: 'cyan', text: '越南语' },
+          id: { color: 'green', text: '印尼语' },
+          tr: { color: 'red', text: '土耳其语' },
+          all: { color: 'default', text: '全部语言' },
         };
-        const config = areaMap[applyArea] || { color: 'default', text: applyArea || '未知' };
+        const config = languageMap[applyArea] || { color: 'default', text: applyArea || '未知' };
         return <Tag color={config.color}>{config.text}</Tag>;
       },
     },
@@ -1111,7 +1121,15 @@ const RecommendationManagerV2: React.FC = () => {
             label="应用区域"
             name="apply_area"
           >
-            <Input placeholder="请输入应用区域，如：首页顶部、热门页面等" />
+            <Select placeholder="请选择语言">
+              <Option value="zh">中文</Option>
+              <Option value="en">English（英语）</Option>
+              <Option value="ja">日本語（日语）</Option>
+              <Option value="ko">한국어（韩语）</Option>
+              <Option value="es">Español（西班牙语）</Option>
+              <Option value="pt">Português（葡萄牙语）</Option>
+             
+            </Select>
           </Form.Item>
           <Form.Item
             label="内容数量限制"

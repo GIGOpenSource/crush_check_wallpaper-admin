@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Tag, Space, Input, Modal, Form, message, Alert, Statistic, Row, Col, Progress, Breadcrumb, Avatar, Spin, Popconfirm } from 'antd';
 import { PlusOutlined, EyeOutlined, RiseOutlined, FallOutlined, TrophyOutlined, DeleteOutlined } from '@ant-design/icons';
-import { competitorApi, type CompetitorItem, type CompetitorStatistics as CompetitorStatisticsType } from '../../services/competitorApi';
+import { competitorApi, type CompetitorItem, type CompetitorStatistics as CompetitorStatisticsType, type KeywordGapItem } from '../../services/competitorApi';
 
 interface Competitor {
   id: number;
@@ -228,20 +228,36 @@ const CompetitorAnalysis: React.FC = () => {
     message.info(`查看 ${record.name} 的详细信息`);
   };
 
-  const handleAnalyzeGap = (record: Competitor) => {
+  const handleAnalyzeGap = async (record: Competitor) => {
     setSelectedCompetitor(record);
     setAnalyzing(true);
     setGapModalVisible(true);
     
-    // 模拟分析过程
-    setTimeout(() => {
+    try {
+      const response = await competitorApi.getKeywordGap(record.id);
+      
+      if (response.code === 200 || response.code === 201) {
+        // 从 response.data.keyword_gaps 中获取数组数据
+        const keywordGapsData = response.data?.keyword_gaps || [];
+        const gaps: KeywordGap[] = Array.isArray(keywordGapsData) ? keywordGapsData.map((item: KeywordGapItem) => ({
+          keyword: item.keyword,
+          ourRank: item.our_ranking,
+          competitorRank: item.competitor_ranking,
+          searchVolume: item.our_search_volume,
+          difficulty: item.difficulty,
+        })) : [];
+        setKeywordGaps(gaps);
+      } else {
+        message.error(response.message || '获取关键词差距失败');
+        setKeywordGaps([]);
+      }
+    } catch (error) {
+      console.error('获取关键词差距失败:', error);
+      message.error('获取关键词差距失败');
+      setKeywordGaps([]);
+    } finally {
       setAnalyzing(false);
-      // 这里可以设置真实的 keywordGaps 数据
-      setKeywordGaps([
-        { keyword: '示例关键词 1', ourRank: null, competitorRank: 3, searchVolume: 5000, difficulty: 45 },
-        { keyword: '示例关键词 2', ourRank: 15, competitorRank: 5, searchVolume: 12000, difficulty: 65 },
-      ]);
-    }, 1000);
+    }
   };
 
   const handleAdd = async () => {

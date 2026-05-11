@@ -108,6 +108,29 @@ export interface CompetitorStatistics {
   };
 }
 
+/**
+ * 关键词差距项数据结构
+ */
+export interface KeywordGapItem {
+  keyword: string;              // 关键词
+  our_ranking: number | null;   // 我们的排名
+  competitor_ranking: number | null;  // 对手排名
+  our_search_volume: number;    // 我们的搜索量
+  competitor_search_volume: number;  // 对手的搜索量
+  difficulty: number;           // 难度
+}
+
+/**
+ * 关键词差距接口响应数据结构
+ */
+export interface KeywordGapResponse {
+  keyword_gaps: KeywordGapItem[];  // 关键词差距数组
+  note?: string;                   // 备注说明
+  our_site?: string;               // 我们的网站
+  competitor_site?: string;        // 竞争对手网站
+  total_gaps?: number;             // 总差距数
+}
+
 // ==================== API函数 ====================
 
 /**
@@ -222,6 +245,25 @@ export const deleteCompetitor = async (id: number): Promise<ApiResponse<any>> =>
   }
 };
 
+/**
+ * 获取关键词差距分析
+ * @param id 竞争对手ID
+ * @returns 关键词差距列表
+ */
+export const getKeywordGap = async (competitor_id: number): Promise<ApiResponse<KeywordGapResponse>> => {
+  try {
+    const response = await request<KeywordGapResponse>({
+      url: `${API_CONFIG.SEO_PREFIX}/competitor/keyword-gap/`,
+      method: 'GET',
+      params: { competitor_id },
+    });
+    return response;
+  } catch (error) {
+    console.error('获取关键词差距失败:', error);
+    throw error;
+  }
+};
+
 // ==================== 内容优化相关接口 ====================
 
 /**
@@ -288,6 +330,7 @@ export const competitorApi = {
   getCompetitorStatistics,
   addCompetitor,
   deleteCompetitor,
+  getKeywordGap,
   getContentOptimizationSuggestions,
   getContentOptimizationIssues,
   getContentOptimizationAnalysisOverview,
