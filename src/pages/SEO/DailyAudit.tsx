@@ -70,6 +70,13 @@ const DailyAudit: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(10);
   const [total, setTotal] = useState<number>(0);
   
+  // 巡查日志相关状态
+  const [logCurrentPage, setLogCurrentPage] = useState<number>(1);
+  const [logPageSize, setLogPageSize] = useState<number>(10);
+  const [logTotal, setLogTotal] = useState<number>(0);
+  const [inspectionLogs, setInspectionLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  
   // 统计数据状态
   const [dashboardData, setDashboardData] = useState<{
     normal_count: number;
@@ -126,8 +133,54 @@ const DailyAudit: React.FC = () => {
     }
   };
   
+  // 加载巡查日志数据
+  const loadInspectionLogs = async (
+    page: number = logCurrentPage,
+    size: number = logPageSize
+  ) => {
+    setLogsLoading(true);
+    try {
+      const params: any = {
+        currentPage: page,
+        pageSize: size,
+        site_url: selectedSiteUrl,
+      };
+      
+      // 如果有日期范围，添加时间戳参数
+      if (startTimestamp && endTimestamp) {
+        params.start_timestamp = startTimestamp;
+        params.end_timestamp = endTimestamp;
+      }
+      
+      const res = await inspectionApi.getInspectionLogs(params);
+      
+      if (res && res.results) {
+        setInspectionLogs(res.results);
+        
+        // 更新分页信息
+        if (res.pagination) {
+          setLogTotal(res.pagination.total);
+        }
+      }
+    } catch (error) {
+      console.error('加载巡查日志失败:', error);
+      message.error('加载巡查日志失败');
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+  
+  // 巡查日志分页变化处理
+  const handleLogPageChange = (page: number, size?: number) => {
+    setLogCurrentPage(page);
+    if (size) {
+      setLogPageSize(size);
+    }
+    loadInspectionLogs(page, size || logPageSize);
+  };
+  
   // 日期范围变化处理
-  const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
+  const handleDateRangeChange = (dates: any) => {
     setDateRange(dates);
     if (dates && dates[0] && dates[1]) {
       // 将日期转换为Unix时间戳（秒级）
@@ -139,11 +192,14 @@ const DailyAudit: React.FC = () => {
       loadDashboardData(start, end, selectedSiteUrl);
       // 重新加载列表数据
       loadInspectionData(activeTab as any, currentPage, pageSize, start, end);
+      // 重新加载巡查日志数据
+      loadInspectionLogs(logCurrentPage, logPageSize);
     } else {
       setStartTimestamp(undefined);
       setEndTimestamp(undefined);
       loadDashboardData(undefined, undefined, selectedSiteUrl);
       loadInspectionData(activeTab as any, currentPage, pageSize);
+      loadInspectionLogs(logCurrentPage, logPageSize);
     }
   };
   
@@ -154,6 +210,8 @@ const DailyAudit: React.FC = () => {
     loadDashboardData(undefined, undefined, url);
     // 重新加载列表数据（传入新的siteUrl）
     loadInspectionData(activeTab as any, currentPage, pageSize, undefined, undefined, url);
+    // 重新加载巡查日志数据
+    loadInspectionLogs(logCurrentPage, logPageSize);
   };
   
   // 加载数据
@@ -239,6 +297,8 @@ const DailyAudit: React.FC = () => {
     loadDashboardData(startTs, endTs, initialSiteUrl);
     // 直接传递所有参数加载默认Tab（搜索与抓取）的数据
     loadInspectionData('search_crawl', 1, 10, startTs, endTs, initialSiteUrl);
+    // 加载巡查日志数据
+    loadInspectionLogs(1, 10);
   }, []);
 
   // 处理 Tab 切换
@@ -394,6 +454,9 @@ const DailyAudit: React.FC = () => {
     const startTs = dateRange?.[0] ? Math.floor(dateRange[0].valueOf() / 1000) : undefined;
     const endTs = dateRange?.[1] ? Math.floor(dateRange[1].valueOf() / 1000) : undefined;
     
+    console.log('--- 开始巡查 ---');
+    console.log('参数:', { selectedSiteUrl, activeTab, startTs, endTs });
+    
     setAuditing(true);
     setAuditProgress(0);
     
@@ -406,60 +469,85 @@ const DailyAudit: React.FC = () => {
         end_timestamp: endTs,
       });
       
-      console.log('巡查接口返回数据:', result); // 调试信息
+      console.log('=== 巡查接口返回数据 ===');
+      console.log('result:', result);
+      console.log('result.results:', result?.results);
+      console.log('result.data:', result?.data);
       
       setAuditProgress(100);
       
       // 处理接口返回的巡查结果数据
-      // 拦截器已经返回 res.data，所以 result 就是实际数据
-      if (result) {
-        let responseData = result;
+      // 兼容两种数据结构：
+      // 1. { results: [...] } - 直接返回（根据实际日志）
+      // 2. { data: { results: [...] } } - 包装在 data 中
+      let responseData = [];
+      
+      if (result?.results && Array.isArray(result.results)) {
+        // 直接在 result 下有 results（这是实际情况）
+        responseData = result.results;
+        console.log('从 result.results 提取数据');
+      } else if (result?.data?.results && Array.isArray(result.data.results)) {
+        // 在 result.data.results 下
+        responseData = result.data.results;
+        console.log('从 result.data.results 提取数据');
+      }
+      
+      console.log('实际巡查结果数据长度:', responseData.length);
+      console.log('responseData:', responseData);
+      
+      if (Array.isArray(responseData) && responseData.length > 0) {
+        // 将返回的数据转换为 InspectionItem 格式
+        const inspectionResults: InspectionItem[] = responseData.map((item: any) => ({
+          id: item.id || Math.random().toString(),
+          inspection_item: item.inspection_item || '',
+          inspection_item_display: item.inspection_item_display || '未知检查项',
+          current_value: item.current_value || '',
+          threshold: item.threshold || '',
+          suggestion: item.suggestion || '',
+          status: item.status || 'normal',
+          status_display: item.status_display || getStatusText(item.status),
+          category: item.category || activeTab,
+          category_display: item.category_display || getCategoryText(activeTab),
+          site_url: item.site_url || selectedSiteUrl,
+          inspected_at: item.inspected_at || new Date().toISOString(),
+        }));
         
-        // 如果result包含data属性，使用data；否则直接使用result
-        if (result.data && Array.isArray(result.data)) {
-          responseData = result.data;
-        } else if (result.results && Array.isArray(result.results)) {
-          responseData = result.results;
-        } else if (result.items && Array.isArray(result.items)) {
-          responseData = result.items;
-        } else if (Array.isArray(result)) {
-          responseData = result;
-        }
+        console.log('转换后的巡查结果:', inspectionResults);
+        console.log('转换后的巡查结果长度:', inspectionResults.length);
         
-        console.log('实际巡查结果数据:', responseData); // 调试信息
+        // 计算统计数据
+        const normalCount = inspectionResults.filter(item => item.status === 'normal').length;
+        const warningCount = inspectionResults.filter(item => item.status === 'warning').length;
+        const errorCount = inspectionResults.filter(item => item.status === 'error').length;
         
-        if (Array.isArray(responseData) && responseData.length > 0) {
-          // 将返回的数据转换为 InspectionItem 格式
-          const inspectionResults: InspectionItem[] = responseData.map((item: any) => ({
-            id: item.id || Math.random().toString(),
-            inspection_item: item.inspection_item || item.key || item.code || '',
-            inspection_item_display: item.inspection_item_display || item.name || item.title || '未知检查项',
-            current_value: item.current_value || item.value || item.description || '',
-            threshold: item.threshold || item.standard || '',
-            suggestion: item.suggestion || item.recommendation || '',
-            status: item.status || item.severity || 'normal',
-            status_display: item.status_display || getStatusText(item.status || item.severity),
-            category: item.category || activeTab,
-            category_display: item.category_display || getCategoryText(activeTab),
-            site_url: item.site_url || selectedSiteUrl,
-            inspected_at: item.inspected_at || item.created_at || new Date().toISOString(),
-          }));
-          
-          console.log('转换后的巡查结果:', inspectionResults); // 调试信息
-          
-          setAuditResultDetails(inspectionResults);
-          setResultModalVisible(true);
-          
-          // 巡查完成后刷新数据
-          await Promise.all([
-            loadDashboardData(),
-            loadInspectionData(activeTab as any, 1, pageSize, startTs, endTs, selectedSiteUrl)
-          ]);
-        } else {
-          message.warning('巡查完成，但没有返回检查结果数据');
-        }
+        console.log('统计 - 正常:', normalCount, '警告:', warningCount, '异常:', errorCount);
+        
+        // 更新统计数据
+        setAuditResults({
+          normal: normalCount,
+          warning: warningCount,
+          error: errorCount,
+          checked: inspectionResults.length,
+          total: inspectionResults.length,
+        });
+        
+        setAuditResultDetails(inspectionResults);
+        
+        console.log('准备显示弹窗，resultModalVisible 将被设置为 true');
+        setResultModalVisible(true);
+        
+        console.log('弹窗状态已设置，开始刷新数据...');
+        
+        // 巡查完成后刷新数据
+        await Promise.all([
+          loadDashboardData(),
+          loadInspectionData(activeTab as any, 1, pageSize, startTs, endTs, selectedSiteUrl)
+        ]);
+        
+        console.log('巡查完成，弹窗应该已经显示');
       } else {
-        message.error('巡查接口返回数据格式错误');
+        console.warn('responseData 不是数组或长度为0');
+        message.warning('巡查完成，但没有返回检查结果数据');
       }
     } catch (error: any) {
       console.error('巡查失败:', error);
@@ -467,6 +555,7 @@ const DailyAudit: React.FC = () => {
     } finally {
       setAuditing(false);
       setAuditProgress(0);
+      console.log('--- 巡查结束 ---');
     }
   };
   
@@ -714,19 +803,91 @@ const DailyAudit: React.FC = () => {
         </TabPane>
 
         <TabPane tab="巡查日志" key="logs">
-          <Card title="今日巡查记录">
-            <Timeline
-              items={auditLogs.map((log) => ({
-                color: log.type === 'success' ? 'green' : log.type === 'warning' ? 'orange' : 'red',
-                children: (
-                  <>
-                    <p style={{ marginBottom: 4 }}>
-                      <strong>{log.time}</strong>
-                    </p>
-                    <p>{log.content}</p>
-                  </>
-                ),
-              }))}
+          <Card title="巡查日志记录">
+            <Table
+              columns={[
+                { 
+                  title: '执行时间', 
+                  dataIndex: 'start_time', 
+                  key: 'start_time',
+                  width: 180,
+                  render: (text: string) => text ? new Date(text).toLocaleString('zh-CN') : '--',
+                },
+                { 
+                  title: '站点URL', 
+                  dataIndex: 'site_url', 
+                  key: 'site_url',
+                  width: 220,
+                  ellipsis: true,
+                },
+                { 
+                  title: '巡查类别', 
+                  dataIndex: 'category_display', 
+                  key: 'category_display',
+                  width: 120,
+                },
+                {
+                  title: '执行状态',
+                  dataIndex: 'status',
+                  key: 'status',
+                  width: 100,
+                  render: (status: string, record: any) => {
+                    const config: Record<string, { color: string; text: string }> = {
+                      success: { color: 'success', text: record.status_display || '成功' },
+                      failed: { color: 'error', text: record.status_display || '失败' },
+                      running: { color: 'processing', text: record.status_display || '运行中' },
+                    };
+                    const { color, text } = config[status] || { color: 'default', text: status || '--' };
+                    return <Tag color={color}>{text}</Tag>;
+                  },
+                },
+                { 
+                  title: '检查项总数', 
+                  dataIndex: 'total_items', 
+                  key: 'total_items',
+                  width: 100,
+                  render: (value: number) => value || '--',
+                },
+                { 
+                  title: '正常/警告/异常', 
+                  key: 'counts',
+                  width: 160,
+                  render: (_: any, record: any) => (
+                    <Space size="small">
+                      <Tag color="success">{record.normal_count || 0}</Tag>
+                      <Tag color="warning">{record.warning_count || 0}</Tag>
+                      <Tag color="error">{record.error_count || 0}</Tag>
+                    </Space>
+                  ),
+                },
+                { 
+                  title: '耗时', 
+                  dataIndex: 'duration', 
+                  key: 'duration',
+                  width: 100,
+                  render: (value: number) => value ? `${value}秒` : '--',
+                },
+                { 
+                  title: '操作人', 
+                  dataIndex: 'operator', 
+                  key: 'operator',
+                  width: 100,
+                  render: (value: string) => value || '--',
+                },
+              ]}
+              dataSource={inspectionLogs}
+              rowKey="id"
+              loading={logsLoading}
+              pagination={{
+                current: logCurrentPage,
+                pageSize: logPageSize,
+                total: logTotal,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total) => `共 ${total} 条`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                onChange: handleLogPageChange,
+              }}
             />
           </Card>
         </TabPane>

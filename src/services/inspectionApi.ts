@@ -151,15 +151,6 @@ const runInspection = (params: {
   return http.post('/seo/inspection/inspection/run_inspection/', params);
 };
 
-// 导出API对象
-export const inspectionApi = {
-  getInspectionList,
-  getInspectionDashboard,
-  getAlertRules,
-  saveAlertRules,
-  runInspection,
-};
-
 /**
  * 巡查日志类型定义
  */
@@ -225,4 +216,14 @@ const getInspectionLogs = (params?: GetInspectionLogParams) => {
     end_timestamp: params?.end_timestamp,
     operator: params?.operator,
   });
+};
+
+// 导出API对象
+export const inspectionApi = {
+  getInspectionList,
+  getInspectionDashboard,
+  getAlertRules,
+  saveAlertRules,
+  runInspection,
+  getInspectionLogs,
 };
