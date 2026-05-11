@@ -643,12 +643,43 @@ const SEOAnalytics: React.FC = () => {
     
     try {
       const element = reportRef.current;
+      
+      // 创建标题容器
+      const headerDiv = document.createElement('div');
+      headerDiv.style.textAlign = 'center';
+      headerDiv.style.padding = '20px 0';
+      headerDiv.style.marginBottom = '20px';
+      headerDiv.style.borderBottom = '2px solid #1890ff';
+      
+      const titleEl = document.createElement('h1');
+      titleEl.textContent = 'SEO数据分析报告';
+      titleEl.style.fontSize = '24px';
+      titleEl.style.fontWeight = '600';
+      titleEl.style.color = '#333';
+      titleEl.style.margin = '0 0 10px 0';
+      
+      const timeEl = document.createElement('p');
+      timeEl.textContent = `生成时间: ${new Date().toLocaleString()}`;
+      timeEl.style.fontSize = '14px';
+      timeEl.style.color = '#666';
+      timeEl.style.margin = '0';
+      
+      headerDiv.appendChild(titleEl);
+      headerDiv.appendChild(timeEl);
+      
+      // 将标题容器插入到报告内容的开头
+      element.insertBefore(headerDiv, element.firstChild);
+      
+      // 使用 html2canvas 捕获整个报告(包括标题)
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       });
+      
+      // 移除临时添加的标题容器
+      element.removeChild(headerDiv);
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -659,37 +690,27 @@ const SEOAnalytics: React.FC = () => {
       const imgHeight = canvas.height;
       const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
       
-      let imgY = 10;
-      
-      // 添加标题
-      pdf.setFontSize(16);
-      pdf.text('SEO数据分析报告', pdfWidth / 2, 10, { align: 'center' });
-      pdf.setFontSize(10);
-      pdf.text(`生成时间: ${new Date().toLocaleString()}`, pdfWidth / 2, 18, { align: 'center' });
-      
-      imgY = 25;
-      
-      // 计算需要多少页
+      // 计算缩放后的高度
       const scaledHeight = imgHeight * ratio * (pdfWidth - 20) / (imgWidth * ratio);
       let heightLeft = scaledHeight;
-      let position = imgY;
+      let position = 10;
       
-      // 添加第一页
+      // 添加第一页(html2canvas已包含标题和时间)
       pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, scaledHeight);
-      heightLeft -= (pdfHeight - imgY);
+      heightLeft -= (pdfHeight - position);
       
-      // 如果内容超过一页，添加更多页
+      // 如果内容超过一页,添加更多页
       while (heightLeft > 0) {
-        position = heightLeft - scaledHeight + imgY;
+        position = heightLeft - scaledHeight + 10;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, scaledHeight);
         heightLeft -= (pdfHeight - 20);
       }
       
       pdf.save(`seo-analytics-${new Date().toISOString().split('T')[0]}.pdf`);
-      message.success('PDF报告导出成功！');
+      message.success('PDF报告导出成功!');
     } catch {
-      message.error('PDF导出失败，请重试');
+      message.error('PDF导出失败,请重试');
     } finally {
       setPdfExporting(false);
     }
