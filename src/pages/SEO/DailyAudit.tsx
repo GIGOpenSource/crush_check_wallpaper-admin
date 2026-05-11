@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Badge, Button, DatePicker, Space, Alert, Tabs, Timeline, Statistic, Row, Col, Breadcrumb, message, Progress, Modal, List, Form, Input, Select, Switch } from 'antd';
+import { Card, Table, Tag, Badge, Button, DatePicker, Space, Alert, Tabs, Timeline, Statistic, Row, Col, Breadcrumb, message, Progress, Modal, List, Form, Input, Select, Switch, Spin, Empty } from 'antd';
 import { CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, FileTextOutlined, ArrowLeftOutlined, PlayCircleOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { Dayjs } from 'dayjs';
@@ -136,7 +136,8 @@ const DailyAudit: React.FC = () => {
   // 加载巡查日志数据
   const loadInspectionLogs = async (
     page: number = logCurrentPage,
-    size: number = logPageSize
+    size: number = logPageSize,
+    append: boolean = false // 是否追加数据
   ) => {
     setLogsLoading(true);
     try {
@@ -155,7 +156,13 @@ const DailyAudit: React.FC = () => {
       const res = await inspectionApi.getInspectionLogs(params);
       
       if (res && res.results) {
-        setInspectionLogs(res.results);
+        // 如果是追加模式（下拉加载更多），将新数据追加到现有数据后面
+        // 否则（第一页或刷新），替换所有数据
+        if (append && page > 1) {
+          setInspectionLogs(prev => [...prev, ...res.results]);
+        } else {
+          setInspectionLogs(res.results);
+        }
         
         // 更新分页信息
         if (res.pagination) {
@@ -176,7 +183,9 @@ const DailyAudit: React.FC = () => {
     if (size) {
       setLogPageSize(size);
     }
-    loadInspectionLogs(page, size || logPageSize);
+    // 如果是加载更多（page > 1），则追加数据；否则替换数据
+    const shouldAppend = page > 1;
+    loadInspectionLogs(page, size || logPageSize, shouldAppend);
   };
   
   // 日期范围变化处理
@@ -304,43 +313,17 @@ const DailyAudit: React.FC = () => {
   // 处理 Tab 切换
   const handleTabChange = (key: string) => {
     setActiveTab(key);
-    // 切换 Tab 时重置分页并加载对应数据的第一页
+    // 切换 Tab 时重置分页
     setCurrentPage(1);
-    // 使用当前的筛选条件加载新Tab的数据
+    
+    // 如果切换到巡查日志Tab，不调用巡查列表接口，只加载巡查日志
+    if (key === 'logs') {
+      loadInspectionLogs(1, logPageSize);
+      return;
+    }
+    
+    // 其他Tab正常加载巡查列表数据
     loadInspectionData(key as any, 1, pageSize, startTimestamp, endTimestamp, selectedSiteUrl);
-  };
-
-  const loadAlertRules = async () => {
-    try {
-      const res = await inspectionApi.getAlertRules();
-      if (res) {
-        setAlertRules(res);
-      }
-    } catch (_err) {
-      message.error('加载告警规则失败');
-    }
-  };
-
-  // 加载告警规则
-  useEffect(() => {
-    // 使用setTimeout避免同步调用setState
-    const timer = setTimeout(() => {
-      loadAlertRules();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-  
-  const saveAlertRules = async () => {
-    try {
-      const values = alertForm.getFieldsValue();
-      const res = await inspectionApi.saveAlertRules([...alertRules, values]);
-      if (res) {
-        message.success('告警规则保存成功');
-        loadAlertRules();
-      }
-    } catch (_err) {
-      message.error('保存失败');
-    }
   };
 
   // 加载历史记录对比数据
@@ -628,7 +611,6 @@ const DailyAudit: React.FC = () => {
             placeholder={['开始日期', '结束日期']}
           />
           <Button icon={<FileTextOutlined />} onClick={() => message.success('报告导出成功')}>导出报告</Button>
-          <Button icon={<SettingOutlined />} onClick={() => setAlertModalVisible(true)}>设置告警规则</Button>
           <Button onClick={() => setHistoryModalVisible(true)}>历史记录对比</Button>
         </Space>
         
@@ -803,92 +785,108 @@ const DailyAudit: React.FC = () => {
         </TabPane>
 
         <TabPane tab="巡查日志" key="logs">
-          <Card title="巡查日志记录">
-            <Table
-              columns={[
-                { 
-                  title: '执行时间', 
-                  dataIndex: 'start_time', 
-                  key: 'start_time',
-                  width: 180,
-                  render: (text: string) => text ? new Date(text).toLocaleString('zh-CN') : '--',
-                },
-                { 
-                  title: '站点URL', 
-                  dataIndex: 'site_url', 
-                  key: 'site_url',
-                  width: 220,
-                  ellipsis: true,
-                },
-                { 
-                  title: '巡查类别', 
-                  dataIndex: 'category_display', 
-                  key: 'category_display',
-                  width: 120,
-                },
-                {
-                  title: '执行状态',
-                  dataIndex: 'status',
-                  key: 'status',
-                  width: 100,
-                  render: (status: string, record: any) => {
-                    const config: Record<string, { color: string; text: string }> = {
-                      success: { color: 'success', text: record.status_display || '成功' },
-                      failed: { color: 'error', text: record.status_display || '失败' },
-                      running: { color: 'processing', text: record.status_display || '运行中' },
-                    };
-                    const { color, text } = config[status] || { color: 'default', text: status || '--' };
-                    return <Tag color={color}>{text}</Tag>;
-                  },
-                },
-                { 
-                  title: '检查项总数', 
-                  dataIndex: 'total_items', 
-                  key: 'total_items',
-                  width: 100,
-                  render: (value: number) => value || '--',
-                },
-                { 
-                  title: '正常/警告/异常', 
-                  key: 'counts',
-                  width: 160,
-                  render: (_: any, record: any) => (
-                    <Space size="small">
-                      <Tag color="success">{record.normal_count || 0}</Tag>
-                      <Tag color="warning">{record.warning_count || 0}</Tag>
-                      <Tag color="error">{record.error_count || 0}</Tag>
-                    </Space>
-                  ),
-                },
-                { 
-                  title: '耗时', 
-                  dataIndex: 'duration', 
-                  key: 'duration',
-                  width: 100,
-                  render: (value: number) => value ? `${value}秒` : '--',
-                },
-                { 
-                  title: '操作人', 
-                  dataIndex: 'operator', 
-                  key: 'operator',
-                  width: 100,
-                  render: (value: string) => value || '--',
-                },
-              ]}
-              dataSource={inspectionLogs}
-              rowKey="id"
-              loading={logsLoading}
-              pagination={{
-                current: logCurrentPage,
-                pageSize: logPageSize,
-                total: logTotal,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total) => `共 ${total} 条`,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                onChange: handleLogPageChange,
-              }}
-            />
+          <Card title="今日巡查记录" style={{ minHeight: 500 }}>
+            <div style={{ padding: '20px 0' }}>
+              {logsLoading && inspectionLogs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <Spin size="large" />
+                </div>
+              ) : inspectionLogs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+                  <Empty description="暂无巡查记录" />
+                </div>
+              ) : (
+                <div 
+                  style={{ maxHeight: 600, overflow: 'auto', paddingRight: 20 }}
+                  onScroll={(e) => {
+                    const target = e.target as HTMLDivElement;
+                    // 当滚动到底部时加载更多数据
+                    if (target.scrollTop + target.clientHeight >= target.scrollHeight - 50) {
+                      if (logCurrentPage < Math.ceil(logTotal / logPageSize) && !logsLoading) {
+                        handleLogPageChange(logCurrentPage + 1, logPageSize);
+                      }
+                    }
+                  }}
+                >
+                  <Timeline
+                    items={inspectionLogs.map((log: any) => {
+                      // 优先使用 start_date，兼容 start_time
+                      const startDate = log.start_date || log.start_time;
+                      const endDate = log.end_date || log.end_time;
+                      
+                      let timeDisplay = '--:--';
+                      if (startDate) {
+                        const date = new Date(startDate);
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        timeDisplay = `${hours}:${minutes}`;
+                        
+                        // 如果有结束时间，显示时间段
+                        if (endDate) {
+                          const endDateObj = new Date(endDate);
+                          const endHours = String(endDateObj.getHours()).padStart(2, '0');
+                          const endMinutes = String(endDateObj.getMinutes()).padStart(2, '0');
+                          timeDisplay = `${hours}:${minutes} - ${endHours}:${endMinutes}`;
+                        }
+                      }
+                      
+                      const statusColor = log.status === 'success' ? '#52c41a' : log.status === 'failed' ? '#faad14' : '#1890ff';
+                      
+                      // 构建日志内容
+                      const logContent = [
+                        log.category_display && `【${log.category_display}】`,
+                        log.status_display && `状态: ${log.status_display}`,
+                        log.total_items && `检查项: ${log.total_items}项`,
+                        (log.normal_count !== undefined || log.warning_count !== undefined || log.error_count !== undefined) && 
+                          `正常${log.normal_count || 0}/警告${log.warning_count || 0}/异常${log.error_count || 0}`,
+                        log.duration && `耗时: ${log.duration}秒`,
+                      ].filter(Boolean).join(' | ');
+                      
+                      return {
+                        color: statusColor,
+                        dot: statusColor === '#52c41a' ? (
+                          <CheckCircleOutlined style={{ color: statusColor, fontSize: 16 }} />
+                        ) : statusColor === '#faad14' ? (
+                          <WarningOutlined style={{ color: statusColor, fontSize: 16 }} />
+                        ) : (
+                          <CloseCircleOutlined style={{ color: statusColor, fontSize: 16 }} />
+                        ),
+                        children: (
+                          <div style={{ cursor: 'pointer', padding: '4px 0' }} onClick={() => {
+                            message.info('查看详情功能开发中');
+                          }}>
+                            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, color: '#333' }}>
+                              {timeDisplay}
+                            </div>
+                            <div style={{ color: '#666', fontSize: 13, lineHeight: 1.6 }}>
+                              {logContent || '巡查任务已执行'}
+                            </div>
+                            {log.remark && (
+                              <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                                备注: {log.remark}
+                              </div>
+                            )}
+                          </div>
+                        ),
+                      };
+                    })}
+                  />
+                  
+                  {logsLoading && (
+                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                      <Spin size="small" />
+                      <span style={{ marginLeft: 8, color: '#999' }}>加载中...</span>
+                    </div>
+                  )}
+                  
+                  {!logsLoading && logCurrentPage >= Math.ceil(logTotal / logPageSize) && logTotal > 0 && (
+                    <div style={{ textAlign: 'center', padding: '20px 0', color: '#999', fontSize: 12 }}>
+                      — 已经到底了 —
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </Card>
         </TabPane>
       </Tabs>
@@ -952,61 +950,6 @@ const DailyAudit: React.FC = () => {
             showIcon
           />
         )}
-      </Modal>
-
-      {/* 告警规则设置弹窗 */}
-      <Modal
-        title="告警规则设置"
-        open={alertModalVisible}
-        onCancel={() => setAlertModalVisible(false)}
-        width={700}
-        footer={[
-          <Button key="cancel" onClick={() => setAlertModalVisible(false)}>取消</Button>,
-          <Button key="save" type="primary" onClick={saveAlertRules}>保存设置</Button>,
-        ]}
-      >
-        <Form form={alertForm} layout="vertical">
-          <Form.Item label="规则名称" name="name" rules={[{ required: true }]}>
-            <Input placeholder="例如：健康度下降告警" />
-          </Form.Item>
-          <Form.Item label="监控指标" name="type" rules={[{ required: true }]}>
-            <Select placeholder="选择监控指标">
-              <Select.Option value="health_score">SEO健康度</Select.Option>
-              <Select.Option value="404_errors">404错误数</Select.Option>
-              <Select.Option value="index_drop">收录量下降</Select.Option>
-              <Select.Option value="ranking_drop">排名下降</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item label="告警阈值" name="threshold" rules={[{ required: true }]}>
-            <Input type="number" placeholder="例如：80" />
-          </Form.Item>
-          <Form.Item label="通知方式" name="notify">
-            <Select mode="multiple" placeholder="选择通知方式">
-              <Select.Option value="email">邮件</Select.Option>
-              <Select.Option value="sms">短信</Select.Option>
-              <Select.Option value="webhook">Webhook</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item label="启用状态" name="enabled" valuePropName="checked">
-            <Switch defaultChecked />
-          </Form.Item>
-        </Form>
-        
-        <div style={{ marginTop: 24 }}>
-          <h4>现有告警规则</h4>
-          <Table
-            size="small"
-            dataSource={alertRules}
-            columns={[
-              { title: '规则名称', dataIndex: 'name' },
-              { title: '监控指标', dataIndex: 'type' },
-              { title: '阈值', dataIndex: 'threshold' },
-              { title: '状态', dataIndex: 'enabled', render: (enabled: boolean) => <Tag color={enabled ? 'success' : 'default'}>{enabled ? '启用' : '禁用'}</Tag> },
-              { title: '操作', render: () => <Button type="link" danger>删除</Button> },
-            ]}
-            pagination={false}
-          />
-        </div>
       </Modal>
 
       {/* 历史记录对比弹窗 */}
