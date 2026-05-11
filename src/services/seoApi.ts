@@ -1301,15 +1301,25 @@ export const updateTDKTemplate = async (id: number, data: {
 };
 
 // 导出TDK报告（支持format参数：csv或excel，默认csv）
-export const exportTDKReport = async (export_format: 'csv' | 'excel' = 'csv'): Promise<Blob> => {
+export const exportTDKReport = async (export_format: 'csv' | 'excel' = 'csv'): Promise<ApiResponse<{
+  download_url: string;
+  count: number;
+  format: string;
+  message: string;
+}>> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.exportTDKReport();
   }
-  const response = await axiosInstance.get(`${API_CONFIG.SEO_PREFIX}/tdk/export-tdk-report/`, {
+  return request<{
+    download_url: string;
+    count: number;
+    format: string;
+    message: string;
+  }>({
+    url: `${API_CONFIG.SEO_PREFIX}/tdk/export-tdk-report/`,
+    method: 'get',
     params: { export_format },
-    responseType: 'blob',
   });
-  return response.data;
 };
 
 // 导入TDK数据

@@ -3,6 +3,7 @@ import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tab
 import { EditOutlined, EyeOutlined, CopyOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi, type TDKTemplate as ApiTDKTemplate, type PageTDK as ApiPageTDK } from '../../services/seoApi';
+import { API_CONFIG } from '../../config/api.config';
 
 const { TabPane } = Tabs;
 const { TextArea } = Input;
@@ -586,41 +587,35 @@ const TDKManager: React.FC = () => {
       const response: any = await seoApi.exportTDKReport(exportFormat);
       console.log('导出TDK响应:', response);
       
-      // 导出接口返回的是Blob类型
-      if (response instanceof Blob) {
-        if (response.size > 0) {
-          const url = URL.createObjectURL(response);
-          const a = document.createElement('a');
-          a.href = url;
-          const extension = exportFormat === 'csv' ? 'csv' : 'xlsx';
-          a.download = `tdk-report-${new Date().toISOString().split('T')[0]}.${extension}`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+      // 检查响应状态码 - 200或201视为成功
+      if (response.code === 200 || response.code === 201) {
+        // 获取download_url
+        const downloadUrl = response.data?.download_url;
+        
+        if (downloadUrl) {
+          // 直接使用download_url进行下载
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = ''; // 让浏览器使用响应中的文件名
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
           
           // 显示成功提示
-          const fileSizeMB = (response.size / 1024 / 1024).toFixed(2);
-          const successMsg = `TDK报告导出成功！文件大小: ${fileSizeMB} MB（${exportFormat.toUpperCase()}格式）`;
+          const count = response.data?.count || 0;
+          const successMsg = `TDK报告导出成功！共 ${count} 条数据（${exportFormat.toUpperCase()}格式）`;
           message.success(successMsg);
           console.log('显示成功消息:', successMsg);
           setExportModalVisible(false);
         } else {
-          message.error('导出失败：文件为空');
-          console.error('导出失败：文件为空');
+          message.error('导出失败：未获取到下载链接');
+          console.error('导出失败：响应中未包含download_url');
         }
       } else {
-        // 如果不是Blob，可能是普通响应对象
-        if (response.code === 200 || response.code === 201) {
-          const successMsg = response.message || `TDK报告导出成功（${exportFormat.toUpperCase()}格式）`;
-          message.success(successMsg);
-          console.log('显示成功消息:', successMsg);
-          setExportModalVisible(false);
-        } else {
-          const errorMsg = `导出失败（状态码: ${response.code || '未知'}）${response.message || ''}`;
-          message.error(errorMsg);
-          console.error('导出失败:', errorMsg);
-        }
+        const errorMsg = `导出失败（状态码: ${response.code || '未知'}）${response.message || ''}`;
+        message.error(errorMsg);
+        console.error('导出失败:', errorMsg);
       }
     } catch (error: any) {
       console.error('导出TDK异常:', error);

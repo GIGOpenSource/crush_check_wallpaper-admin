@@ -1,0 +1,1 @@
+import{y as e}from"./index-CM_KduuN.js";export default e();
