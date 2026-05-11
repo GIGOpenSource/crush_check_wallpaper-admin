@@ -9,11 +9,11 @@ const { TabPane } = Tabs;
 const PageSpeedAnalyzer: React.FC = () => {
   const navigate = useNavigate();
   const { message } = App.useApp();
+  const [form] = Form.useForm();
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PageSpeedDetail | null>(null);
   const [testing, setTesting] = useState(false);
-  const [testUrl, setTestUrl] = useState('');
   
   // 刷新状态
   const [refreshing, setRefreshing] = useState(false);
@@ -277,42 +277,36 @@ const PageSpeedAnalyzer: React.FC = () => {
   };
 
   const handleTest = async () => {
-    if (!testUrl) {
-      message.warning('请输入要测试的页面URL');
-      return;
-    }
-    
-    // 正则校验
-    const urlPattern = /^\/[a-zA-Z0-9\-_\/.]*$/;
-    const path = testUrl.startsWith('/') ? testUrl : `/${testUrl}`;
-    if (!urlPattern.test(path)) {
-      message.error('URL格式错误：只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头');
-      return;
-    }
-    
-    setTesting(true);
     try {
-      const response = await seoApi.testPageSpeed({
-        page_path: path,
-        platform: 'page',
-      });
+      const values = await form.validateFields();
+      const path = values.page_path.startsWith('/') ? values.page_path : `/${values.page_path}`;
       
-      // 支持200和201状态码都视为成功
-      if (response.code === 200 || response.code === 201) {
-        message.success('页面速度测试已提交，正在后台处理');
-        setTestModalVisible(false);
-        setTestUrl('');
-        // 刷新统计数据和列表
-        fetchStatistics();
-        fetchPageSpeedList();
-      } else {
-        message.error(response.message || '测试提交失败');
+      setTesting(true);
+      try {
+        const response = await seoApi.testPageSpeed({
+          page_path: path,
+          platform: 'page',
+        });
+        
+        // 支持200和201状态码都视为成功
+        if (response.code === 200 || response.code === 201) {
+          message.success('页面速度测试已提交，正在后台处理');
+          setTestModalVisible(false);
+          form.resetFields();
+          // 刷新统计数据和列表
+          fetchStatistics();
+          fetchPageSpeedList();
+        } else {
+          message.error(response.message || '测试提交失败');
+        }
+      } catch (error: any) {
+        console.error('页面速度测试失败:', error);
+        message.error(error?.message || '测试提交失败，请稍后重试');
+      } finally {
+        setTesting(false);
       }
-    } catch (error: any) {
-      console.error('页面速度测试失败:', error);
-      message.error(error?.message || '测试提交失败，请稍后重试');
-    } finally {
-      setTesting(false);
+    } catch (errorInfo) {
+      console.log('Validate Failed:', errorInfo);
     }
   };
 
@@ -404,7 +398,7 @@ const PageSpeedAnalyzer: React.FC = () => {
             type="primary" 
             icon={<PlayCircleOutlined />} 
             onClick={() => {
-              setTestUrl('');
+              form.resetFields();
               setTestModalVisible(true);
             }}
           >
@@ -445,37 +439,41 @@ const PageSpeedAnalyzer: React.FC = () => {
         title="页面速度测试"
         open={testModalVisible}
         onOk={handleTest}
-        onCancel={() => setTestModalVisible(false)}
+        onCancel={() => {
+          setTestModalVisible(false);
+          form.resetFields();
+        }}
         confirmLoading={testing}
-        okButtonProps={{ disabled: !testUrl }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ page_path: '' }}
+        >
           <Form.Item
+            name="page_path"
             label="页面路径"
-            required
             rules={[
               { required: true, message: '请输入页面路径' },
               {
-                pattern: /^\/[a-zA-Z0-9\-_\/.]*$/,
-                message: 'URL只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头',
+                pattern: /^\/?[a-zA-Z0-9\-_\/.]*$/,
+                message: 'URL只能包含字母、数字、斜杠、连字符和下划线',
               },
             ]}
             validateTrigger={['onChange', 'onBlur']}
           >
             <Input
               placeholder="输入页面路径，如 /wallpaper/nature"
-              value={testUrl}
-              onChange={(e) => setTestUrl(e.target.value)}
               prefix="/"
             />
           </Form.Item>
-          <Alert
-            message="测试内容"
-            description="系统将测试FCP、LCP、FID、CLS等Core Web Vitals指标，分析页面加载性能和用户体验。"
-            type="info"
-            showIcon
-          />
-        </Space>
+        </Form>
+        <Alert
+          message="测试内容"
+          description="系统将测试FCP、LCP、FID、CLS等Core Web Vitals指标，分析页面加载性能和用户体验。"
+          type="info"
+          showIcon
+        />
       </Modal>
 
       {/* 测试详情弹窗 */}
