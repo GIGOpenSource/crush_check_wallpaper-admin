@@ -35,6 +35,7 @@ export interface GetWallpaperListParams {
   pageSize?: number;
   name?: string;
   audit_status?: 'pending' | 'approved' | 'rejected';
+  tag_id?: string; // 标签ID，多个用逗号隔开
 }
 
 // 获取壁纸列表响应

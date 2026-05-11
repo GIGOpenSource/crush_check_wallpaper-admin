@@ -53,11 +53,17 @@ const WallpaperList: React.FC = () => {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
   const [showImagePreview, setShowImagePreview] = useState(false);
+  const [filterTagList, setFilterTagList] = useState<ApiTag[]>([]); // 筛选用的标签列表
+  const [filterTagLoading, setFilterTagLoading] = useState(false); // 筛选标签加载状态
+  const [filterTagSearchValue, setFilterTagSearchValue] = useState<string>(''); // 筛选标签搜索值
+  const [filterTagPage, setFilterTagPage] = useState(1); // 筛选标签分页
+  const [filterTagHasMore, setFilterTagHasMore] = useState(true); // 筛选标签是否还有更多数据
 
   // 加载壁纸列表
   useEffect(() => {
     loadWallpaperList();
     loadTagList();
+    loadFilterTagList(); // 初始化加载筛选标签列表
   }, [currentPage, pageSize]);
 
   const loadTagList = async (page: number = 1, append: boolean = false) => {
@@ -89,10 +95,48 @@ const WallpaperList: React.FC = () => {
     }
   };
 
+  // 加载筛选用的标签列表（支持搜索和分页）
+  const loadFilterTagList = async (searchValue?: string, page: number = 1, append: boolean = false) => {
+    if (filterTagLoading || (!append && !filterTagHasMore && page > 1)) return;
+    
+    setFilterTagLoading(true);
+    try {
+      const response = await getTagList({ 
+        currentPage: page, 
+        pageSize: 50,
+        name: searchValue || filterTagSearchValue // 使用搜索值进行模糊搜索
+      });
+      
+      if (append) {
+        // 追加模式：加载更多标签
+        setFilterTagList(prev => [...prev, ...response.results]);
+      } else {
+        // 初始加载模式：替换标签列表
+        setFilterTagList(response.results);
+      }
+      
+      // 判断是否还有更多数据
+      const totalPages = response.pagination.total_pages || 1;
+      setFilterTagHasMore(page < totalPages);
+      setFilterTagPage(page);
+    } catch (error) {
+      console.error('加载筛选标签列表失败:', error);
+    } finally {
+      setFilterTagLoading(false);
+    }
+  };
+
   // 加载更多标签
   const loadMoreTags = () => {
     if (hasMoreTags && !tagLoading) {
       loadTagList(tagPage + 1, true);
+    }
+  };
+
+  // 加载更多筛选标签
+  const loadMoreFilterTags = () => {
+    if (filterTagHasMore && !filterTagLoading) {
+      loadFilterTagList(filterTagSearchValue, filterTagPage + 1, true);
     }
   };
 
@@ -134,8 +178,12 @@ const WallpaperList: React.FC = () => {
   // 重置
   const handleReset = () => {
     setSearchParams({});
+    setFilterTagSearchValue(''); // 清空标签搜索值
+    setFilterTagPage(1); // 重置分页
+    setFilterTagHasMore(true); // 重置是否有更多数据
     setCurrentPage(1);
     loadWallpaperList();
+    loadFilterTagList('', 1, false); // 重新加载标签列表
   };
 
   const handlePreview = (record: Wallpaper) => {
@@ -889,6 +937,69 @@ const WallpaperList: React.FC = () => {
             onPressEnter={handleSearch}
           />
           <Select
+            mode="multiple"
+            placeholder="选择标签筛选"
+            style={{ width: 300 }}
+            value={searchParams.tag_id ? searchParams.tag_id.split(',').map(Number) : undefined}
+            onChange={(value) => {
+              const tagIds = value && value.length > 0 ? value.join(',') : undefined;
+              setSearchParams({ ...searchParams, tag_id: tagIds });
+            }}
+            onSearch={(value) => {
+              setFilterTagSearchValue(value);
+              setFilterTagPage(1); // 搜索时重置分页
+              setFilterTagHasMore(true); // 重置是否有更多数据
+              loadFilterTagList(value, 1, false); // 根据搜索值重新加载标签列表
+            }}
+            showSearch
+            filterOption={false} // 禁用前端过滤，使用后端搜索
+            options={filterTagList.map(tag => ({
+              label: tag.name,
+              value: tag.id,
+            }))}
+            notFoundContent={filterTagLoading ? '加载中...' : '暂无数据'}
+            allowClear
+            maxTagCount="responsive"
+            onPopupScroll={(e) => {
+              const target = e.target as HTMLElement;
+              // 当滚动到底部时加载更多
+              if (target.scrollTop + target.offsetHeight >= target.scrollHeight - 10) {
+                loadMoreFilterTags();
+              }
+            }}
+            dropdownRender={(menu) => (
+              <>
+                {menu}
+                {filterTagHasMore && !filterTagLoading && (
+                  <div 
+                    style={{ 
+                      padding: '8px', 
+                      textAlign: 'center',
+                      borderTop: '1px solid #f0f0f0',
+                      cursor: 'pointer',
+                      color: '#1890ff'
+                    }}
+                    onClick={loadMoreFilterTags}
+                  >
+                    加载更多...
+                  </div>
+                )}
+                {filterTagLoading && (
+                  <div 
+                    style={{ 
+                      padding: '8px', 
+                      textAlign: 'center',
+                      borderTop: '1px solid #f0f0f0',
+                      color: '#999'
+                    }}
+                  >
+                    加载中...
+                  </div>
+                )}
+              </>
+            )}
+          />
+          <Select
             placeholder="状态"
             style={{ width: 120 }}
             value={searchParams.audit_status}
@@ -1391,6 +1502,26 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
