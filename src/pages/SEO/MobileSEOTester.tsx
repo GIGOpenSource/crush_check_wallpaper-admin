@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Tag, Space, Input, Modal, Form, App, Alert, Statistic, Row, Col, Progress, Breadcrumb, List, Tabs, Badge, Radio, Pagination, Popconfirm } from 'antd';
+const { useForm } = Form;
 import { MobileOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, ScanOutlined, EyeOutlined, ReloadOutlined, FileImageOutlined, CodeOutlined, DatabaseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi, type MobilePageSpeedStatistics, type PageSpeedItem, type PageSpeedDetail, type OptimizationSuggestion } from '../../services/seoApi';
@@ -9,6 +10,7 @@ const { TabPane } = Tabs;
 const MobileSEOTester: React.FC = () => {
   const navigate = useNavigate();
   const { message } = App.useApp();
+  const [form] = useForm();
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PageSpeedDetail | null>(null);
@@ -237,34 +239,41 @@ const MobileSEOTester: React.FC = () => {
   };
 
   const handleTest = async () => {
-    if (!testUrl) {
-      message.warning('请输入要测试的页面URL');
-      return;
-    }
-    
-    setTesting(true);
     try {
-      // 确保路径以 / 开头
-      const path = testUrl.startsWith('/') ? testUrl : `/${testUrl}`;
-      const response = await seoApi.testMobilePageSpeed({
-        page_path: path,
-        platform: 'phone',
-      });
+      const values = await form.validateFields();
+      let path = values.url;
       
-      if (response.code === 200 || response.code === 201) {
-        message.success('移动端页面速度测试已提交，正在后台处理');
-        setTestModalVisible(false);
-        setTestUrl('');
-        fetchStatistics();
-        fetchPageSpeedList();
-      } else {
-        message.error(response.message || '测试提交失败');
+      // 确保路径以 / 开头
+      if (!path.startsWith('/')) {
+        path = '/' + path;
       }
-    } catch (error) {
-      console.error('测试提交失败:', error);
-      message.error('测试提交失败，请稍后重试');
-    } finally {
-      setTesting(false);
+      
+      setTesting(true);
+      try {
+        const response = await seoApi.testMobilePageSpeed({
+          page_path: path,
+          platform: 'phone',
+        });
+        
+        if (response.code === 200 || response.code === 201) {
+          message.success('移动端页面速度测试已提交，正在后台处理');
+          setTestModalVisible(false);
+          form.resetFields();
+          setTestUrl(''); // 清空内部状态以防万一
+          fetchStatistics();
+          fetchPageSpeedList();
+        } else {
+          message.error(response.message || '测试提交失败');
+        }
+      } catch (error) {
+        console.error('测试提交失败:', error);
+        message.error('测试提交失败，请稍后重试');
+      } finally {
+        setTesting(false);
+      }
+    } catch (errorInfo) {
+      console.log('Validate Failed:', errorInfo);
+      // 表单校验失败，Antd 会自动显示错误信息
     }
   };
 
@@ -429,22 +438,26 @@ const MobileSEOTester: React.FC = () => {
         onOk={handleTest}
         onCancel={() => setTestModalVisible(false)}
         confirmLoading={testing}
-        okButtonProps={{ disabled: !testUrl }}
+        okButtonProps={{ disabled: testing }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Form layout="vertical">
+          <Form form={form} layout="vertical" initialValues={{ url: testUrl }}>
             <Form.Item 
+              name="url"
               label="页面URL" 
-              required
-              validateStatus={!testUrl ? 'error' : ''}
-              help={!testUrl ? '请输入页面路径' : ''}
+              rules={[
+                { required: true, message: '请输入页面URL' },
+                {
+                  pattern: /^\/[a-zA-Z0-9\-_\/.]*$/,
+                  message: 'URL只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头',
+                },
+              ]}
+              validateTrigger={['onChange', 'onBlur']}
             >
               <Input
                 placeholder="输入页面路径，如 /wallpaper/nature"
-                value={testUrl}
-                onChange={(e) => setTestUrl(e.target.value)}
                 prefix="/"
-                status={!testUrl ? 'error' : ''}
+                onChange={(e) => setTestUrl(e.target.value)} // 保持同步更新状态如果需要
               />
             </Form.Item>
           </Form>

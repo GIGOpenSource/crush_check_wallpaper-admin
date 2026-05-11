@@ -269,10 +269,26 @@ const ContentOptimizer: React.FC = () => {
   };
 
   const handleAnalyze = async () => {
+    // 表单验证
+    try {
+      await _form.validateFields();
+    } catch (error) {
+      // 验证失败，显示错误提示
+      return;
+    }
+
     if (!analyzeUrl) {
       message.warning('请输入要分析的页面URL');
       return;
     }
+
+    // 正则校验
+    const urlPattern = /^\/[a-zA-Z0-9\-_\/.]*$/;
+    if (!urlPattern.test(analyzeUrl)) {
+      message.error('URL格式错误：只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头');
+      return;
+    }
+
     setAnalyzing(true);
     try {
       const response = await seoApi.analyzeContentOptimization({
@@ -414,16 +430,27 @@ const ContentOptimizer: React.FC = () => {
         onCancel={() => setAnalyzeModalVisible(false)}
         confirmLoading={analyzing}
       >
-        <Form layout="vertical">
+        <Form layout="vertical" form={_form}>
           <Form.Item 
             label="页面URL" 
+            name="pageUrl"
             required
-            rules={[{ required: true, message: '请输入页面URL' }]}
+            rules={[
+              { required: true, message: '请输入页面URL' },
+              {
+                pattern: /^\/[a-zA-Z0-9\-_\/.]*$/,
+                message: 'URL只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头',
+              },
+            ]}
+            validateTrigger={['onChange', 'onBlur']}
           >
             <Input
               placeholder="输入页面路径，如 /wallpaper/nature"
               value={analyzeUrl}
-              onChange={(e) => setAnalyzeUrl(e.target.value)}
+              onChange={(e) => {
+                setAnalyzeUrl(e.target.value);
+                _form.setFieldsValue({ pageUrl: e.target.value });
+              }}
               prefix=""
             />
           </Form.Item>

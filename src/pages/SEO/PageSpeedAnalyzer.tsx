@@ -282,10 +282,18 @@ const PageSpeedAnalyzer: React.FC = () => {
       return;
     }
     
+    // 正则校验
+    const urlPattern = /^\/[a-zA-Z0-9\-_\/.]*$/;
+    const path = testUrl.startsWith('/') ? testUrl : `/${testUrl}`;
+    if (!urlPattern.test(path)) {
+      message.error('URL格式错误：只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头');
+      return;
+    }
+    
     setTesting(true);
     try {
       const response = await seoApi.testPageSpeed({
-        page_path: testUrl.startsWith('/') ? testUrl : `/${testUrl}`,
+        page_path: path,
         platform: 'page',
       });
       
@@ -445,15 +453,20 @@ const PageSpeedAnalyzer: React.FC = () => {
           <Form.Item
             label="页面路径"
             required
-            validateStatus={!testUrl ? 'error' : ''}
-            help={!testUrl ? '请输入页面路径' : ''}
+            rules={[
+              { required: true, message: '请输入页面路径' },
+              {
+                pattern: /^\/[a-zA-Z0-9\-_\/.]*$/,
+                message: 'URL只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头',
+              },
+            ]}
+            validateTrigger={['onChange', 'onBlur']}
           >
             <Input
               placeholder="输入页面路径，如 /wallpaper/nature"
               value={testUrl}
               onChange={(e) => setTestUrl(e.target.value)}
               prefix="/"
-              status={!testUrl ? 'error' : ''}
             />
           </Form.Item>
           <Alert
