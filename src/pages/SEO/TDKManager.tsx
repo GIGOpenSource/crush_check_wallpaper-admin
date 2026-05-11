@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tabs, message, Breadcrumb, Upload, Popconfirm } from 'antd';
+import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tabs, App, Breadcrumb, Upload, Popconfirm } from 'antd';
 import { EditOutlined, EyeOutlined, CopyOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi, type TDKTemplate as ApiTDKTemplate, type PageTDK as ApiPageTDK } from '../../services/seoApi';
@@ -10,6 +10,7 @@ const { Option } = Select;
 
 const TDKManager: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp(); // 使用 App.useApp() 获取 message 实例
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
@@ -42,6 +43,16 @@ const TDKManager: React.FC = () => {
     bingDesc: '',
     bingUrl: '',
   });
+
+  // 导出格式选择状态
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'excel'>('csv');
+  const [exporting, setExporting] = useState(false);
+
+  // 检测重复标题状态
+  const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
+  const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
+  const [detecting, setDetecting] = useState(false);
 
   // 批量选择状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -561,33 +572,118 @@ const TDKManager: React.FC = () => {
     });
   };
 
-  // 导出TDK报告
-  const handleExportTDK = async () => {
+  // 打开导出TDK报告弹窗
+  const handleExportTDK = () => {
+    setExportFormat('csv'); // 默认CSV格式
+    setExportModalVisible(true);
+  };
+
+  // 确认导出TDK报告
+  const handleConfirmExport = async () => {
     try {
-      const blob = await seoApi.exportTDKReport();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tdk-report-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      message.success('TDK报告导出成功');
-    } catch (_err) {
-      message.error('导出失败');
+      console.log('开始导出TDK报告，格式:', exportFormat);
+      setExporting(true);
+      const response: any = await seoApi.exportTDKReport(exportFormat);
+      console.log('导出TDK响应:', response);
+      
+      // 导出接口返回的是Blob类型
+      if (response instanceof Blob) {
+        if (response.size > 0) {
+          const url = URL.createObjectURL(response);
+          const a = document.createElement('a');
+          a.href = url;
+          const extension = exportFormat === 'csv' ? 'csv' : 'xlsx';
+          a.download = `tdk-report-${new Date().toISOString().split('T')[0]}.${extension}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          // 显示成功提示
+          const fileSizeMB = (response.size / 1024 / 1024).toFixed(2);
+          const successMsg = `TDK报告导出成功！文件大小: ${fileSizeMB} MB（${exportFormat.toUpperCase()}格式）`;
+          message.success(successMsg);
+          console.log('显示成功消息:', successMsg);
+          setExportModalVisible(false);
+        } else {
+          message.error('导出失败：文件为空');
+          console.error('导出失败：文件为空');
+        }
+      } else {
+        // 如果不是Blob，可能是普通响应对象
+        if (response.code === 200 || response.code === 201) {
+          const successMsg = response.message || `TDK报告导出成功（${exportFormat.toUpperCase()}格式）`;
+          message.success(successMsg);
+          console.log('显示成功消息:', successMsg);
+          setExportModalVisible(false);
+        } else {
+          const errorMsg = `导出失败（状态码: ${response.code || '未知'}）${response.message || ''}`;
+          message.error(errorMsg);
+          console.error('导出失败:', errorMsg);
+        }
+      }
+    } catch (error: any) {
+      console.error('导出TDK异常:', error);
+      const statusCode = error?.response?.status;
+      if (statusCode === 200 || statusCode === 201) {
+        message.success('导出成功');
+        setExportModalVisible(false);
+      } else {
+        const errorMsg = statusCode ? `导出失败（状态码: ${statusCode}）` : '导出失败';
+        message.error(errorMsg);
+      }
+    } finally {
+      setExporting(false);
     }
   };
 
   // 导入TDK数据
   const handleImportTDK = async (file: File) => {
     try {
-      const res = await seoApi.importTDKData(file);
-      if (res.code === 200) {
-        message.success(`成功导入 ${res.data.imported} 条TDK数据`);
+      console.log('开始导入TDK数据，文件:', file.name);
+      const response: any = await seoApi.importTDKData(file);
+      console.log('导入TDK响应:', response);
+      
+      // 直接使用response，因为拦截器已经返回了data
+      // 检查响应状态码 - 200或201视为成功
+      if (response.code === 200 || response.code === 201) {
+        // 优先使用后端返回的message作为提示
+        if (response.message) {
+          message.success(response.message);
+          console.log('显示成功消息:', response.message);
+        } else {
+          // 如果没有message，使用数据统计信息
+          const successCount = response.data?.success_count || 0;
+          const errorCount = response.data?.error_count || 0;
+          const updateCount = response.data?.update_count || 0;
+          const createCount = response.data?.create_count || 0;
+          
+          const msg = `导入完成！成功${successCount}条（更新${updateCount}条，新增${createCount}条），失败${errorCount}条`;
+          if (errorCount === 0) {
+            message.success(msg);
+          } else {
+            message.warning(msg);
+          }
+          console.log('显示统计消息:', msg);
+        }
+        
+        // 导入成功后刷新页面TDK列表
+        fetchPageTDKs();
+      } else {
+        const errorMsg = `导入失败（状态码: ${response.code || '未知'}）${response.message || ''}`;
+        message.error(errorMsg);
+        console.error('导入失败:', errorMsg);
       }
-    } catch (_err) {
-      message.error('导入失败');
+    } catch (error: any) {
+      console.error('导入TDK异常:', error);
+      const statusCode = error?.response?.status;
+      if (statusCode === 200 || statusCode === 201) {
+        message.success('导入成功');
+        fetchPageTDKs();
+      } else {
+        const errorMsg = statusCode ? `导入失败（状态码: ${statusCode}）` : '导入失败';
+        message.error(errorMsg);
+      }
     }
     return false; // 阻止默认上传行为
   };
@@ -612,6 +708,53 @@ const TDKManager: React.FC = () => {
     });
     
     setPreviewModalVisible(true);
+  };
+
+  // 检测重复标题
+  const handleDetectDuplicateTitles = async () => {
+    try {
+      setDetecting(true);
+      message.loading({ content: '正在检测重复标题...', key: 'detecting' });
+      
+      const response: any = await seoApi.detectDuplicateTitles();
+      console.log('检测重复标题响应:', response);
+      
+      // 检查响应状态码 - 200或201视为成功
+      if (response.code === 200 || response.code === 201) {
+        // 优先使用后端返回的message
+        if (response.message) {
+          message.success({ content: response.message, key: 'detecting' });
+        }
+        
+        // 获取重复标题数据
+        const duplicates = response.data?.duplicates || [];
+        const duplicateCount = response.data?.duplicate_count || duplicates.length;
+        
+        console.log('重复标题数量:', duplicateCount);
+        console.log('重复标题详情:', duplicates);
+        
+        // 设置重复标题数据并打开弹窗
+        setDuplicateResults(duplicates);
+        setDuplicateModalVisible(true);
+        
+        // 如果没有重复标题，关闭弹窗
+        if (duplicateCount === 0) {
+          message.success({ content: '检测完成，未发现重复标题', key: 'detecting' });
+        }
+      } else {
+        message.error({ content: `检测失败（状态码: ${response.code || '未知'}）${response.message || ''}`, key: 'detecting' });
+      }
+    } catch (error: any) {
+      console.error('检测重复标题异常:', error);
+      const statusCode = error?.response?.status;
+      if (statusCode === 200 || statusCode === 201) {
+        message.success({ content: '检测完成', key: 'detecting' });
+      } else {
+        message.error({ content: statusCode ? `检测失败（状态码: ${statusCode}）` : '检测失败', key: 'detecting' });
+      }
+    } finally {
+      setDetecting(false);
+    }
   };
 
   // 模板搜索和重置
@@ -661,7 +804,7 @@ const TDKManager: React.FC = () => {
           <Button type="primary" onClick={() => setBatchModalVisible(true)}>
             批量应用模板
           </Button>
-          <Button onClick={() => message.success('检测完成，未发现重复标题')}>检测重复标题</Button>
+          <Button onClick={handleDetectDuplicateTitles}>检测重复标题</Button>
           <Button icon={<DownloadOutlined />} onClick={handleExportTDK}>导出TDK报告</Button>
           <Upload
             accept=".csv,.xlsx,.xls"
@@ -840,7 +983,12 @@ const TDKManager: React.FC = () => {
               columns={[
                 { title: '重复标题', dataIndex: 'title' },
                 { title: '涉及页面', dataIndex: 'pages', render: (p: string[]) => p.join(', ') },
-                { title: '重复次数', dataIndex: 'count' },
+                { title: '重复次数', dataIndex: 'duplicate_count', key: 'duplicate_count', width: 100, render: (duplicate_count: number) => (
+                    <Tag color={duplicate_count > 5 ? 'error' : duplicate_count > 2 ? 'warning' : 'default'}>
+                      {duplicate_count} 次
+                    </Tag>
+                  ),
+                },
                 { title: '操作', render: () => <Button type="link" onClick={() => message.info('批量修改功能开发中')}>批量修改</Button> },
               ]}
               dataSource={[
@@ -1264,6 +1412,115 @@ const TDKManager: React.FC = () => {
             <Input placeholder="在原有关键词后追加，留空表示不追加" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 导出格式选择弹窗 */}
+      <Modal
+        title="导出TDK报告"
+        open={exportModalVisible}
+        onCancel={() => setExportModalVisible(false)}
+        onOk={handleConfirmExport}
+        confirmLoading={exporting}
+        width={500}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <p style={{ marginBottom: 16, color: '#666' }}>请选择导出文件格式：</p>
+          <Select
+            value={exportFormat}
+            onChange={setExportFormat}
+            style={{ width: '100%' }}
+            size="large"
+          >
+            <Option value="csv">CSV 格式 (.csv)</Option>
+            <Option value="excel">Excel 格式 (.xlsx)</Option>
+          </Select>
+          <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+            <p style={{ margin: 0, fontSize: 12, color: '#999' }}>
+              💡 提示：CSV格式适合快速查看，Excel格式支持更多数据处理功能
+            </p>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 重复标题检测结果弹窗 */}
+      <Modal
+        title="重复标题检测结果"
+        open={duplicateModalVisible}
+        onCancel={() => setDuplicateModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setDuplicateModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={900}
+      >
+        {duplicateResults.length > 0 ? (
+          <div>
+            <Alert
+              message={`发现 ${duplicateResults.length} 个重复标题`}
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            <Table
+              dataSource={duplicateResults}
+              rowKey="title"
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total) => `共 ${total} 条重复标题`,
+              }}
+              scroll={{ y: 500 }}
+              columns={[
+                {
+                  title: '重复标题',
+                  dataIndex: 'title',
+                  key: 'title',
+                  ellipsis: true,
+                  width: 400,
+                },
+                {
+                  title: '重复次数',
+                  dataIndex: 'duplicate_count',
+                  key: 'duplicate_count',
+                  width: 100,
+                  render: (duplicate_count: number) => (
+                    <Tag color={duplicate_count > 5 ? 'error' : duplicate_count > 2 ? 'warning' : 'default'}>
+                      {duplicate_count} 次
+                    </Tag>
+                  ),
+                },
+                {
+                  title: '涉及页面URL',
+                  key: 'urls',
+                  render: (_: unknown, record: any) => {
+                    const urls = Array.isArray(record.urls) ? record.urls : [];
+                    return (
+                      <div style={{ maxHeight: 100, overflowY: 'auto' }}>
+                        {urls.map((item: any, index: number) => {
+                          // 处理urls可能是对象数组的情况
+                          const urlText = typeof item === 'string' ? item : (item.url || JSON.stringify(item));
+                          return (
+                            <div key={index} style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>
+                              {urlText}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  },
+                },
+              ]}
+            />
+          </div>
+        ) : (
+          <Alert
+            message="检测完成，未发现重复标题"
+            type="success"
+            showIcon
+          />
+        )}
       </Modal>
     </div>
   );

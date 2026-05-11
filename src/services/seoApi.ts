@@ -1300,16 +1300,19 @@ export const updateTDKTemplate = async (id: number, data: {
   });
 };
 
-export const exportTDKReport = async (): Promise<Blob> => {
+// 导出TDK报告（支持format参数：csv或excel，默认csv）
+export const exportTDKReport = async (export_format: 'csv' | 'excel' = 'csv'): Promise<Blob> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.exportTDKReport();
   }
-  const response = await axiosInstance.get(`${API_CONFIG.SEO_PREFIX}/tdk/export`, {
+  const response = await axiosInstance.get(`${API_CONFIG.SEO_PREFIX}/tdk/export-tdk-report/`, {
+    params: { export_format },
     responseType: 'blob',
   });
   return response.data;
 };
 
+// 导入TDK数据
 export const importTDKData = async (file: File): Promise<ApiResponse<{
   imported: number;
   failed: number;
@@ -1323,10 +1326,30 @@ export const importTDKData = async (file: File): Promise<ApiResponse<{
   const formData = new FormData();
   formData.append('file', file);
   return request({
-    url: `${API_CONFIG.SEO_PREFIX}/tdk/import`,
+    url: `${API_CONFIG.SEO_PREFIX}/tdk/import_tdk_report/`,
     method: 'POST',
     data: formData,
     headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+// 检测重复标题
+export interface DuplicateTitleResult {
+  title: string;
+  duplicate_count: number;
+  urls: string[];
+}
+
+export const detectDuplicateTitles = async (): Promise<ApiResponse<{
+  duplicate_count: number;
+  duplicates: DuplicateTitleResult[];
+}>> => {
+  if (API_CONFIG.USE_MOCK) {
+    return seoMockApi.detectDuplicateTitles();
+  }
+  return request({
+    url: `${API_CONFIG.SEO_PREFIX}/tdk/detect_duplicate_titles/`,
+    method: 'GET',
   });
 };
 
@@ -2175,6 +2198,7 @@ export const seoApi = {
   updateTDKTemplate,
   exportTDKReport,
   importTDKData,
+  detectDuplicateTitles,
   
   // Google Search Console
   getSearchConsoleData,
