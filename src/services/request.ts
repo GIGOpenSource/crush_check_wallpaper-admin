@@ -144,7 +144,7 @@ service.interceptors.response.use(
     const customConfig = error.config as CustomRequestConfig;
     
     // 处理HTTP错误状态码
-    let errorMessage = '网络错误，请稍后重试';
+    let errorMessage = '获取数据失败，请检查网络';
     
     if (error.response) {
       // 尝试从响应中获取错误信息
@@ -154,7 +154,7 @@ service.interceptors.response.use(
       } else {
         switch (error.response.status) {
           case 400:
-            errorMessage = '请求参数错误';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           case 401:
             errorMessage = '登录已过期，请重新登录';
@@ -169,34 +169,34 @@ service.interceptors.response.use(
             }
             break;
           case 403:
-            errorMessage = '没有权限执行此操作';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           case 404:
-            errorMessage = '请求的资源不存在';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           case 408:
-            errorMessage = '请求超时';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           case 500:
-            errorMessage = '服务器内部错误';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           case 502:
-            errorMessage = '网关错误';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           case 503:
-            errorMessage = '服务不可用';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           case 504:
-            errorMessage = '网关超时';
+            errorMessage = '获取数据失败，请检查网络';
             break;
           default:
-            errorMessage = `请求失败: ${error.response.status}`;
+            errorMessage = '获取数据失败，请检查网络';
         }
       }
     } else if (error.code === 'ECONNABORTED') {
-      errorMessage = '请求超时，请检查网络连接';
+      errorMessage = '获取数据失败，请检查网络';
     } else if (error.message === 'Network Error') {
-      errorMessage = '网络连接失败，请检查网络设置';
+      errorMessage = '获取数据失败，请检查网络';
     }
 
     // 根据配置决定如何显示错误消息

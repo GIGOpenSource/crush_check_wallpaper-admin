@@ -245,9 +245,8 @@ const ContentOptimizer: React.FC = () => {
 
   const handleOptimize = async (record: ContentOptimizationPage) => {
     setSelectedPage(record);
-    setOptimizeModalVisible(true);
     
-    // 并行加载三个接口的数据
+    // 先加载数据，成功后再打开弹窗
     try {
       const [suggestionsRes, issuesRes, overviewRes] = await Promise.all([
         competitorApi.getContentOptimizationSuggestions(record.id),
@@ -262,9 +261,14 @@ const ContentOptimizer: React.FC = () => {
         issues: issuesRes.data || [],
         ...overviewRes.data, // 展开内容分析概览数据（包含 content_score, word_count, issue_count, optimization_checklist）
       });
+      
+      // 数据获取成功后再打开弹窗
+      setOptimizeModalVisible(true);
     } catch (error) {
       console.error('获取优化数据失败:', error);
-      message.error('获取优化数据失败');
+      message.error('获取优化数据失败，请检查网络');
+      // 重置选中页面
+      setSelectedPage(null);
     }
   };
 
