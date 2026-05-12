@@ -584,49 +584,41 @@ const TDKManager: React.FC = () => {
     try {
       console.log('开始导出TDK报告，格式:', exportFormat);
       setExporting(true);
-      const response: any = await seoApi.exportTDKReport(exportFormat);
+      
+      // 获取完整的 AxiosResponse 对象
+      const response = await seoApi.exportTDKReport(exportFormat);
       console.log('导出TDK响应:', response);
       
-      // 检查响应状态码 - 200或201视为成功
-      if (response.code === 200 || response.code === 201) {
-        // 获取download_url
-        const downloadUrl = response.data?.download_url;
+      // 从 response.data 中获取 Blob 数据
+      const blob = response.data;
+      
+      // 检查返回的是否为有效的 Blob 对象
+      if (blob && blob instanceof Blob && blob.size > 0) {
+        // 创建下载链接
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        // 根据导出格式设置文件名
+        const extension = exportFormat === 'excel' ? 'xlsx' : 'csv';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+        link.download = `tdk_report_${timestamp}.${extension}`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        // 释放 URL 对象
+        window.URL.revokeObjectURL(url);
         
-        if (downloadUrl) {
-          // 直接使用download_url进行下载
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = ''; // 让浏览器使用响应中的文件名
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // 显示成功提示
-          const count = response.data?.count || 0;
-          const successMsg = `TDK报告导出成功！共 ${count} 条数据（${exportFormat.toUpperCase()}格式）`;
-          message.success(successMsg);
-          console.log('显示成功消息:', successMsg);
-          setExportModalVisible(false);
-        } else {
-          message.error('导出失败：未获取到下载链接');
-          console.error('导出失败：响应中未包含download_url');
-        }
+        // 显示成功提示
+        const fileSizeKB = (blob.size / 1024).toFixed(2);
+        message.success(`TDK报告导出成功！（${fileSizeKB} KB）`);
+        setExportModalVisible(false);
       } else {
-        const errorMsg = `导出失败（状态码: ${response.code || '未知'}）${response.message || ''}`;
-        message.error(errorMsg);
-        console.error('导出失败:', errorMsg);
+        message.error('导出失败：未获取到有效的文件数据');
       }
     } catch (error: any) {
       console.error('导出TDK异常:', error);
-      const statusCode = error?.response?.status;
-      if (statusCode === 200 || statusCode === 201) {
-        message.success('导出成功');
-        setExportModalVisible(false);
-      } else {
-        const errorMsg = statusCode ? `导出失败（状态码: ${statusCode}）` : '导出失败';
-        message.error(errorMsg);
-      }
+      message.error('导出失败，请重试');
     } finally {
       setExporting(false);
     }

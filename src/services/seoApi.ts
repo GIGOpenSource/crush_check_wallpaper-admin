@@ -38,6 +38,12 @@ const createAxiosInstance = (): AxiosInstance => {
   instance.interceptors.response.use(
     (response: AxiosResponse<ApiResponse>) => {
       const { data } = response;
+      
+      // 如果是 Blob 响应（文件下载），直接返回，不检查 code 字段
+      if (data instanceof Blob) {
+        return response;
+      }
+      
       // 支持 200 和 201 状态码都视为成功
       if (data.code !== API_CODE.SUCCESS && data.code !== 201) {
         // 不在API层显示错误提示，由业务层自行处理
@@ -1300,26 +1306,33 @@ export const updateTDKTemplate = async (id: number, data: {
   });
 };
 
-// 导出TDK报告（支持format参数：csv或excel，默认csv）
-export const exportTDKReport = async (export_format: 'csv' | 'excel' = 'csv'): Promise<ApiResponse<{
-  download_url: string;
-  count: number;
-  format: string;
-  message: string;
-}>> => {
+// 导出TDK报告（支持export_format参数：csv或excel，默认csv）
+// 注意：新接口直接返回 Blob 二进制文件流，不是 JSON 格式
+export const exportTDKReport = async (
+  export_format: 'csv' | 'excel' = 'csv'
+): Promise<AxiosResponse> => {
   if (API_CONFIG.USE_MOCK) {
     return seoMockApi.exportTDKReport();
   }
-  return request<{
-    download_url: string;
-    count: number;
-    format: string;
-    message: string;
-  }>({
-    url: `${API_CONFIG.SEO_PREFIX}/tdk/export-tdk-report/`,
-    method: 'get',
-    params: { export_format },
-  });
+
+  try {
+    const res = await axiosInstance.get(`${API_CONFIG.SEO_PREFIX}/tdk/export-tdk-download/`, {
+      params: { export_format },
+      responseType: 'blob',
+      transformResponse: [(data) => data],
+    });
+    console.log(res,'rrr')
+
+    // 检查响应状态码，200 或 201 都视为成功
+    if (res.status === 200 || res.status === 201) {
+      return res;
+    } else {
+      throw new Error(`导出失败，状态码: ${res.status}`);
+    }
+  } catch (error) {
+    console.error('导出TDK报表失败:', error);
+    throw error;
+  }
 };
 
 // 导入TDK数据
