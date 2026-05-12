@@ -342,6 +342,7 @@ const DailyAudit: React.FC = () => {
 
   // 加载历史记录对比数据
   const loadHistoryComparison = async () => {
+    console.log('加载历史记录对比数据',selectedHistoryDates);
     if (!selectedHistoryDates || !selectedHistoryDates[0] || !selectedHistoryDates[1]) {
       message.warning('请选择两个日期进行对比');
       return;
@@ -1112,6 +1113,7 @@ const DailyAudit: React.FC = () => {
       >
         <Space style={{ marginBottom: 16 }}>
           <RangePicker
+            value={selectedHistoryDates}
             onChange={(dates) => setSelectedHistoryDates(dates as [Dayjs | null, Dayjs | null])}
             placeholder={['选择日期A', '选择日期B']}
           />
