@@ -1,0 +1,1 @@
+import{y as e}from"./index-C0D-bwic.js";export default e();

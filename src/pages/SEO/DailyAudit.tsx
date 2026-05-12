@@ -461,14 +461,14 @@ const DailyAudit: React.FC = () => {
       key: 'suggestion',
       ellipsis: true,
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 100,
-      render: (_: unknown, record: InspectionItem) => (
-        record.status !== 'normal' && <Button type="link" size="small" onClick={() => message.info('处理功能开发中')}>处理</Button>
-      ),
-    },
+    // {
+    //   title: '操作',
+    //   key: 'action',
+    //   width: 100,
+    //   render: (_: unknown, record: InspectionItem) => (
+    //     record.status !== 'normal' && <Button type="link" size="small" onClick={() => message.info('处理功能开发中')}>处理</Button>
+    //   ),
+    // },
   ];
 
   const getStatusBadge = (data: InspectionItem[]) => {
@@ -1066,7 +1066,7 @@ const DailyAudit: React.FC = () => {
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <Button type="link" size="small" onClick={() => message.info('处理功能开发中')}>处理</Button>,
+                    // <Button type="link" size="small" onClick={() => message.info('处理功能开发中')}>处理</Button>,
                   ]}
                 >
                   <List.Item.Meta
