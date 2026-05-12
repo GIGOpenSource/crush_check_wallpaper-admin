@@ -87,7 +87,7 @@ const RobotsManager: React.FC = () => {
       width: 120,
       render: (_: unknown, record: RobotsRule) => (
         <Space size={4}>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => message.info('查看功能开发中')}>查看</Button>
+          {/* <Button type="link" icon={<EyeOutlined />} onClick={() => message.info('查看功能开发中')}>查看</Button> */}
           <Popconfirm
             title="删除规则"
             description="确定要删除这条 Robots 规则吗？删除后将立即生效。"

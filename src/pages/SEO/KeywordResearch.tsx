@@ -3,6 +3,7 @@ import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic
 import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
+import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
 
 const { TabPane } = Tabs;
 const { Search } = Input;
@@ -43,6 +44,27 @@ const KeywordResearch: React.FC = () => {
   // 收藏的关键词
   const [favorites, setFavorites] = useState<Keyword[]>([]);
   const [, setActiveTab] = useState('hot');
+  
+  // 关键词统计数据
+  const [dashboardStats, setDashboardStats] = useState<KeywordDashboardStatistics>({
+    total_count: 0,
+    long_tail_count: 0,
+    today_new: 0,
+    optimized_count: 0,
+  });
+
+  // 加载关键词数据统计
+  const loadDashboardStats = async () => {
+    try {
+      const res = await getKeywordDashboardStatistics();
+      // API 拦截器已直接返回 res.data，所以 res 就是统计数据对象
+      if (res) {
+        setDashboardStats(res);
+      }
+    } catch (_err) {
+      console.error('加载关键词统计数据失败');
+    }
+  };
 
   const loadKeywords = async () => {
     if (!searchValue) return;
@@ -73,6 +95,11 @@ const KeywordResearch: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.current, pagination.pageSize]);
+
+  // 加载关键词数据统计
+  useEffect(() => {
+    loadDashboardStats();
+  }, []);
 
   // 静态数据已移除，使用API获取真实数据
 
@@ -279,7 +306,7 @@ const KeywordResearch: React.FC = () => {
           <Card>
             <Statistic
               title="关键词库"
-              value={25680}
+              value={dashboardStats.total_count}
               prefix={<StarOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -289,7 +316,7 @@ const KeywordResearch: React.FC = () => {
           <Card>
             <Statistic
               title="长尾词"
-              value={12560}
+              value={dashboardStats.long_tail_count}
               prefix={<FireOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -299,7 +326,7 @@ const KeywordResearch: React.FC = () => {
           <Card>
             <Statistic
               title="今日新增"
-              value={128}
+              value={dashboardStats.today_new}
               prefix={<RiseOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -309,7 +336,7 @@ const KeywordResearch: React.FC = () => {
           <Card>
             <Statistic
               title="已优化"
-              value={8920}
+              value={dashboardStats.optimized_count}
               prefix={<StarOutlined />}
               valueStyle={{ color: '#722ed1' }}
             />
