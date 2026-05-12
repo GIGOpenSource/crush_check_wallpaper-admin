@@ -96,7 +96,7 @@ const AdminLayout: React.FC = () => {
       icon: <BarChartOutlined />,
       label: '数据统计',
       children: [
-        { key: '/statistics', label: '综合统计' },
+        // { key: '/statistics', label: '综合统计' },
         { key: '/statistics/pages', label: '页面类型统计' },
       ],
     },
