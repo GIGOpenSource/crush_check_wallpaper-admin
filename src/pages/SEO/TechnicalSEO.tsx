@@ -369,7 +369,7 @@ const TechnicalSEO: React.FC = () => {
       </Breadcrumb>
       <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
         <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
-        技术优化检查
+        技术优化检查（未开发）
       </h2>
 
       {/* 操作栏 */}

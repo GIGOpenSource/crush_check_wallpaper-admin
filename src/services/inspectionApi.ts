@@ -218,6 +218,66 @@ const getInspectionLogs = (params?: GetInspectionLogParams) => {
   });
 };
 
+/**
+ * 历史记录对比请求参数
+ */
+export interface CompareReportParams {
+  category: string;                    // 巡查类别
+  site_url: string;                    // 站点URL
+  timestamp_a: number;                 // 时间戳A（秒级）
+  timestamp_b: number;                 // 时间戳B（秒级）
+}
+
+/**
+ * 历史记录对比响应数据类型
+ */
+export interface CompareReportItem {
+  inspection_item: string;             // 检查项标识
+  inspection_item_display: string;     // 检查项显示名称
+  difference: number;                  // 差异值
+  status_a: string;                    // 日期A的状态
+  status_b: string;                    // 日期B的状态
+  time_a: string;                      // 日期A的时间
+  time_b: string;                      // 日期B的时间
+  trend: string;                       // 趋势：stable/improved/worsened
+  value_a: string;                     // 日期A的值
+  value_b: string;                     // 日期B的值
+}
+
+export interface CompareReportResponse {
+  results: CompareReportItem[];
+}
+
+/**
+ * 获取历史记录对比数据
+ * @param params 对比参数
+ * @returns 对比结果
+ */
+const compareReport = (params: CompareReportParams) => {
+  return http.get<CompareReportResponse>('/seo/inspection/inspection/compare_report/', {
+    category: params.category,
+    site_url: params.site_url,
+    timestamp_a: params.timestamp_a,
+    timestamp_b: params.timestamp_b,
+  });
+};
+
+/**
+ * 导出巡查报告
+ * @param params 导出参数
+ * @returns Blob 文件流
+ */
+const exportReport = (params: { category: string; site_url: string }) => {
+  return http.get<Blob>(
+    '/seo/inspection/inspection/export_report/',
+    {
+      category: params.category,
+      site_url: params.site_url,
+    },
+    { responseType: 'blob' }
+  );
+};
+
 // 导出API对象
 export const inspectionApi = {
   getInspectionList,
@@ -226,4 +286,6 @@ export const inspectionApi = {
   saveAlertRules,
   runInspection,
   getInspectionLogs,
+  compareReport,
+  exportReport,
 };

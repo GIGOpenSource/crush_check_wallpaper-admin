@@ -18,6 +18,7 @@ export interface PageDetail {
   page_name: string;
   page_path: string;
   page_type: 'desktop' | 'mobile' | 'responsive' | 'hybrid';
+  device_type?: 'pc' | 'mobile' | 'ipad';  // 添加设备类型字段
   visit_count: number;
   avg_stay_time: number;
   bounce_rate: number;

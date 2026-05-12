@@ -145,6 +145,21 @@ const PageTypeStatistics: React.FC = () => {
     return <Tag color={color}>{text}</Tag>;
   };
 
+  const getDeviceTypeTag = (deviceType?: string) => {
+    if (!deviceType) return <Tag>-</Tag>;
+    const deviceMap: Record<string, { color: string; text: string; icon?: React.ReactNode }> = {
+      pc: { color: 'blue', text: 'PC', icon: <DesktopOutlined /> },
+      mobile: { color: 'green', text: 'Mobile', icon: <MobileOutlined /> },
+      ipad: { color: 'purple', text: 'iPad', icon: <GlobalOutlined /> },
+    };
+    const deviceInfo = deviceMap[deviceType] || { color: 'default', text: deviceType };
+    return (
+      <Tag color={deviceInfo.color} icon={deviceInfo.icon}>
+        {deviceInfo.text}
+      </Tag>
+    );
+  };
+
   const getSeoProgress = (score: number) => {
     let status: 'success' | 'normal' | 'exception' = 'normal';
     if (score >= 90) status = 'success';
@@ -183,6 +198,13 @@ const PageTypeStatistics: React.FC = () => {
       //   { text: '混合式', value: 'hybrid' },
       // ],
       // onFilter: (value: React.Key | boolean, record: PageDetail) => record.page_type === value,
+    },
+    {
+      title: '设备类型',
+      dataIndex: 'device_type',
+      key: 'device_type',
+      width: 120,
+      render: (deviceType?: string) => getDeviceTypeTag(deviceType),
     },
     {
       title: '访问量',
