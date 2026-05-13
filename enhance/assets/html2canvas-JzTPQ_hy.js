@@ -1,0 +1,1 @@
+import{y as e}from"./index-CgF45JOi.js";export default e();

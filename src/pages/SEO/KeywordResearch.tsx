@@ -61,6 +61,7 @@ const KeywordResearch: React.FC = () => {
 
   // 导出类型选择弹窗状态
   const [exportTypeModalVisible, setExportTypeModalVisible] = useState(false);
+  const [exportType, setExportType] = useState<'hot' | 'long_tail' | 'normal'>('hot');
 
   // 关键词统计数据
   const [dashboardStats, setDashboardStats] = useState<KeywordDashboardStatistics>({
@@ -838,7 +839,7 @@ const KeywordResearch: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `keywords_${keywordType}_${new Date().getTime()}.xlsx`;
+      a.download = `keywords_${keywordType}_${new Date().getTime()}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -882,53 +883,44 @@ const KeywordResearch: React.FC = () => {
         title="选择导出类型"
         open={exportTypeModalVisible}
         onCancel={() => setExportTypeModalVisible(false)}
-        footer={null}
+        onOk={() => {
+          if (!exportType) {
+            message.warning('请选择导出类型');
+            return;
+          }
+          handleExportData(exportType);
+        }}
+        okText="确认导出"
+        cancelText="取消"
         width={500}
       >
         <div style={{ padding: '20px 0' }}>
-          <Space direction="vertical" style={{ width: '100%' }} size="large">
-            <Button 
-              type="default" 
-              block 
-              size="large"
-              icon={<FireOutlined />}
-              onClick={() => handleExportData('hot')}
-              style={{ textAlign: 'left', height: 'auto', padding: '16px' }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '16px', fontWeight: 500 }}>热门关键词</span>
-                <span style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>导出当前热门关键词数据</span>
-              </div>
-            </Button>
-            
-            <Button 
-              type="default" 
-              block 
-              size="large"
-              icon={<RiseOutlined />}
-              onClick={() => handleExportData('long_tail')}
-              style={{ textAlign: 'left', height: 'auto', padding: '16px' }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '16px', fontWeight: 500 }}>长尾关键词</span>
-                <span style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>导出长尾关键词数据</span>
-              </div>
-            </Button>
-            
-            <Button 
-              type="default" 
-              block 
-              size="large"
-              icon={<StarOutlined />}
-              onClick={() => handleExportData('normal')}
-              style={{ textAlign: 'left', height: 'auto', padding: '16px' }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '16px', fontWeight: 500 }}>我的词库</span>
-                <span style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>导出个人词库中的关键词数据</span>
-              </div>
-            </Button>
-          </Space>
+          <Select
+            value={exportType}
+            onChange={(value) => setExportType(value)}
+            placeholder="请选择要导出的关键词类型"
+            size="large"
+            style={{ width: '100%' }}
+          >
+            <Select.Option value="hot">
+              <Space>
+                <FireOutlined />
+                <span>热门关键词 - 导出当前热门关键词数据</span>
+              </Space>
+            </Select.Option>
+            <Select.Option value="long_tail">
+              <Space>
+                <RiseOutlined />
+                <span>长尾关键词 - 导出长尾关键词数据</span>
+              </Space>
+            </Select.Option>
+            <Select.Option value="normal">
+              <Space>
+                <StarOutlined />
+                <span>我的词库 - 导出个人词库中的关键词数据</span>
+              </Space>
+            </Select.Option>
+          </Select>
         </div>
       </Modal>
 
