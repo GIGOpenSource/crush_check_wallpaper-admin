@@ -703,7 +703,7 @@ const DailyAudit: React.FC = () => {
           <Card>
             <Statistic
               title="检查时间"
-              value={dashboardData.inspected_at ? new Date(dashboardData.inspected_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              value={dashboardData.inspected_at ? dayjs(dashboardData.inspected_at).format('YYYY-MM-DD HH:mm') : '--:--'}
             />
           </Card>
         </Col>
@@ -740,12 +740,12 @@ const DailyAudit: React.FC = () => {
                 </div>
               </div>
             )}
-            <Alert
+            {/* <Alert
               message="Google indexing status normal, Core Web Vitals passing for all pages"
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
-            />
+            /> */}
 
             <Table
               columns={columns}
@@ -794,12 +794,12 @@ const DailyAudit: React.FC = () => {
                 </div>
               </div>
             )}
-            <Alert
+            {/* <Alert
               message="发现12个404错误页面和23个TDK缺失页面，建议尽快修复"
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-            />
+            /> */}
 
             <Table
               columns={columns}
@@ -952,22 +952,18 @@ const DailyAudit: React.FC = () => {
                   <Timeline
                     items={inspectionLogs.map((log: any) => {
                       // 优先使用 start_date，兼容 start_time
-                      const startDate = log.start_date || log.start_time;
+                      const startDate = log.start_date || log.start_time ;
                       const endDate = log.end_date || log.end_time;
 
                       let timeDisplay = '--:--';
                       if (startDate) {
-                        const date = new Date(startDate);
-                        const hours = String(date.getHours()).padStart(2, '0');
-                        const minutes = String(date.getMinutes()).padStart(2, '0');
-                        timeDisplay = `${hours}:${minutes}`;
+                        const date = dayjs(startDate);
+                        timeDisplay = date.format('YYYY-MM-DD HH:mm');
 
                         // 如果有结束时间，显示时间段
                         if (endDate) {
-                          const endDateObj = new Date(endDate);
-                          const endHours = String(endDateObj.getHours()).padStart(2, '0');
-                          const endMinutes = String(endDateObj.getMinutes()).padStart(2, '0');
-                          timeDisplay = `${hours}:${minutes} - ${endHours}:${endMinutes}`;
+                          const endDateObj = dayjs(endDate);
+                          timeDisplay = `${date.format('YYYY-MM-DD HH:mm')} - ${endDateObj.format('YYYY-MM-DD HH:mm')}`;
                         }
                       }
 
