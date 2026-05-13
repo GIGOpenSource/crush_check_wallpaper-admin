@@ -4,7 +4,7 @@ import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutli
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
-import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, updateKeyword, deleteKeyword, exportKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse, type UpdateKeywordParams } from '../../services/keywordApi';
+import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, updateKeyword, deleteKeyword, exportKeywords, exportCompetitorKeywordLibrary, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse, type UpdateKeywordParams } from '../../services/keywordApi';
 import { getCompetitorAnalysisList, getCompetitorAnalysisDetail, type CompetitorAnalysisItem, type CompetitorAnalysisDetail } from '../../services/keywordApi';
 
 const { TabPane } = Tabs;
@@ -792,6 +792,33 @@ const KeywordResearch: React.FC = () => {
     }
   };
 
+  // 导出竞品分析词库
+  const handleExportCompetitorKeywords = async (id: number, url: string) => {
+    try {
+      setLoading(true);
+      const blob = await exportCompetitorKeywordLibrary(id);
+      
+      // 创建下载链接
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      // 从URL中提取域名作为文件名
+      const domain = url.replace(/https?:\/\//, '').replace(/\/$/, '') || 'competitor';
+      a.download = `${domain}_词库_${new Date().getTime()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      
+      message.success('词库导出成功');
+    } catch (error) {
+      console.error('导出词库失败:', error);
+      message.error('导出词库失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 查看竞品分析详情
   const handleViewCompetitorDetail = async (record: CompetitorAnalysisItem) => {
     setSelectedCompetitorAnalysis(record);
@@ -1130,7 +1157,7 @@ const KeywordResearch: React.FC = () => {
                   </div>
                   <div>
                     <Button style={{ marginRight: 10 }} onClick={() => handleViewCompetitorDetail(item)}>查看详情</Button>
-                    <Button type="primary">导出词库</Button>
+                    <Button type="primary" onClick={() => handleExportCompetitorKeywords(item.id, item.url)}>导出词库</Button>
                   </div>
                 </List.Item>
               )}

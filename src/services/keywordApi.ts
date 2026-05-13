@@ -331,3 +331,13 @@ export function exportKeywords(params: ExportKeywordsParams): Promise<Blob> {
     responseType: 'blob',
   });
 }
+
+/**
+ * 导出竞品分析词库
+ * @param id 竞品分析ID
+ */
+export function exportCompetitorKeywordLibrary(id: number): Promise<Blob> {
+  return http.get<Blob>(`/seo/competitor-analysis/${id}/export/`, undefined, {
+    responseType: 'blob',
+  });
+}
