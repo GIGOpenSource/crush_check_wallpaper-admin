@@ -313,3 +313,21 @@ export function getCompetitorAnalysisList(params: GetCompetitorAnalysisListParam
 export function getCompetitorAnalysisDetail(id: number): Promise<CompetitorAnalysisDetail> {
   return http.get<CompetitorAnalysisDetail>(`/seo/competitor-analysis/${id}/`);
 }
+
+/**
+ * 导出关键词请求参数
+ */
+export interface ExportKeywordsParams {
+  keyword_type: 'hot' | 'long_tail' | 'normal';  // 关键词类型
+  select_all: boolean;                // 是否导出全部
+}
+
+/**
+ * 导出关键词数据
+ * @param params 导出参数
+ */
+export function exportKeywords(params: ExportKeywordsParams): Promise<Blob> {
+  return http.get<Blob>('/seo/keyword/export_keywords/', params, {
+    responseType: 'blob',
+  });
+}
