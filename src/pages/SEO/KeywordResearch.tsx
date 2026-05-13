@@ -4,7 +4,7 @@ import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutli
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
-import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, updateKeyword, deleteKeyword, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse, type UpdateKeywordParams } from '../../services/keywordApi';
+import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, updateKeyword, deleteKeyword, exportKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse, type UpdateKeywordParams } from '../../services/keywordApi';
 import { getCompetitorAnalysisList, getCompetitorAnalysisDetail, type CompetitorAnalysisItem, type CompetitorAnalysisDetail } from '../../services/keywordApi';
 
 const { TabPane } = Tabs;
@@ -811,6 +811,43 @@ const KeywordResearch: React.FC = () => {
     }
   };
 
+  // 导出数据
+  const handleExportData = async () => {
+    try {
+      setLoading(true);
+      // 根据当前激活的tab确定keyword_type
+      let keywordType: 'hot' | 'long_tail' | 'normal' = 'hot';
+      if (activeTab === 'longtail') {
+        keywordType = 'long_tail';
+      } else if (activeTab === 'mykeywords') {
+        keywordType = 'normal';
+      }
+      
+      // 调用导出接口
+      const blob = await exportKeywords({
+        keyword_type: keywordType,
+        select_all: true,
+      });
+      
+      // 创建下载链接
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `keywords_${keywordType}_${new Date().getTime()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      message.success('数据导出成功');
+    } catch (error) {
+      console.error('导出数据失败:', error);
+      message.error('导出数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
@@ -823,7 +860,7 @@ const KeywordResearch: React.FC = () => {
           关键词挖掘
         </h2>
         <Space>
-          <Button icon={<DownloadOutlined />} type="primary" onClick={() => message.success('数据导出成功')}>导出数据</Button>
+          <Button icon={<DownloadOutlined />} type="primary" onClick={handleExportData} loading={loading}>导出数据</Button>
 
         </Space>
       </div>
