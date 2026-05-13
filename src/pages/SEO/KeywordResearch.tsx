@@ -329,6 +329,46 @@ const KeywordResearch: React.FC = () => {
     }
   };
 
+  // 长尾关键词收藏/取消收藏
+  const handleLongTailToggleFavorite = async (record: LongTailKeyword) => {
+    try {
+      const isFav = isFavorite(record.id);
+      
+      // 调用批量收藏接口
+      await batchFavoriteKeywords({
+        ids: [record.id],
+        is_favorite: !isFav,
+      });
+      
+      // 更新本地状态
+      if (isFav) {
+        setFavorites(prev => prev.filter(k => k.id !== record.id));
+        message.success(`已取消收藏 "${record.keyword}"`);
+      } else {
+        // 将长尾关键词转换为Keyword格式后添加到收藏
+        const keywordData: Keyword = {
+          id: record.id,
+          keyword: record.keyword,
+          searchVolume: record.searchVolume,
+          difficulty: record.difficulty,
+          cpc: 0,
+          trend: 'stable',
+          competition: 'medium',
+          relatedCount: 0,
+          category: '',
+        };
+        setFavorites(prev => [...prev, keywordData]);
+        message.success(`已收藏 "${record.keyword}"`);
+      }
+      
+      // 刷新当前列表数据
+      loadKeywords();
+    } catch (error) {
+      console.error('收藏操作失败:', error);
+      message.error('收藏操作失败');
+    }
+  };
+
   const columns = [
     {
       title: '关键词',
@@ -413,6 +453,34 @@ const KeywordResearch: React.FC = () => {
       dataIndex: 'recommendation',
       key: 'recommendation',
     },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, record: LongTailKeyword) => {
+        const isFav = isFavorite(record.id);
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <span
+              style={{
+                color: isFav ? '#1890ff' : '#1890ff',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              onClick={() => handleLongTailToggleFavorite(record)}
+            >
+              {isFav ? (
+                <HeartFilled style={{ fontSize: '16px' }} />
+              ) : (
+                <HeartOutlined style={{ fontSize: '16px' }} />
+              )}
+              <span>收藏</span>
+            </span>
+          </div>
+        );
+      },
+    },
   ];
 
   const competitorKeywords = [
@@ -429,6 +497,68 @@ const KeywordResearch: React.FC = () => {
       topKeywords: ['keyword4', 'keyword5', 'keyword6'],
     },
   ];
+
+  const [generateKeyword, setGenerateKeyword] = useState('');
+  const [generatePos, setGeneratePos] = useState('');
+  const [generateModifiers, setGenerateModifiers] = useState('');
+  const [generateForm] = Form.useForm();
+
+  // 生成长尾词
+  const handleGenerateLongTail = async () => {
+    try {
+      const values = await generateForm.validateFields();
+      
+      if (!values.parent_keyword.trim()) {
+        message.warning('请输入核心词');
+        return;
+      }
+
+      setLoading(true);
+      console.log('开始调用AI扩展长尾词接口...');
+      const res = await aiExpandLongTail({ 
+        parent_keyword: values.parent_keyword.trim(),
+        pos: values.pos,
+        modifiers: values.modifiers || '',
+      });
+      console.log('AI扩展接口返回结果:', res);
+      
+      // 拦截器已经直接返回data，res就是AIExpandLongTailResponse类型
+      if (res && res.keywords && Array.isArray(res.keywords)) {
+        const keywordsArray = res.keywords;
+        const converted = keywordsArray.map((item: any) => ({
+          id: item.id || Date.now() + Math.random(),
+          keyword: item.long_tail_keyword || item.keyword || '',
+          parentKeyword: item.parent_keyword || values.parent_keyword,
+          searchVolume: item.monthly_search_volume || 0,
+          difficulty: item.optimization_difficulty || 0,
+          recommendation: (item.optimization_difficulty || 0) < 40 ? '强烈推荐' : (item.optimization_difficulty || 0) < 60 ? '推荐' : '一般',
+        }));
+        setLongTailKeywords(converted);
+        setPagination(prev => ({ ...prev, total: res.total || converted.length, current: 1 }));
+        
+        console.log(`成功生成 ${converted.length} 个长尾关键词`);
+        message.success(`成功为 "${values.parent_keyword.trim()}" 生成 ${converted.length} 个长尾关键词`);
+        
+        // 清空表单数据
+        generateForm.resetFields();
+      }
+      
+      // 刷新列表数据
+      await loadKeywords();
+    } catch (err: any) {
+      if (err.errorFields) {
+        // Form 验证失败
+        return;
+      }
+      console.error('生成长尾词失败:', err);
+      const keyword = generateForm.getFieldValue('parent_keyword') || '未知';
+      message.error(`为 "${keyword}" 生成长尾词失败`);
+      // 失败后也要刷新列表
+      await loadKeywords();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
@@ -555,21 +685,42 @@ const KeywordResearch: React.FC = () => {
             </Col>
             <Col xs={24} lg={8}>
               <Card title="生成工具">
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Input placeholder="输入核心词" />
-                  <Select placeholder="选择词性" style={{ width: '100%' }}>
-                    <Select.Option value="noun">名词</Select.Option>
-                    <Select.Option value="adj">形容词</Select.Option>
-                    <Select.Option value="verb">动词</Select.Option>
-                  </Select>
-                  <Select placeholder="选择修饰词" style={{ width: '100%' }} mode="multiple">
-                    <Select.Option value="4k">4K</Select.Option>
-                    <Select.Option value="hd">高清</Select.Option>
-                    <Select.Option value="free">免费</Select.Option>
-                    <Select.Option value="download">下载</Select.Option>
-                  </Select>
-                  <Button type="primary" block onClick={() => message.success('长尾词生成成功')}>生成长尾词</Button>
-                </Space>
+                <Form form={generateForm} layout="vertical">
+                  <Form.Item
+                    name="parent_keyword"
+                    label="核心词"
+                    rules={[{ required: true, message: '请输入核心词' }]}
+                  >
+                    <Input placeholder="请输入核心词" />
+                  </Form.Item>
+                  <Form.Item
+                    name="pos"
+                    label="词性"
+                    initialValue="noun"
+                  >
+                    <Select placeholder="选择词性">
+                      <Select.Option value="noun">名词</Select.Option>
+                      <Select.Option value="adj">形容词</Select.Option>
+                      <Select.Option value="verb">动词</Select.Option>
+                    </Select>
+                  </Form.Item>
+                  <Form.Item
+                    name="modifiers"
+                    label="修饰词"
+                  >
+                    <Input placeholder="输入修饰词(逗号分隔,如:4k,高清,免费,下载)" />
+                  </Form.Item>
+                  <Form.Item>
+                    <Button 
+                      type="primary" 
+                      block 
+                      loading={loading}
+                      onClick={handleGenerateLongTail}
+                    >
+                      生成长尾词
+                    </Button>
+                  </Form.Item>
+                </Form>
               </Card>
             </Col>
           </Row>
@@ -626,7 +777,7 @@ const KeywordResearch: React.FC = () => {
                     key: 'action',
                     render: (_: unknown, record: Keyword) => (
                       <Space>
-                        <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
+                        {/* <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button> */}
                         <Button type="link" danger onClick={() => removeFavorite(record.id)}>移除</Button>
                       </Space>
                     ),
