@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm, Upload, Switch } from 'antd';
+import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm, Upload, Switch, Spin } from 'antd';
 import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled, DeleteOutlined, InboxOutlined, UploadOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
 import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, updateKeyword, deleteKeyword, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse, type UpdateKeywordParams } from '../../services/keywordApi';
+import { getCompetitorAnalysisList, getCompetitorAnalysisDetail, type CompetitorAnalysisItem, type CompetitorAnalysisDetail } from '../../services/keywordApi';
 
 const { TabPane } = Tabs;
 const { Search } = Input;
@@ -202,7 +203,10 @@ const KeywordResearch: React.FC = () => {
 
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, current: 1 }));
-    loadKeywords();
+    aiMineHotKeywords({ seed_keyword: searchValue}).then(res => {
+      loadKeywords();
+    })
+    
   };
 
   // 导入关键词
@@ -367,6 +371,12 @@ const KeywordResearch: React.FC = () => {
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     setPagination(prev => ({ ...prev, current: 1 }));
+    console.log(key,'key')
+    
+    // 切换到竞品分析Tab时加载数据
+    if (key === 'competitor') {
+      loadCompetitorAnalysisList();
+    }
   };
 
   // 检查是否已收藏
@@ -736,6 +746,58 @@ const KeywordResearch: React.FC = () => {
     }
   };
 
+  // 竞品分析相关状态
+  const [competitorAnalysisList, setCompetitorAnalysisList] = useState<CompetitorAnalysisItem[]>([]);
+  const [competitorAnalysisLoading, setCompetitorAnalysisLoading] = useState(false);
+  const [competitorAnalysisDetail, setCompetitorAnalysisDetail] = useState<CompetitorAnalysisDetail | null>(null);
+  const [competitorDetailModalVisible, setCompetitorDetailModalVisible] = useState(false);
+  const [competitorAnalysisPagination, setCompetitorAnalysisPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
+  // 加载竞品分析列表
+  const loadCompetitorAnalysisList = async (page = 1, pageSize = 10) => {
+    setCompetitorAnalysisLoading(true);
+    try {
+      const response = await getCompetitorAnalysisList({
+        currentPage: page,
+        pageSize: pageSize,
+      });
+      
+      
+      // 拦截器已直接返回 data，response 就是 PaginatedResponse
+      setCompetitorAnalysisList(response.results || []);
+      setCompetitorAnalysisPagination({
+        current: response.pagination?.page || response.page || page,
+        pageSize: response.pagination?.page_size || response.pageSize || pageSize,
+        total: response.pagination?.total || response.total || 0,
+      });
+    } catch (error) {
+      console.error('获取竞品分析列表失败:', error);
+      message.error('获取竞品分析列表失败');
+    } finally {
+      setCompetitorAnalysisLoading(false);
+    }
+  };
+
+  // 查看竞品分析详情
+  const handleViewCompetitorDetail = async (record: CompetitorAnalysisItem) => {
+    setCompetitorDetailModalVisible(true);
+    setCompetitorAnalysisLoading(true);
+    try {
+      // 拦截器已直接返回 data，response 就是 CompetitorAnalysisDetail
+      const detail = await getCompetitorAnalysisDetail(record.id);
+      setCompetitorAnalysisDetail(detail);
+    } catch (error) {
+      console.error('获取分析详情失败:', error);
+      message.error('获取分析详情失败');
+    } finally {
+      setCompetitorAnalysisLoading(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
@@ -913,34 +975,90 @@ const KeywordResearch: React.FC = () => {
         </TabPane>
 
         <TabPane tab="竞品分析" key="competitor">
-          <Card title="竞品关键词对比">
+          <Card 
+            title="竞品关键词对比"
+            extra={
+              <Button 
+                type="primary" 
+                icon={<DownloadOutlined />} 
+                onClick={() => message.success('导出功能开发中')}
+              >
+                导出分析报告
+              </Button>
+            }
+          >
+            <Alert
+              message="竞品分析说明"
+              description="查看与竞争对手的关键词对比分析，了解关键词重叠情况，发现优化机会。"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
             <List
               itemLayout="horizontal"
-              dataSource={competitorKeywords}
+              dataSource={competitorAnalysisList}
+              loading={competitorAnalysisLoading}
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(item as unknown as Keyword)}>查看详情</Button>,
-                    <Button type="primary" onClick={() => message.success('词库导出成功')}>导出词库</Button>,
+                    <Button 
+                      type="link" 
+                      icon={<EyeOutlined />} 
+                      onClick={() => handleViewCompetitorDetail(item)}
+                      disabled={item.status !== 'completed'}
+                    >
+                      查看详情
+                    </Button>,
+                    <Button 
+                      type="primary" 
+                      onClick={() => message.success('词库导出成功')}
+                      disabled={item.status !== 'completed'}
+                    >
+                      导出词库
+                    </Button>,
                   ]}
                 >
                   <List.Item.Meta
-                    title={item.domain}
+                    avatar={<div style={{ width: 40, height: 40, borderRadius: '50%', background: '#722ed1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{item.competitor_name[0]}</div>}
+                    title={
+                      <Space>
+                        <span style={{ fontWeight: 500 }}>{item.competitor_name}</span>
+                        <Tag color={
+                          item.status === 'completed' ? 'success' : 
+                          item.status === 'processing' ? 'processing' : 
+                          item.status === 'failed' ? 'error' : 'default'
+                        }>
+                          {item.status_display}
+                        </Tag>
+                      </Space>
+                    }
                     description={
                       <Space>
-                        <span>关键词数: {item.keywords.toLocaleString()}</span>
-                        <span>重叠词: {item.overlap.toLocaleString()}</span>
+                        <span>关键词数: {item.total_keywords.toLocaleString()}</span>
+                        <span>重叠词: {item.shared_keywords.toLocaleString()}</span>
+                        <span>重叠率: {item.keyword_overlap_rate}%</span>
                       </Space>
                     }
                   />
                   <div>
                     <span style={{ marginRight: 8 }}>TOP关键词:</span>
-                    {item.topKeywords.map((k, i) => (
-                      <Tag key={i} color="blue">{k}</Tag>
-                    ))}
+                    {/* 这里可以显示前几个关键词，如果后端返回的话 */}
+                    <Tag color="blue">keyword1</Tag>
+                    <Tag color="blue">keyword2</Tag>
+                    <Tag color="blue">keyword3</Tag>
                   </div>
                 </List.Item>
               )}
+              pagination={{
+                current: competitorAnalysisPagination.current,
+                pageSize: competitorAnalysisPagination.pageSize,
+                total: competitorAnalysisPagination.total,
+                showSizeChanger: true,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (page, pageSize) => {
+                  loadCompetitorAnalysisList(page, pageSize);
+                },
+              }}
             />
           </Card>
         </TabPane>
@@ -1198,6 +1316,165 @@ const KeywordResearch: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 竞品分析详情弹窗 */}
+      <Modal
+        title="竞品分析详情"
+        open={competitorDetailModalVisible}
+        onCancel={() => setCompetitorDetailModalVisible(false)}
+        width={1000}
+        footer={[
+          <Button key="close" onClick={() => setCompetitorDetailModalVisible(false)}>关闭</Button>,
+        ]}
+      >
+        <Spin spinning={competitorAnalysisLoading}>
+          {competitorAnalysisDetail && (
+            <div>
+              <Descriptions bordered column={2} size="small">
+                <Descriptions.Item label="竞争对手">{competitorAnalysisDetail.competitor_name}</Descriptions.Item>
+                <Descriptions.Item label="网站URL">{competitorAnalysisDetail.competitor_url}</Descriptions.Item>
+                <Descriptions.Item label="分析类型">{competitorAnalysisDetail.analysis_type}</Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag color={competitorAnalysisDetail.status === 'completed' ? 'success' : 'processing'}>
+                    {competitorAnalysisDetail.status_display}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="总关键词数">{competitorAnalysisDetail.total_keywords.toLocaleString()}</Descriptions.Item>
+                <Descriptions.Item label="共享关键词数">{competitorAnalysisDetail.shared_keywords.toLocaleString()}</Descriptions.Item>
+                <Descriptions.Item label="独有关键词数">{competitorAnalysisDetail.unique_keywords.toLocaleString()}</Descriptions.Item>
+                <Descriptions.Item label="关键词重叠率">
+                  <Progress 
+                    percent={competitorAnalysisDetail.keyword_overlap_rate} 
+                    size="small" 
+                    strokeColor={competitorAnalysisDetail.keyword_overlap_rate >= 60 ? '#52c41a' : competitorAnalysisDetail.keyword_overlap_rate >= 30 ? '#faad14' : '#f5222d'}
+                  />
+                </Descriptions.Item>
+                <Descriptions.Item label="创建时间" span={2}>
+                  {new Date(competitorAnalysisDetail.created_at).toLocaleString('zh-CN')}
+                </Descriptions.Item>
+                {competitorAnalysisDetail.completed_at && (
+                  <Descriptions.Item label="完成时间" span={2}>
+                    {new Date(competitorAnalysisDetail.completed_at).toLocaleString('zh-CN')}
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+
+              {competitorAnalysisDetail.analysis_summary && (
+                <>
+                  <Divider orientation="left">分析总结</Divider>
+                  <Alert
+                    message={competitorAnalysisDetail.analysis_summary}
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                </>
+              )}
+
+              {competitorAnalysisDetail.top_shared_keywords && competitorAnalysisDetail.top_shared_keywords.length > 0 && (
+                <>
+                  <Divider orientation="left">Top 共享关键词</Divider>
+                  <Table 
+                    columns={[
+                      { title: '关键词', dataIndex: 'keyword', key: 'keyword' },
+                      { 
+                        title: '我们的排名', 
+                        dataIndex: 'our_ranking', 
+                        key: 'our_ranking',
+                        render: (rank: number | null) => rank ? <Tag color={rank <= 10 ? 'success' : 'warning'}>#{rank}</Tag> : <Tag>未排名</Tag>,
+                      },
+                      { 
+                        title: '对手排名', 
+                        dataIndex: 'competitor_ranking', 
+                        key: 'competitor_ranking',
+                        render: (rank: number) => <Tag color="blue">#{rank}</Tag>,
+                      },
+                      { 
+                        title: '搜索量', 
+                        dataIndex: 'search_volume', 
+                        key: 'search_volume',
+                        render: (v: number) => v.toLocaleString(),
+                      },
+                      { 
+                        title: '难度', 
+                        dataIndex: 'difficulty', 
+                        key: 'difficulty',
+                        render: (v: number) => <Progress percent={v} size="small" status={v > 60 ? 'exception' : 'normal'} />,
+                      },
+                    ]}
+                    dataSource={competitorAnalysisDetail.top_shared_keywords}
+                    rowKey="keyword"
+                    pagination={{ pageSize: 5 }}
+                    size="small"
+                  />
+                </>
+              )}
+
+              {competitorAnalysisDetail.top_unique_keywords && competitorAnalysisDetail.top_unique_keywords.length > 0 && (
+                <>
+                  <Divider orientation="left">Top 独有关键词</Divider>
+                  <Table 
+                    columns={[
+                      { title: '关键词', dataIndex: 'keyword', key: 'keyword' },
+                      { 
+                        title: '排名', 
+                        dataIndex: 'ranking', 
+                        key: 'ranking',
+                        render: (rank: number) => <Tag color="green">#{rank}</Tag>,
+                      },
+                      { 
+                        title: '搜索量', 
+                        dataIndex: 'search_volume', 
+                        key: 'search_volume',
+                        render: (v: number) => v.toLocaleString(),
+                      },
+                      { 
+                        title: '难度', 
+                        dataIndex: 'difficulty', 
+                        key: 'difficulty',
+                        render: (v: number) => <Progress percent={v} size="small" status={v > 60 ? 'exception' : 'normal'} />,
+                      },
+                    ]}
+                    dataSource={competitorAnalysisDetail.top_unique_keywords}
+                    rowKey="keyword"
+                    pagination={{ pageSize: 5 }}
+                    size="small"
+                  />
+                </>
+              )}
+
+              {competitorAnalysisDetail.keyword_distribution && (
+                <>
+                  <Divider orientation="left">关键词排名分布</Divider>
+                  <Row gutter={[16, 16]}>
+                    <Col span={6}>
+                      <Card size="small" style={{ textAlign: 'center' }}>
+                        <Statistic title="前3名" value={competitorAnalysisDetail.keyword_distribution.top_3} valueStyle={{ color: '#3f8600' }} />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small" style={{ textAlign: 'center' }}>
+                        <Statistic title="前10名" value={competitorAnalysisDetail.keyword_distribution.top_10} valueStyle={{ color: '#1890ff' }} />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small" style={{ textAlign: 'center' }}>
+                        <Statistic title="前20名" value={competitorAnalysisDetail.keyword_distribution.top_20} valueStyle={{ color: '#722ed1' }} />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small" style={{ textAlign: 'center' }}>
+                        <Statistic title="前50名" value={competitorAnalysisDetail.keyword_distribution.top_50} valueStyle={{ color: '#faad14' }} />
+                      </Card>
+                    </Col>
+                  </Row>
+                </>
+              )}
+            </div>
+          )}
+        </Spin>
+      </Modal>
+
     </div>
   );
 };

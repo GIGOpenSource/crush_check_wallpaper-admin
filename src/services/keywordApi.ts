@@ -227,3 +227,50 @@ export function updateKeyword(id: number, params: UpdateKeywordParams): Promise<
 export function deleteKeyword(id: number): Promise<void> {
   return http.delete<void>(`/seo/keyword/${id}/`);
 }
+
+// ==================== 竞品分析相关接口 ====================
+
+/**
+ * 竞品分析项数据结构
+ */
+export interface CompetitorAnalysisItem {
+  id: number;
+  name: string;                    // 网站名称
+  url: string;                     // 网站URL
+  domain_authority: number;        // 域名权重
+  monthly_traffic: number;         // 月流量
+  backlink_count: number;          // 外链数
+  keyword_count: number;           // 关键词数
+  growth_trend: 'up' | 'stable' | 'down';  // 增长趋势
+  growth_trend_display: string;    // 增长趋势显示文本
+  last_synced_at?: string;         // 最后同步时间
+}
+
+/**
+ * 获取竞品分析列表请求参数
+ */
+export interface GetCompetitorAnalysisListParams {
+  currentPage?: number;          // 当前页码
+  pageSize?: number;             // 每页数量
+  name?: string;                 // 网站名称搜索
+}
+
+/**
+ * 获取竞品分析列表
+ * @param params 查询参数
+ */
+export function getCompetitorAnalysisList(params: GetCompetitorAnalysisListParams): Promise<PaginatedResponse<CompetitorAnalysisItem>> {
+  return http.get<PaginatedResponse<CompetitorAnalysisItem>>('/seo/competitor-analysis/', {
+    currentPage: params.currentPage,
+    pageSize: params.pageSize,
+    name: params.name,
+  });
+}
+
+/**
+ * 获取竞品分析详情
+ * @param id 竞品分析ID
+ */
+export function getCompetitorAnalysisDetail(id: number): Promise<ApiResponse<CompetitorAnalysisDetail>> {
+  return http.get<ApiResponse<CompetitorAnalysisDetail>>(`/seo/competitor-analysis/${id}/`);
+}
