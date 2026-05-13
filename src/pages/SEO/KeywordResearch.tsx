@@ -999,53 +999,24 @@ const KeywordResearch: React.FC = () => {
               dataSource={competitorAnalysisList}
               loading={competitorAnalysisLoading}
               renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button 
-                      type="link" 
-                      icon={<EyeOutlined />} 
-                      onClick={() => handleViewCompetitorDetail(item)}
-                      disabled={item.status !== 'completed'}
-                    >
-                      查看详情
-                    </Button>,
-                    <Button 
-                      type="primary" 
-                      onClick={() => message.success('词库导出成功')}
-                      disabled={item.status !== 'completed'}
-                    >
-                      导出词库
-                    </Button>,
-                  ]}
-                >
+                <List.Item>
                   <List.Item.Meta
-                    avatar={<div style={{ width: 40, height: 40, borderRadius: '50%', background: '#722ed1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{item.competitor_name[0]}</div>}
                     title={
-                      <Space>
-                        <span style={{ fontWeight: 500 }}>{item.competitor_name}</span>
-                        <Tag color={
-                          item.status === 'completed' ? 'success' : 
-                          item.status === 'processing' ? 'processing' : 
-                          item.status === 'failed' ? 'error' : 'default'
-                        }>
-                          {item.status_display}
-                        </Tag>
-                      </Space>
+                      <span style={{ fontWeight: 500 }}>{item.url || '未知网站'}</span>
                     }
                     description={
-                      <Space>
-                        <span>关键词数: {item.total_keywords.toLocaleString()}</span>
-                        <span>重叠词: {item.shared_keywords.toLocaleString()}</span>
-                        <span>重叠率: {item.keyword_overlap_rate}%</span>
-                      </Space>
+                      <span>关键词数: {(item.keyword_count || 0).toLocaleString()}</span>
                     }
                   />
-                  <div>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ marginRight: 8 }}>TOP关键词:</span>
-                    {/* 这里可以显示前几个关键词，如果后端返回的话 */}
-                    <Tag color="blue">keyword1</Tag>
-                    <Tag color="blue">keyword2</Tag>
-                    <Tag color="blue">keyword3</Tag>
+                    {item.top_keywords && item.top_keywords.length > 0 ? (
+                      item.top_keywords.slice(0, 3).map((kw, index) => (
+                        <Tag key={index} color="blue">{kw.keyword}</Tag>
+                      ))
+                    ) : (
+                      <Tag color="default">暂无数据</Tag>
+                    )}
                   </div>
                 </List.Item>
               )}

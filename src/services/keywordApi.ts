@@ -234,16 +234,62 @@ export function deleteKeyword(id: number): Promise<void> {
  * 竞品分析项数据结构
  */
 export interface CompetitorAnalysisItem {
-  id: number;
-  name: string;                    // 网站名称
+  id: number;                      // ID
   url: string;                     // 网站URL
-  domain_authority: number;        // 域名权重
-  monthly_traffic: number;         // 月流量
-  backlink_count: number;          // 外链数
   keyword_count: number;           // 关键词数
-  growth_trend: 'up' | 'stable' | 'down';  // 增长趋势
-  growth_trend_display: string;    // 增长趋势显示文本
-  last_synced_at?: string;         // 最后同步时间
+  top_keywords?: Array<{           // 顶部关键词列表
+    keyword: string;
+    rank: number;
+    page_title: string;
+  }>;
+}
+
+/**
+ * 竞品分析详情数据结构
+ */
+export interface CompetitorAnalysisDetail {
+  id: number;
+  competitor_name: string;           // 竞争对手名称
+  competitor_url: string;            // 竞争对手URL
+  analysis_type: string;             // 分析类型
+  status: 'pending' | 'processing' | 'completed' | 'failed';  // 状态
+  status_display: string;            // 状态显示文本
+  total_keywords: number;            // 总关键词数
+  shared_keywords: number;           // 共享关键词数
+  unique_keywords: number;           // 独有关键词数
+  keyword_overlap_rate: number;      // 关键词重叠率
+  analysis_summary?: string;         // 分析总结
+  top_shared_keywords?: Array<{
+    keyword: string;
+    our_ranking: number | null;
+    competitor_ranking: number;
+    search_volume: number;
+    difficulty: number;
+  }>;
+  top_unique_keywords?: Array<{
+    keyword: string;
+    ranking: number;
+    search_volume: number;
+    difficulty: number;
+  }>;
+  keyword_distribution?: {
+    top_3: number;
+    top_10: number;
+    top_20: number;
+    top_50: number;
+  };
+  created_at: string;
+  completed_at?: string;
+}
+
+/**
+ * API响应包装类型
+ */
+export interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+  success: boolean;
 }
 
 /**
@@ -271,6 +317,6 @@ export function getCompetitorAnalysisList(params: GetCompetitorAnalysisListParam
  * 获取竞品分析详情
  * @param id 竞品分析ID
  */
-export function getCompetitorAnalysisDetail(id: number): Promise<ApiResponse<CompetitorAnalysisDetail>> {
-  return http.get<ApiResponse<CompetitorAnalysisDetail>>(`/seo/competitor-analysis/${id}/`);
+export function getCompetitorAnalysisDetail(id: number): Promise<CompetitorAnalysisDetail> {
+  return http.get<CompetitorAnalysisDetail>(`/seo/competitor-analysis/${id}/`);
 }
