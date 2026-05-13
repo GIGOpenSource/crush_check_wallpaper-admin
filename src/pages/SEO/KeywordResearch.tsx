@@ -59,6 +59,9 @@ const KeywordResearch: React.FC = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
 
+  // 导出类型选择弹窗状态
+  const [exportTypeModalVisible, setExportTypeModalVisible] = useState(false);
+
   // 关键词统计数据
   const [dashboardStats, setDashboardStats] = useState<KeywordDashboardStatistics>({
     total_count: 0,
@@ -812,15 +815,17 @@ const KeywordResearch: React.FC = () => {
   };
 
   // 导出数据
-  const handleExportData = async () => {
+  const handleExportData = async (exportType?: 'hot' | 'long_tail' | 'normal') => {
     try {
       setLoading(true);
-      // 根据当前激活的tab确定keyword_type
-      let keywordType: 'hot' | 'long_tail' | 'normal' = 'hot';
-      if (activeTab === 'longtail') {
-        keywordType = 'long_tail';
-      } else if (activeTab === 'mykeywords') {
-        keywordType = 'normal';
+      // 根据传入的类型或当前激活的tab确定keyword_type
+      let keywordType: 'hot' | 'long_tail' | 'normal' = exportType || 'hot';
+      if (!exportType) {
+        if (activeTab === 'longtail') {
+          keywordType = 'long_tail';
+        } else if (activeTab === 'mykeywords') {
+          keywordType = 'normal';
+        }
       }
       
       // 调用导出接口
@@ -840,6 +845,7 @@ const KeywordResearch: React.FC = () => {
       document.body.removeChild(a);
       
       message.success('数据导出成功');
+      setExportTypeModalVisible(false); // 关闭弹窗
     } catch (error) {
       console.error('导出数据失败:', error);
       message.error('导出数据失败');
@@ -860,10 +866,72 @@ const KeywordResearch: React.FC = () => {
           关键词挖掘
         </h2>
         <Space>
-          <Button icon={<DownloadOutlined />} type="primary" onClick={handleExportData} loading={loading}>导出数据</Button>
-
+          <Button 
+            icon={<DownloadOutlined />} 
+            type="primary" 
+            onClick={() => setExportTypeModalVisible(true)}
+            loading={loading}
+          >
+            导出数据
+          </Button>
         </Space>
       </div>
+
+      {/* 导出类型选择弹窗 */}
+      <Modal
+        title="选择导出类型"
+        open={exportTypeModalVisible}
+        onCancel={() => setExportTypeModalVisible(false)}
+        footer={null}
+        width={500}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
+            <Button 
+              type="default" 
+              block 
+              size="large"
+              icon={<FireOutlined />}
+              onClick={() => handleExportData('hot')}
+              style={{ textAlign: 'left', height: 'auto', padding: '16px' }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '16px', fontWeight: 500 }}>热门关键词</span>
+                <span style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>导出当前热门关键词数据</span>
+              </div>
+            </Button>
+            
+            <Button 
+              type="default" 
+              block 
+              size="large"
+              icon={<RiseOutlined />}
+              onClick={() => handleExportData('long_tail')}
+              style={{ textAlign: 'left', height: 'auto', padding: '16px' }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '16px', fontWeight: 500 }}>长尾关键词</span>
+                <span style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>导出长尾关键词数据</span>
+              </div>
+            </Button>
+            
+            <Button 
+              type="default" 
+              block 
+              size="large"
+              icon={<StarOutlined />}
+              onClick={() => handleExportData('normal')}
+              style={{ textAlign: 'left', height: 'auto', padding: '16px' }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '16px', fontWeight: 500 }}>我的词库</span>
+                <span style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>导出个人词库中的关键词数据</span>
+              </div>
+            </Button>
+          </Space>
+        </div>
+      </Modal>
+
       {/* 统计概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
