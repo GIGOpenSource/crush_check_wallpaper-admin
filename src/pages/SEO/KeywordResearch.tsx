@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip } from 'antd';
-import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
+import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm } from 'antd';
+import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
@@ -326,6 +326,30 @@ const KeywordResearch: React.FC = () => {
     setFavorites(prev => prev.filter(k => k.id !== keywordId));
     if (keyword) {
       message.success(`已移除 "${keyword.keyword}"`);
+    }
+  };
+
+  // 处理取消收藏（调用API）
+  const handleRemoveFavorite = async (keywordId: number) => {
+    try {
+      await batchFavoriteKeywords({
+        ids: [keywordId],
+        is_favorite: false,
+      });
+      
+      // 更新本地状态
+      const keyword = favorites.find(k => k.id === keywordId);
+      setFavorites(prev => prev.filter(k => k.id !== keywordId));
+      
+      if (keyword) {
+        message.success(`已取消收藏 "${keyword.keyword}"`);
+      }
+      
+      // 刷新列表数据
+      loadKeywords();
+    } catch (error) {
+      console.error('取消收藏失败:', error);
+      message.error('取消收藏失败');
     }
   };
 
@@ -778,7 +802,14 @@ const KeywordResearch: React.FC = () => {
                     render: (_: unknown, record: Keyword) => (
                       <Space>
                         {/* <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button> */}
-                        <Button type="link" danger onClick={() => removeFavorite(record.id)}>移除</Button>
+                        <Popconfirm
+                          title="确认取消收藏吗？"
+                          okText="确认"
+                          cancelText="取消"
+                          onConfirm={() => handleRemoveFavorite(record.id)}
+                        >
+                          <Button type="link" danger icon={<DeleteOutlined />}>移除</Button>
+                        </Popconfirm>
                       </Space>
                     ),
                   },
@@ -803,7 +834,7 @@ const KeywordResearch: React.FC = () => {
         <TabPane tab="我的词库" key="mykeywords">
           <Card>
             <Space style={{ marginBottom: 16 }}>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>添加关键词</Button>
+              {/* <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>添加关键词</Button> */}
               <Button onClick={() => message.info('批量导入功能开发中')}>批量导入</Button>
               <Button onClick={() => message.success('导出成功')}>批量导出</Button>
             </Space>
