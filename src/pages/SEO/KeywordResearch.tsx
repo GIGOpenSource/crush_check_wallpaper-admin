@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm, Upload } from 'antd';
+import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm, Upload, Switch } from 'antd';
 import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled, DeleteOutlined, InboxOutlined, UploadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
-import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse } from '../../services/keywordApi';
+import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, updateKeyword, deleteKeyword, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse, type UpdateKeywordParams } from '../../services/keywordApi';
 
 const { TabPane } = Tabs;
 const { Search } = Input;
@@ -39,10 +39,13 @@ const KeywordResearch: React.FC = () => {
   const [selectedKeyword, setSelectedKeyword] = useState<Keyword | null>(null);
   const [addForm] = Form.useForm();
   const [createForm] = Form.useForm(); // 创建关键词表单
+  const [editForm] = Form.useForm(); // 编辑关键词表单
   const [createModalVisible, setCreateModalVisible] = useState(false); // 创建关键词弹窗
+  const [editModalVisible, setEditModalVisible] = useState(false); // 编辑关键词弹窗
+  const [editingKeyword, setEditingKeyword] = useState<KeywordItem | null>(null); // 正在编辑的关键词
   const [hotKeywords, setHotKeywords] = useState<Keyword[]>([]);
   const [longTailKeywords, setLongTailKeywords] = useState<LongTailKeyword[]>([]);
-  const [normalKeywords, setNormalKeywords] = useState<Keyword[]>([]);
+  const [normalKeywords, setNormalKeywords] = useState<KeywordItem[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
   // 收藏的关键词
@@ -163,7 +166,7 @@ const KeywordResearch: React.FC = () => {
               keyword_type: 'normal',
             });
             if (res && res.results) {
-              setNormalKeywords(res.results.map(convertKeywordItem));
+              setNormalKeywords(res.results);
               setPagination(prev => ({ ...prev, total: res.pagination?.total || 0 }));
             }
             break;
@@ -252,12 +255,76 @@ const KeywordResearch: React.FC = () => {
     return <Tag color={map[competition]?.color || 'default'}>{map[competition]?.text || competition}</Tag>;
   };
 
-  const handleAddKeyword = () => {
-    addForm.validateFields().then((values) => {
+  const handleAddKeyword = async () => {
+    try {
+      const values = await addForm.validateFields();
+      
+      // 调用API创建关键词，keyword_type写死为normal
+      await createKeyword({
+        keyword: values.keyword,
+        keyword_type: 'normal',
+      });
+      
       message.success(`关键词 "${values.keyword}" 添加成功！`);
       setAddModalVisible(false);
       addForm.resetFields();
+      
+      // 刷新当前tab的数据
+      loadKeywords();
+    } catch (error) {
+      console.error('添加关键词失败:', error);
+      message.error('添加关键词失败');
+    }
+  };
+
+  // 打开编辑弹窗
+  const handleEditKeyword = (record: KeywordItem) => {
+    setEditingKeyword(record);
+    editForm.setFieldsValue({
+      keyword: record.keyword,
+      category: record.category,
     });
+    setEditModalVisible(true);
+  };
+
+  // 提交编辑
+  const handleSubmitEdit = async () => {
+    if (!editingKeyword) return;
+    
+    try {
+      const values = await editForm.validateFields();
+      
+      // 调用API更新关键词
+      await updateKeyword(editingKeyword.id, {
+        keyword: values.keyword,
+        category: values.category,
+      });
+      
+      message.success(`关键词 "${values.keyword}" 更新成功！`);
+      setEditModalVisible(false);
+      setEditingKeyword(null);
+      editForm.resetFields();
+      
+      // 刷新当前tab的数据
+      loadKeywords();
+    } catch (error) {
+      console.error('更新关键词失败:', error);
+      message.error('更新关键词失败');
+    }
+  };
+
+  // 删除关键词
+  const handleDeleteKeyword = async (id: number, keyword: string) => {
+    try {
+      await deleteKeyword(id);
+      message.success(`关键词 "${keyword}" 删除成功！`);
+      
+      // 刷新当前tab的数据
+      loadKeywords();
+    } catch (error) {
+      console.error('删除关键词失败:', error);
+      message.error('删除关键词失败');
+    }
   };
 
   // 创建关键词
@@ -403,6 +470,89 @@ const KeywordResearch: React.FC = () => {
       message.error('收藏操作失败');
     }
   };
+
+  // 我的词库专用列定义
+  const myKeywordsColumns = [
+    {
+      title: '关键词',
+      dataIndex: 'keyword',
+      key: 'keyword',
+      render: (text: string) => <Tooltip title={text}>{text}</Tooltip>,
+    },
+    {
+      title: '类型',
+      dataIndex: 'keyword_type_display',
+      key: 'keyword_type_display',
+      width: 100,
+    },
+    {
+      title: '分类',
+      dataIndex: 'category_display',
+      key: 'category_display',
+      width: 100,
+      render: (text: string) => text || '-',
+    },
+    {
+      title: '月搜索量',
+      dataIndex: 'monthly_search_volume',
+      key: 'monthly_search_volume',
+      sorter: (a: KeywordItem, b: KeywordItem) => a.monthly_search_volume - b.monthly_search_volume,
+      render: (v: number) => v.toLocaleString(),
+    },
+    {
+      title: '优化难度',
+      dataIndex: 'optimization_difficulty',
+      key: 'optimization_difficulty',
+      sorter: (a: KeywordItem, b: KeywordItem) => a.optimization_difficulty - b.optimization_difficulty,
+      render: (v: number) => <Progress percent={v} size="small" strokeColor={getDifficultyColor(v)} />,
+    },
+    {
+      title: 'CPC',
+      dataIndex: 'cpc',
+      key: 'cpc',
+      sorter: (a: KeywordItem, b: KeywordItem) => parseFloat(a.cpc) - parseFloat(b.cpc),
+      render: (text: string) => `$${parseFloat(text).toFixed(2)}`,
+    },
+    {
+      title: '趋势',
+      dataIndex: 'trend',
+      key: 'trend',
+      render: (text: string) => getTrendIcon(text),
+    },
+    {
+      title: '竞争度',
+      dataIndex: 'competition',
+      key: 'competition',
+      sorter: (a: KeywordItem, b: KeywordItem) => a.competition - b.competition,
+      render: (v: number) => {
+        const map: Record<string, { color: string; text: string }> = {
+          high: { color: 'error', text: '高' },
+          medium: { color: 'warning', text: '中' },
+          low: { color: 'success', text: '低' },
+        };
+        const level = v >= 0.7 ? 'high' : v >= 0.4 ? 'medium' : 'low';
+        return <Tag color={map[level]?.color || 'default'}>{map[level]?.text || v.toFixed(2)}</Tag>;
+      },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: unknown, record: KeywordItem) => (
+        <Space>
+          <Button type="link" onClick={() => handleEditKeyword(record)}>编辑</Button>
+          <Popconfirm
+            title="确认删除"
+            description={`确定要删除关键词 "${record.keyword}" 吗？`}
+            onConfirm={() => handleDeleteKeyword(record.id, record.keyword)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" danger>删除</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   const columns = [
     {
@@ -607,9 +757,8 @@ const KeywordResearch: React.FC = () => {
           关键词挖掘
         </h2>
         <Space>
-          <Button icon={<UploadOutlined />} onClick={() => openImportModal('hot')}>导入关键词</Button>
-          <Button icon={<DownloadOutlined />} onClick={() => message.success('数据导出成功')}>导出数据</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建关键词</Button>
+          <Button icon={<DownloadOutlined />} type="primary" onClick={() => message.success('数据导出成功')}>导出数据</Button>
+
         </Space>
       </div>
       {/* 统计概览 */}
@@ -856,26 +1005,14 @@ const KeywordResearch: React.FC = () => {
         <TabPane tab="我的词库" key="mykeywords">
           <Card>
             <Space style={{ marginBottom: 16 }}>
-              {/* <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>添加关键词</Button> */}
-              {/* <Button type="primary" icon={<UploadOutlined />} onClick={() => openImportModal('normal')}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>添加关键词</Button>
+              <Button icon={<UploadOutlined />}  onClick={() => openImportModal('normal')}>
                 导入关键词
-              </Button> */}
+              </Button>
               <Button onClick={() => message.success('导出成功')}>批量导出</Button>
             </Space>
             <Table
-              columns={[
-                ...columns,
-                {
-                  title: '操作',
-                  key: 'action',
-                  render: () => (
-                    <Space>
-                      <Button type="link">编辑</Button>
-                      <Button type="link" danger>删除</Button>
-                    </Space>
-                  ),
-                },
-              ]}
+              columns={myKeywordsColumns}
               dataSource={normalKeywords}
               rowKey="id"
               loading={loading}
@@ -915,6 +1052,37 @@ const KeywordResearch: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* 编辑关键词弹窗 */}
+      <Modal
+        title="编辑关键词"
+        open={editModalVisible}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setEditingKeyword(null);
+          editForm.resetFields();
+        }}
+        onOk={handleSubmitEdit}
+        okText="保存"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item
+            name="keyword"
+            label="关键词"
+            rules={[{ required: true, message: '请输入关键词' }]}
+          >
+            <Input placeholder="请输入关键词" />
+          </Form.Item>
+          {/* <Form.Item
+            name="category"
+            label="分类"
+          >
+            <Input placeholder="请输入分类（可选）" />
+          </Form.Item> */}
+        </Form>
+      </Modal>
+
       {/* 创建关键词弹窗 */}
       <Modal
         title="创建关键词"
@@ -948,13 +1116,10 @@ const KeywordResearch: React.FC = () => {
           <Form.Item
             name="is_favorite"
             label="是否收藏"
-            valuePropName="checked"
             initialValue={false}
+            valuePropName="checked"
           >
-            <Select>
-              <Select.Option value={true}>是</Select.Option>
-              <Select.Option value={false}>否</Select.Option>
-            </Select>
+            <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
         </Form>
       </Modal>
@@ -992,7 +1157,7 @@ const KeywordResearch: React.FC = () => {
         confirmLoading={importLoading}
       >
         <Form layout="vertical">
-          <Form.Item label="关键词类型">
+          {/* <Form.Item label="关键词类型">
             <Select 
               value={importKeywordType} 
               onChange={setImportKeywordType}
@@ -1001,7 +1166,7 @@ const KeywordResearch: React.FC = () => {
               <Select.Option value="long_tail">长尾关键词</Select.Option>
               <Select.Option value="normal">我的词库</Select.Option>
             </Select>
-          </Form.Item>
+          </Form.Item> */}
           <Form.Item label="上传文件">
             <Upload.Dragger
               beforeUpload={(file) => {

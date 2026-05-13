@@ -200,3 +200,30 @@ export function importKeywords(params: ImportKeywordsParams): Promise<ImportKeyw
     },
   });
 }
+
+/**
+ * 更新关键词请求参数
+ */
+export interface UpdateKeywordParams {
+  keyword?: string;                     // 关键词（可选）
+  keyword_type?: 'hot' | 'long_tail' | 'normal';  // 关键词类型（可选）
+  is_favorite?: boolean;                // 是否收藏（可选）
+  category?: string;                    // 分类（可选）
+}
+
+/**
+ * 更新关键词
+ * @param id 关键词ID
+ * @param params 更新参数
+ */
+export function updateKeyword(id: number, params: UpdateKeywordParams): Promise<KeywordItem> {
+  return http.put<KeywordItem>(`/seo/keyword/${id}/`, params);
+}
+
+/**
+ * 删除关键词
+ * @param id 关键词ID
+ */
+export function deleteKeyword(id: number): Promise<void> {
+  return http.delete<void>(`/seo/keyword/${id}/`);
+}
