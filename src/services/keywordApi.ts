@@ -10,15 +10,19 @@ import type { PaginatedResponse } from '../config/api.config';
 export interface KeywordItem {
   id: number;
   keyword: string;                      // 关键词
-   category?: string;                    // 分类（可选）
-  search_volume: number;                // 搜索量
-  difficulty: number;                   // 难度
-  cpc: number;                          // CPC费用
-  competition: string;                  // 竞争度
-  trend: string;                        // 趋势
   keyword_type: 'hot' | 'long_tail' | 'normal';  // 关键词类型
-  is_favorite: boolean;                 // 是否收藏
+  keyword_type_display: string;         // 关键词类型显示文本（如"热门关键词"）
+  category?: string;                    // 分类（可选）
+  category_display?: string;            // 分类显示文本（如"风格"）
+  competition: number;                  // 竞争度（0-1）
+  cpc: string;                          // CPC费用（字符串格式，如"0.45"）
   created_at: string;                   // 创建时间
+  is_favorite: boolean;                 // 是否收藏
+  monthly_search_volume: number;        // 月搜索量
+  optimization_difficulty: number;      // 优化难度（0-100）
+  parent_keyword: string | null;        // 父关键词
+  recommendation_score: number;         // 推荐分数
+  trend: 'rising' | 'falling' | 'stable';  // 趋势（rising:上升/falling:下降/stable:稳定）
   updated_at: string;                   // 更新时间
 }
 
@@ -57,5 +61,64 @@ export function getFavoriteKeywords(currentPage: number, pageSize: number): Prom
     currentPage,
     pageSize,
     is_favorite: true,
+  });
+}
+
+/**
+ * 创建关键词请求参数
+ */
+export interface CreateKeywordParams {
+  keyword: string;                      // 关键词（必填）
+  keyword_type: 'hot' | 'long_tail' | 'normal';  // 关键词类型（必填）
+  is_favorite?: boolean;                // 是否收藏（可选，默认false）
+  category?: string;                    // 分类（可选）
+}
+
+/**
+ * 创建关键词
+ * @param params 创建参数
+ */
+export function createKeyword(params: CreateKeywordParams): Promise<KeywordItem> {
+  return http.post<KeywordItem>('/seo/keyword/', {
+    keyword: params.keyword,
+    keyword_type: params.keyword_type,
+    is_favorite: params.is_favorite || false,
+    category: params.category,
+  });
+}
+
+/**
+ * AI扩展长尾词请求参数
+ */
+export interface AIExpandLongTailParams {
+  parent_keyword: string;               // 父关键词（必填）
+}
+
+/**
+ * AI扩展长尾词
+ * @param params 请求参数
+ */
+export function aiExpandLongTail(params: AIExpandLongTailParams): Promise<KeywordItem[]> {
+  return http.get<KeywordItem[]>('/seo/keyword/ai_expand_long_tail/', {
+    parent_keyword: params.parent_keyword,
+  });
+}
+
+/**
+ * 批量收藏关键词请求参数
+ */
+export interface BatchFavoriteKeywordsParams {
+  ids: number[];                        // 关键词ID数组
+  is_favorite: boolean;                 // 是否收藏（true: 收藏, false: 取消收藏）
+}
+
+/**
+ * 批量收藏/取消收藏关键词
+ * @param params 请求参数
+ */
+export function batchFavoriteKeywords(params: BatchFavoriteKeywordsParams): Promise<void> {
+  return http.post<void>('/seo/keyword/batch_favorite_keywords/', {
+    ids: params.ids,
+    is_favorite: params.is_favorite,
   });
 }

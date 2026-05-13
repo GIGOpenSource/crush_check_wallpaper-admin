@@ -4,21 +4,10 @@ import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutli
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
+import { getKeywords, getFavoriteKeywords, createKeyword, aiExpandLongTail, batchFavoriteKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams } from '../../services/keywordApi';
 
 const { TabPane } = Tabs;
 const { Search } = Input;
-
-interface Keyword {
-  id: number;
-  keyword: string;
-  searchVolume: number;
-  difficulty: number;
-  cpc: number;
-  trend: 'up' | 'down' | 'stable';
-  competition: 'high' | 'medium' | 'low';
-  relatedCount: number;
-  category: string;
-}
 
 interface LongTailKeyword {
   id: number;
@@ -29,6 +18,18 @@ interface LongTailKeyword {
   recommendation: string;
 }
 
+interface Keyword {
+  id: number;
+  keyword: string;
+  searchVolume: number;
+  difficulty: number;
+  cpc: number;
+  trend: 'rising' | 'falling' | 'stable';
+  competition: 'high' | 'medium' | 'low';
+  relatedCount: number;
+  category: string;
+}
+
 const KeywordResearch: React.FC = () => {
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
@@ -37,19 +38,25 @@ const KeywordResearch: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedKeyword, setSelectedKeyword] = useState<Keyword | null>(null);
   const [addForm] = Form.useForm();
+  const [createForm] = Form.useForm(); // 创建关键词表单
+  const [createModalVisible, setCreateModalVisible] = useState(false); // 创建关键词弹窗
   const [hotKeywords, setHotKeywords] = useState<Keyword[]>([]);
-  const [longTailKeywords] = useState<LongTailKeyword[]>([]);
+  const [longTailKeywords, setLongTailKeywords] = useState<LongTailKeyword[]>([]);
+  const [normalKeywords, setNormalKeywords] = useState<Keyword[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  
+
   // 收藏的关键词
   const [favorites, setFavorites] = useState<Keyword[]>([]);
-  const [, setActiveTab] = useState('hot');
-  
+  const [activeTab, setActiveTab] = useState('hot');
+
   // 关键词统计数据
   const [dashboardStats, setDashboardStats] = useState<KeywordDashboardStatistics>({
     total_count: 0,
     long_tail_count: 0,
     today_new: 0,
+    yesterday_new: 0,
+    new_change: 0,
+    new_trend: 'up',
     optimized_count: 0,
   });
 
@@ -57,7 +64,6 @@ const KeywordResearch: React.FC = () => {
   const loadDashboardStats = async () => {
     try {
       const res = await getKeywordDashboardStatistics();
-      // API 拦截器已直接返回 res.data，所以 res 就是统计数据对象
       if (res) {
         setDashboardStats(res);
       }
@@ -66,18 +72,103 @@ const KeywordResearch: React.FC = () => {
     }
   };
 
+  // 将API返回的KeywordItem转换为前端使用的Keyword格式
+  const convertKeywordItem = (item: KeywordItem): Keyword => ({
+    id: item.id,
+    keyword: item.keyword,
+    searchVolume: item.monthly_search_volume,
+    difficulty: item.optimization_difficulty,
+    cpc: parseFloat(item.cpc) || 0, // 将字符串CPC转换为数字
+    trend: item.trend, // rising/falling/stable
+    competition: item.competition >= 0.7 ? 'high' : item.competition >= 0.4 ? 'medium' : 'low',
+    relatedCount: 0, // API未返回此字段，设置为默认值
+    category: item.category_display || item.category || '',
+  });
+
+  // 将API返回的KeywordItem转换为长尾词格式
+  const convertToLongTailKeyword = (item: KeywordItem): LongTailKeyword => ({
+    id: item.id,
+    keyword: item.keyword,
+    parentKeyword: item.parent_keyword || item.category_display || '',
+    searchVolume: item.monthly_search_volume,
+    difficulty: item.optimization_difficulty,
+    recommendation: item.optimization_difficulty < 40 ? '强烈推荐' : item.optimization_difficulty < 60 ? '推荐' : '一般',
+  });
+
+  // 加载关键词数据 - 根据当前tab和搜索条件
   const loadKeywords = async () => {
-    if (!searchValue) return;
     setLoading(true);
     try {
-      const res = await seoApi.searchKeywords({
-        keyword: searchValue,
-        page: pagination.current,
-        pageSize: pagination.pageSize,
-      });
-      if (res.code === 200) {
-        setHotKeywords(res.data.items);
-        setPagination(prev => ({ ...prev, total: res.data.total }));
+      let res;
+
+      // 如果有搜索值，使用关键词列表接口进行搜索
+      if (searchValue) {
+        res = await getKeywords({
+          currentPage: pagination.current,
+          pageSize: pagination.pageSize,
+          is_favorite: false,
+          keyword_type: activeTab === 'longtail' ? 'long_tail' : activeTab === 'mykeywords' ? 'normal' : 'hot',
+          // category: searchValue, // 使用category参数进行筛选
+        });
+        if (res && res.results) {
+          const converted = res.results.map(convertKeywordItem);
+          if (activeTab === 'longtail') {
+            setLongTailKeywords(res.results.map(convertToLongTailKeyword));
+          } else if (activeTab === 'mykeywords') {
+            setNormalKeywords(converted);
+          } else {
+            setHotKeywords(converted);
+          }
+          setPagination(prev => ({ ...prev, total: res.pagination?.total || 0 }));
+        }
+      } else {
+        // 没有搜索值时，根据当前tab加载不同类型的关键词
+        switch (activeTab) {
+          case 'hot':
+            res = await getKeywords({
+              currentPage: pagination.current,
+              pageSize: pagination.pageSize,
+              is_favorite: false,
+              keyword_type: 'hot',
+            });
+            if (res && res.results) {
+              setHotKeywords(res.results.map(convertKeywordItem));
+              setPagination(prev => ({ ...prev, total: res.pagination?.total || 0 }));
+            }
+            break;
+          case 'longtail':
+            res = await getKeywords({
+              currentPage: pagination.current,
+              pageSize: pagination.pageSize,
+              is_favorite: false,
+              keyword_type: 'long_tail',
+            });
+            if (res && res.results) {
+              const converted = res.results.map(convertToLongTailKeyword);
+              setLongTailKeywords(converted);
+              setPagination(prev => ({ ...prev, total: res.pagination?.total || 0 }));
+            }
+            break;
+          case 'mykeywords':
+            res = await getKeywords({
+              currentPage: pagination.current,
+              pageSize: pagination.pageSize,
+              is_favorite: false,
+              keyword_type: 'normal',
+            });
+            if (res && res.results) {
+              setNormalKeywords(res.results.map(convertKeywordItem));
+              setPagination(prev => ({ ...prev, total: res.pagination?.total || 0 }));
+            }
+            break;
+          case 'favorites':
+            res = await getFavoriteKeywords(pagination.current, pagination.pageSize);
+            if (res && res.results) {
+              setFavorites(res.results.map(convertKeywordItem));
+              setPagination(prev => ({ ...prev, total: res.pagination?.total || 0 }));
+            }
+            break;
+        }
       }
     } catch (_err) {
       message.error('加载关键词数据失败');
@@ -88,31 +179,51 @@ const KeywordResearch: React.FC = () => {
 
   // 加载关键词数据
   useEffect(() => {
-    // 使用setTimeout避免同步调用setState
     const timer = setTimeout(() => {
       loadKeywords();
     }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.current, pagination.pageSize]);
+  }, [pagination.current, pagination.pageSize, activeTab]);
 
   // 加载关键词数据统计
   useEffect(() => {
     loadDashboardStats();
   }, []);
 
-  // 静态数据已移除，使用API获取真实数据
-
-  // 竞品关键词分析（国际市场）
-  const competitorKeywords = [
-    { domain: 'wallpaperhub.com', keywords: 28500, overlap: 8200, topKeywords: ['4k wallpaper', 'hd wallpaper', 'anime wallpaper'] },
-    { domain: 'unsplash.com', keywords: 45600, overlap: 12000, topKeywords: ['nature wallpaper', 'aesthetic wallpaper', 'minimalist wallpaper'] },
-    { domain: 'pexels.com', keywords: 32400, overlap: 9500, topKeywords: ['free wallpaper', 'mobile wallpaper', 'hd background'] },
-  ];
-
-  const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }));
-    loadKeywords();
+  const handleSearch = async () => {
+    // 如果是热门关键词Tab且有搜索值，调用AI扩展长尾词接口
+    if (activeTab === 'hot' && searchValue) {
+      setLoading(true);
+      try {
+        console.log('开始调用AI扩展长尾词接口...');
+        const res = await aiExpandLongTail({ parent_keyword: searchValue });
+        console.log('AI扩展接口返回结果:', res);
+        
+        if (res && Array.isArray(res)) {
+          const converted = res.map(convertKeywordItem);
+          setHotKeywords(converted);
+          setPagination(prev => ({ ...prev, total: converted.length, current: 1 }));
+          message.success(`成功扩展 ${converted.length} 个长尾关键词`);
+        }
+        
+        // 无论AI扩展是否成功，都刷新列表数据
+        console.log('开始刷新列表数据...');
+        await loadKeywords();
+        console.log('列表数据刷新完成');
+      } catch (err) {
+        console.error('AI扩展长尾词失败:', err);
+        message.error('AI扩展长尾词失败');
+        // 失败后也要刷新列表
+        await loadKeywords();
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // 其他情况使用原有的搜索逻辑
+      setPagination(prev => ({ ...prev, current: 1 }));
+      loadKeywords();
+    }
   };
 
   const getDifficultyColor = (difficulty: number) => {
@@ -127,7 +238,7 @@ const KeywordResearch: React.FC = () => {
       medium: { color: 'warning', text: '中' },
       low: { color: 'success', text: '低' },
     };
-    return <Tag color={map[competition].color}>{map[competition].text}竞争</Tag>;
+    return <Tag color={map[competition]?.color || 'default'}>{map[competition]?.text || competition}</Tag>;
   };
 
   const handleAddKeyword = () => {
@@ -138,15 +249,42 @@ const KeywordResearch: React.FC = () => {
     });
   };
 
+  // 创建关键词
+  const handleCreateKeyword = async () => {
+    try {
+      const values = await createForm.validateFields();
+      const params: CreateKeywordParams = {
+        keyword: values.keyword,
+        keyword_type: values.keyword_type,
+        is_favorite: values.is_favorite || false,
+      };
+
+      await createKeyword(params);
+      message.success(`关键词 "${values.keyword}" 创建成功！`);
+      setCreateModalVisible(false);
+      createForm.resetFields();
+      // 刷新当前tab的数据
+      loadKeywords();
+    } catch (error) {
+      console.error('创建关键词失败:', error);
+      message.error('创建关键词失败');
+    }
+  };
+
   const handleViewDetail = (record: Keyword) => {
     setSelectedKeyword(record);
     setDetailModalVisible(true);
   };
 
   const getTrendIcon = (trend: string) => {
-    if (trend === 'up') return <RiseOutlined style={{ color: '#52c41a' }} />;
-    if (trend === 'down') return <FallOutlined style={{ color: '#f5222d' }} />;
+    if (trend === 'rising') return <RiseOutlined style={{ color: '#52c41a' }} />;
+    if (trend === 'falling') return <FallOutlined style={{ color: '#f5222d' }} />;
     return <span style={{ color: '#999' }}>-</span>;
+  };
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    setPagination(prev => ({ ...prev, current: 1 }));
   };
 
   // 检查是否已收藏
@@ -155,13 +293,30 @@ const KeywordResearch: React.FC = () => {
   };
 
   // 添加/取消收藏
-  const toggleFavorite = (record: Keyword) => {
-    if (isFavorite(record.id)) {
-      setFavorites(prev => prev.filter(k => k.id !== record.id));
-      message.success(`已取消收藏 "${record.keyword}"`);
-    } else {
-      setFavorites(prev => [...prev, record]);
-      message.success(`已收藏 "${record.keyword}"`);
+  const toggleFavorite = async (record: Keyword) => {
+    try {
+      const isFav = isFavorite(record.id);
+      
+      // 调用批量收藏接口
+      await batchFavoriteKeywords({
+        ids: [record.id],
+        is_favorite: !isFav,
+      });
+      
+      // 更新本地状态
+      if (isFav) {
+        setFavorites(prev => prev.filter(k => k.id !== record.id));
+        message.success(`已取消收藏 "${record.keyword}"`);
+      } else {
+        setFavorites(prev => [...prev, record]);
+        message.success(`已收藏 "${record.keyword}"`);
+      }
+      
+      // 刷新当前列表数据
+      loadKeywords();
+    } catch (error) {
+      console.error('收藏操作失败:', error);
+      message.error('收藏操作失败');
     }
   };
 
@@ -179,97 +334,99 @@ const KeywordResearch: React.FC = () => {
       title: '关键词',
       dataIndex: 'keyword',
       key: 'keyword',
-      render: (text: string, record: Keyword) => (
-        <Space>
-          <span style={{ fontWeight: 500 }}>{text}</span>
-          <Tooltip title={isFavorite(record.id) ? '取消收藏' : '收藏关键词'}>
-            <Button 
-              type="link" 
-              size="small" 
-              icon={isFavorite(record.id) ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />}
-              onClick={() => toggleFavorite(record)}
-            />
-          </Tooltip>
-        </Space>
-      ),
+      render: (text: string) => <Tooltip title={text}>{text}</Tooltip>,
     },
     {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 100,
-    },
-    {
-      title: '月搜索量',
+      title: '搜索量',
       dataIndex: 'searchVolume',
       key: 'searchVolume',
       sorter: (a: Keyword, b: Keyword) => a.searchVolume - b.searchVolume,
-      render: (v: number) => v.toLocaleString(),
+      render: (text: number) => text.toLocaleString(),
     },
     {
-      title: '优化难度',
+      title: '难度',
       dataIndex: 'difficulty',
       key: 'difficulty',
       sorter: (a: Keyword, b: Keyword) => a.difficulty - b.difficulty,
-      render: (v: number) => (
-        <Progress
-          percent={v}
-          size="small"
-          strokeColor={getDifficultyColor(v)}
-          format={(p) => `${p}`}
-        />
-      ),
+      render: (text: number) => <Progress percent={text} strokeColor={getDifficultyColor(text)} />,
     },
     {
       title: 'CPC',
       dataIndex: 'cpc',
       key: 'cpc',
-      render: (v: number) => `¥${v}`,
+      sorter: (a: Keyword, b: Keyword) => a.cpc - b.cpc,
+      render: (text: number) => `$${text.toFixed(2)}`,
     },
     {
       title: '趋势',
       dataIndex: 'trend',
       key: 'trend',
-      render: (trend: string) => getTrendIcon(trend),
+      render: (text: string) => getTrendIcon(text),
     },
     {
-      title: '竞争度',
+      title: '竞争',
       dataIndex: 'competition',
       key: 'competition',
-      render: (c: string) => getCompetitionTag(c),
+      render: (text: string) => getCompetitionTag(text),
     },
     {
       title: '操作',
       key: 'action',
       render: (_: unknown, record: Keyword) => (
         <Space>
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
-          <Button type="link" size="small" icon={<PlusOutlined />} onClick={() => {
-            setSelectedKeyword(record);
-            setAddModalVisible(true);
-          }}>添加</Button>
+          {/* <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button> */}
+          <Button type="link" icon={isFavorite(record.id) ? <HeartFilled /> : <HeartOutlined />} onClick={() => toggleFavorite(record)}>收藏</Button>
         </Space>
       ),
     },
   ];
 
   const longTailColumns = [
-    { title: '长尾关键词', dataIndex: 'keyword', key: 'keyword' },
-    { title: '父关键词', dataIndex: 'parentKeyword', key: 'parentKeyword' },
-    { title: '月搜索量', dataIndex: 'searchVolume', key: 'searchVolume', render: (v: number) => v.toLocaleString() },
     {
-      title: '优化难度',
-      dataIndex: 'difficulty',
-      key: 'difficulty',
-      render: (v: number) => <Progress percent={v} size="small" strokeColor={getDifficultyColor(v)} />,
+      title: '关键词',
+      dataIndex: 'keyword',
+      key: 'keyword',
+      render: (text: string) => <Tooltip title={text}>{text}</Tooltip>,
     },
     {
-      title: '推荐度',
+      title: '父关键词',
+      dataIndex: 'parentKeyword',
+      key: 'parentKeyword',
+      render: (text: string) => <Tooltip title={text}>{text}</Tooltip>,
+    },
+    {
+      title: '搜索量',
+      dataIndex: 'searchVolume',
+      key: 'searchVolume',
+      sorter: (a: LongTailKeyword, b: LongTailKeyword) => a.searchVolume - b.searchVolume,
+      render: (text: number) => text.toLocaleString(),
+    },
+    {
+      title: '难度',
+      dataIndex: 'difficulty',
+      key: 'difficulty',
+      sorter: (a: LongTailKeyword, b: LongTailKeyword) => a.difficulty - b.difficulty,
+      render: (text: number) => <Progress percent={text} strokeColor={getDifficultyColor(text)} />,
+    },
+    {
+      title: '推荐',
       dataIndex: 'recommendation',
       key: 'recommendation',
-      render: (v: string) => (
-        <Tag color={v === '强烈推荐' ? 'success' : v === '推荐' ? 'processing' : 'default'}>{v}</Tag>
-      ),
+    },
+  ];
+
+  const competitorKeywords = [
+    {
+      domain: 'example.com',
+      keywords: 1234,
+      overlap: 12,
+      topKeywords: ['keyword1', 'keyword2', 'keyword3'],
+    },
+    {
+      domain: 'example.org',
+      keywords: 5678,
+      overlap: 34,
+      topKeywords: ['keyword4', 'keyword5', 'keyword6'],
     },
   ];
 
@@ -279,27 +436,16 @@ const KeywordResearch: React.FC = () => {
         <Breadcrumb.Item><a onClick={() => navigate('/seo')}>SEO管理</a></Breadcrumb.Item>
         <Breadcrumb.Item>关键词挖掘</Breadcrumb.Item>
       </Breadcrumb>
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
-        关键词挖掘
-      </h2>
-
-      {/* 搜索栏 */}
-      <Card style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
+          关键词挖掘
+        </h2>
         <Space>
-          <Search
-            placeholder="输入关键词进行挖掘"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearch={handleSearch}
-            loading={loading}
-            style={{ width: 400 }}
-            enterButton={<><SearchOutlined /> 挖掘</>}
-          />
           <Button icon={<DownloadOutlined />} onClick={() => message.success('数据导出成功')}>导出数据</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建关键词</Button>
         </Space>
-      </Card>
-
+      </div>
       {/* 统计概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -344,12 +490,25 @@ const KeywordResearch: React.FC = () => {
         </Col>
       </Row>
 
-      <Tabs defaultActiveKey="hot" onChange={setActiveTab}>
+      <Tabs activeKey={activeTab} onChange={handleTabChange}>
         <TabPane tab="热门关键词" key="hot">
           <Card>
+            {/* 搜索栏 */}
+            <Space style={{ marginBottom: 16 }}>
+              <Search
+                placeholder="输入关键词进行挖掘"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onSearch={handleSearch}
+                loading={loading}
+                style={{ width: 400 }}
+                enterButton={<><SearchOutlined /> 挖掘</>}
+              />
+            </Space>
+
             <Alert
               message="Google关键词数据说明"
-              description="基于Google Keyword Planner数据，搜索量为月均全球搜索量，优化难度0-100分，CPC为美元单次点击预估费用"
+              description="基于Google Keyword Planner数据,搜索量为月均全球搜索量,优化难度0-100分,CPC为美元单次点击预估费用"
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -358,10 +517,16 @@ const KeywordResearch: React.FC = () => {
               columns={columns}
               dataSource={hotKeywords}
               rowKey="id"
+              loading={loading}
               pagination={{
-                pageSize: 10,
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
+                onChange: (page, pageSize) => {
+                  setPagination(prev => ({ ...prev, current: page, pageSize }));
+                },
               }}
             />
           </Card>
@@ -375,9 +540,15 @@ const KeywordResearch: React.FC = () => {
                   columns={longTailColumns}
                   dataSource={longTailKeywords}
                   rowKey="id"
+                  loading={loading}
                   pagination={{
-                    pageSize: 10,
+                    current: pagination.current,
+                    pageSize: pagination.pageSize,
+                    total: pagination.total,
                     showSizeChanger: true,
+                    onChange: (page, pageSize) => {
+                      setPagination(prev => ({ ...prev, current: page, pageSize }));
+                    },
                   }}
                 />
               </Card>
@@ -463,9 +634,15 @@ const KeywordResearch: React.FC = () => {
                 ]}
                 dataSource={favorites}
                 rowKey="id"
+                loading={loading}
                 pagination={{
-                  pageSize: 10,
+                  current: pagination.current,
+                  pageSize: pagination.pageSize,
+                  total: pagination.total,
                   showSizeChanger: true,
+                  onChange: (page, pageSize) => {
+                    setPagination(prev => ({ ...prev, current: page, pageSize }));
+                  },
                 }}
               />
             )}
@@ -493,8 +670,19 @@ const KeywordResearch: React.FC = () => {
                   ),
                 },
               ]}
-              dataSource={hotKeywords.slice(0, 3)}
+              dataSource={normalKeywords}
               rowKey="id"
+              loading={loading}
+              pagination={{
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                onChange: (page, pageSize) => {
+                  setPagination(prev => ({ ...prev, current: page, pageSize }));
+                },
+              }}
             />
           </Card>
         </TabPane>
@@ -505,106 +693,85 @@ const KeywordResearch: React.FC = () => {
         title="添加关键词"
         open={addModalVisible}
         onCancel={() => setAddModalVisible(false)}
-        onOk={handleAddKeyword}
-        okText="添加"
-        cancelText="取消"
-        destroyOnClose
+        footer={[
+          <Button key="back" onClick={() => setAddModalVisible(false)}>取消</Button>,
+          <Button key="submit" type="primary" onClick={handleAddKeyword}>添加</Button>,
+        ]}
       >
-        <Form form={addForm} layout="vertical" preserve={false}>
+        <Form form={addForm} layout="vertical">
           <Form.Item
             name="keyword"
             label="关键词"
             rules={[{ required: true, message: '请输入关键词' }]}
-            initialValue={selectedKeyword?.keyword || ''}
           >
-            <Input placeholder="输入关键词" />
+            <Input placeholder="请输入关键词" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 创建关键词弹窗 */}
+      <Modal
+        title="创建关键词"
+        open={createModalVisible}
+        onCancel={() => setCreateModalVisible(false)}
+        onOk={handleCreateKeyword}
+        okText="创建"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <Form form={createForm} layout="vertical" preserve={false}>
+          <Form.Item
+            name="keyword"
+            label="关键词"
+            rules={[{ required: true, message: '请输入关键词' }]}
+          >
+            <Input placeholder="请输入关键词" />
           </Form.Item>
           <Form.Item
-            name="category"
-            label="分类"
-            rules={[{ required: true, message: '请选择分类' }]}
+            name="keyword_type"
+            label="关键词类型"
+            rules={[{ required: true, message: '请选择关键词类型' }]}
+            initialValue="hot"
           >
-            <Select placeholder="选择分类">
-              <Select.Option value="Resolution">分辨率</Select.Option>
-              <Select.Option value="Style">风格</Select.Option>
-              <Select.Option value="Theme">主题</Select.Option>
-              <Select.Option value="Device">设备</Select.Option>
-              <Select.Option value="Type">类型</Select.Option>
+            <Select placeholder="选择关键词类型">
+              <Select.Option value="hot">热门</Select.Option>
+              <Select.Option value="long_tail">长尾词</Select.Option>
+              <Select.Option value="normal">词库</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item
-            name="searchVolume"
-            label="月搜索量"
-            rules={[{ required: true, message: '请输入月搜索量' }]}
+            name="is_favorite"
+            label="是否收藏"
+            valuePropName="checked"
+            initialValue={false}
           >
-            <Input type="number" placeholder="输入月搜索量" />
-          </Form.Item>
-          <Form.Item
-            name="difficulty"
-            label="优化难度 (0-100)"
-            rules={[{ required: true, message: '请输入优化难度' }]}
-          >
-            <Input type="number" min={0} max={100} placeholder="输入优化难度" />
-          </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={3} placeholder="可选：输入备注信息" />
+            <Select>
+              <Select.Option value={true}>是</Select.Option>
+              <Select.Option value={false}>否</Select.Option>
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
 
       {/* 关键词详情弹窗 */}
       <Modal
-        title={selectedKeyword ? `关键词详情: ${selectedKeyword.keyword}` : '关键词详情'}
+        title="关键词详情"
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>关闭</Button>,
-          selectedKeyword && (
-            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => {
-              setDetailModalVisible(false);
-              setAddModalVisible(true);
-            }}>
-              添加到词库
-            </Button>
-          ),
-        ]}
-        width={700}
+        footer={null}
+        width={800}
       >
         {selectedKeyword && (
-          <>
-            <Descriptions bordered column={2}>
-              <Descriptions.Item label="关键词">{selectedKeyword.keyword}</Descriptions.Item>
-              <Descriptions.Item label="分类">{selectedKeyword.category}</Descriptions.Item>
-              <Descriptions.Item label="月搜索量">{selectedKeyword.searchVolume.toLocaleString()}</Descriptions.Item>
-              <Descriptions.Item label="CPC">${selectedKeyword.cpc}</Descriptions.Item>
-              <Descriptions.Item label="优化难度">
-                <Progress percent={selectedKeyword.difficulty} size="small" strokeColor={getDifficultyColor(selectedKeyword.difficulty)} />
-              </Descriptions.Item>
-              <Descriptions.Item label="竞争度">{getCompetitionTag(selectedKeyword.competition)}</Descriptions.Item>
-            </Descriptions>
-            <Divider />
-            <h4>趋势分析</h4>
-            <div style={{ marginTop: 8 }}>
-              <Space>
-                <span>趋势: {getTrendIcon(selectedKeyword.trend)}</span>
-                <Tag color="blue">相关词: {selectedKeyword.relatedCount}个</Tag>
-              </Space>
-            </div>
-            <Divider />
-            <h4>优化建议</h4>
-            <Alert
-              message={selectedKeyword.difficulty > 60 ? '优化难度较高' : selectedKeyword.difficulty > 40 ? '中等优化难度' : '较易优化'}
-              description={
-                selectedKeyword.difficulty > 60
-                  ? '该关键词竞争激烈，建议结合长尾词策略，从相关内容页面入手。'
-                  : selectedKeyword.difficulty > 40
-                  ? '有一定竞争，可以通过优质内容和外链建设提升排名。'
-                  : '竞争度较低，是较好的优化目标，建议尽快布局相关页面。'
-              }
-              type={selectedKeyword.difficulty > 60 ? 'warning' : selectedKeyword.difficulty > 40 ? 'info' : 'success'}
-              showIcon
-            />
-          </>
+          <Descriptions column={2}>
+            <Descriptions.Item label="关键词">{selectedKeyword.keyword}</Descriptions.Item>
+            <Descriptions.Item label="搜索量">{selectedKeyword.searchVolume.toLocaleString()}</Descriptions.Item>
+            <Descriptions.Item label="难度">{selectedKeyword.difficulty}</Descriptions.Item>
+            <Descriptions.Item label="CPC">{`$${selectedKeyword.cpc.toFixed(2)}`}</Descriptions.Item>
+            <Descriptions.Item label="趋势">{getTrendIcon(selectedKeyword.trend)}</Descriptions.Item>
+            <Descriptions.Item label="竞争">{getCompetitionTag(selectedKeyword.competition)}</Descriptions.Item>
+            <Descriptions.Item label="相关词数量">{selectedKeyword.relatedCount}</Descriptions.Item>
+            <Descriptions.Item label="类别">{selectedKeyword.category}</Descriptions.Item>
+          </Descriptions>
         )}
       </Modal>
     </div>
