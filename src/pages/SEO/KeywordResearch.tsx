@@ -4,7 +4,7 @@ import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutli
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
-import { getKeywords, getFavoriteKeywords, createKeyword, aiExpandLongTail, batchFavoriteKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams } from '../../services/keywordApi';
+import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams } from '../../services/keywordApi';
 
 const { TabPane } = Tabs;
 const { Search } = Input;
@@ -106,7 +106,7 @@ const KeywordResearch: React.FC = () => {
         res = await getKeywords({
           currentPage: pagination.current,
           pageSize: pagination.pageSize,
-          is_favorite: false,
+          // is_favorite: false,
           keyword_type: activeTab === 'longtail' ? 'long_tail' : activeTab === 'mykeywords' ? 'normal' : 'hot',
           // category: searchValue, // 使用category参数进行筛选
         });
@@ -128,7 +128,7 @@ const KeywordResearch: React.FC = () => {
             res = await getKeywords({
               currentPage: pagination.current,
               pageSize: pagination.pageSize,
-              is_favorite: false,
+              // is_favorite: false,
               keyword_type: 'hot',
             });
             if (res && res.results) {
@@ -140,7 +140,7 @@ const KeywordResearch: React.FC = () => {
             res = await getKeywords({
               currentPage: pagination.current,
               pageSize: pagination.pageSize,
-              is_favorite: false,
+              // is_favorite: false,
               keyword_type: 'long_tail',
             });
             if (res && res.results) {
@@ -153,7 +153,7 @@ const KeywordResearch: React.FC = () => {
             res = await getKeywords({
               currentPage: pagination.current,
               pageSize: pagination.pageSize,
-              is_favorite: false,
+              // is_favorite: false,
               keyword_type: 'normal',
             });
             if (res && res.results) {
@@ -192,28 +192,28 @@ const KeywordResearch: React.FC = () => {
   }, []);
 
   const handleSearch = async () => {
-    // 如果是热门关键词Tab且有搜索值，调用AI扩展长尾词接口
+    // 如果是热门关键词Tab且有搜索值，调用AI挖掘热门关键词接口
     if (activeTab === 'hot' && searchValue) {
       setLoading(true);
       try {
-        console.log('开始调用AI扩展长尾词接口...');
-        const res = await aiExpandLongTail({ parent_keyword: searchValue });
-        console.log('AI扩展接口返回结果:', res);
+        console.log('开始调用AI挖掘热门关键词接口...');
+        const res = await aiMineHotKeywords({ seed_keyword: searchValue });
+        console.log('AI挖掘接口返回结果:', res);
         
         if (res && Array.isArray(res)) {
           const converted = res.map(convertKeywordItem);
           setHotKeywords(converted);
           setPagination(prev => ({ ...prev, total: converted.length, current: 1 }));
-          message.success(`成功扩展 ${converted.length} 个长尾关键词`);
+          message.success(`成功挖掘 ${converted.length} 个热门关键词`);
         }
         
-        // 无论AI扩展是否成功，都刷新列表数据
+        // 无论AI挖掘是否成功，都刷新列表数据
         console.log('开始刷新列表数据...');
         await loadKeywords();
         console.log('列表数据刷新完成');
       } catch (err) {
-        console.error('AI扩展长尾词失败:', err);
-        message.error('AI扩展长尾词失败');
+        console.error('AI挖掘热门关键词失败:', err);
+        message.error('AI挖掘热门关键词失败');
         // 失败后也要刷新列表
         await loadKeywords();
       } finally {

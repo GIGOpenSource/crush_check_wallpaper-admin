@@ -17,7 +17,7 @@ export interface KeywordItem {
   competition: number;                  // 竞争度（0-1）
   cpc: string;                          // CPC费用（字符串格式，如"0.45"）
   created_at: string;                   // 创建时间
-  is_favorite: boolean;                 // 是否收藏
+  is_favorite?: boolean;                // 是否收藏（仅收藏相关接口返回，AI挖掘接口不返回）
   monthly_search_volume: number;        // 月搜索量
   optimization_difficulty: number;      // 优化难度（0-100）
   parent_keyword: string | null;        // 父关键词
@@ -92,15 +92,43 @@ export function createKeyword(params: CreateKeywordParams): Promise<KeywordItem>
  */
 export interface AIExpandLongTailParams {
   parent_keyword: string;               // 父关键词（必填）
+  pos?: string;                         // 词性：noun(名词)/adjective(形容词)/verb(动词)，默认noun
+  modifiers?: string;                   // 修饰词，逗号分隔（如：4k,高清,免费,下载）
+}
+
+/**
+ * AI扩展长尾词返回的关键词数据
+ */
+export interface ExpandLongTailKeyword {
+  id?: number;                          // 关键词ID
+  long_tail_keyword: string;            // 长尾关键词
+  parent_keyword: string;               // 父关键词
+  monthly_search_volume: number;        // 月搜索量
+  optimization_difficulty: number;      // 优化难度
+}
+
+/**
+ * AI扩展长尾词响应数据
+ */
+export interface AIExpandLongTailResponse {
+  parent_keyword: string;               // 父关键词
+  pos: string;                          // 词性
+  modifiers: string;                    // 修饰词
+  keywords: ExpandLongTailKeyword[];    // 关键词列表
+  total: number;                        // 总数
+  saved_to_library: number;             // 已保存到词库的数量
+  message: string;                      // 提示信息
 }
 
 /**
  * AI扩展长尾词
  * @param params 请求参数
  */
-export function aiExpandLongTail(params: AIExpandLongTailParams): Promise<KeywordItem[]> {
-  return http.get<KeywordItem[]>('/seo/keyword/ai_expand_long_tail/', {
+export function aiExpandLongTail(params: AIExpandLongTailParams): Promise<AIExpandLongTailResponse> {
+  return http.get<AIExpandLongTailResponse>('/seo/keyword/ai_expand_long_tail/', {
     parent_keyword: params.parent_keyword,
+    pos: params.pos || 'noun',
+    modifiers: params.modifiers,
   });
 }
 
@@ -120,5 +148,22 @@ export function batchFavoriteKeywords(params: BatchFavoriteKeywordsParams): Prom
   return http.post<void>('/seo/keyword/batch_favorite_keywords/', {
     ids: params.ids,
     is_favorite: params.is_favorite,
+  });
+}
+
+/**
+ * AI挖掘热门关键词请求参数
+ */
+export interface AIMineHotKeywordsParams {
+  seed_keyword: string;                 // 种子关键词（必填）
+}
+
+/**
+ * AI挖掘热门关键词
+ * @param params 请求参数
+ */
+export function aiMineHotKeywords(params: AIMineHotKeywordsParams): Promise<KeywordItem[]> {
+  return http.get<KeywordItem[]>('/seo/keyword/ai_mine_hot_keywords/', {
+    seed_keyword: params.seed_keyword,
   });
 }
