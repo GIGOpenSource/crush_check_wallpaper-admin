@@ -373,7 +373,7 @@ const SEODashboard: React.FC = () => {
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>SEO仪表盘</h2>
+        <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>SEO仪表盘（未开发）</h2>
         <Space>
           {lastUpdateTime && (
             <Tooltip title="数据更新时间">
