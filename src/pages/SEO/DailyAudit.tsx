@@ -397,7 +397,7 @@ const DailyAudit: React.FC = () => {
       
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.setAttribute('download', `巡查报告_${selectedSiteUrl}_${activeTab}_${new Date().getTime()}.pdf`);
+      link.setAttribute('download', `巡查报告_${selectedSiteUrl}_${activeTab}_${new Date().getTime()}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();

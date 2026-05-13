@@ -245,41 +245,34 @@ export interface CompetitorAnalysisItem {
 }
 
 /**
+ * 竞品分析关键词项数据结构
+ */
+export interface CompetitorAnalysisKeyword {
+  id: number;                         // ID
+  keyword: string;                    // 关键词
+  rank: number;                       // 排名
+  page_title: string;                 // 页面标题
+  bidword_companycount: number;       // 竞价公司数
+  created_at: string;                 // 创建时间
+  index: number;                      // 索引
+  long_keyword_count: number;         // 长尾关键词数量
+  updated_at: string;                 // 更新时间
+}
+
+/**
  * 竞品分析详情数据结构
  */
 export interface CompetitorAnalysisDetail {
   id: number;
-  competitor_name: string;           // 竞争对手名称
-  competitor_url: string;            // 竞争对手URL
-  analysis_type: string;             // 分析类型
-  status: 'pending' | 'processing' | 'completed' | 'failed';  // 状态
-  status_display: string;            // 状态显示文本
-  total_keywords: number;            // 总关键词数
-  shared_keywords: number;           // 共享关键词数
-  unique_keywords: number;           // 独有关键词数
-  keyword_overlap_rate: number;      // 关键词重叠率
-  analysis_summary?: string;         // 分析总结
-  top_shared_keywords?: Array<{
-    keyword: string;
-    our_ranking: number | null;
-    competitor_ranking: number;
-    search_volume: number;
-    difficulty: number;
-  }>;
-  top_unique_keywords?: Array<{
-    keyword: string;
-    ranking: number;
-    search_volume: number;
-    difficulty: number;
-  }>;
-  keyword_distribution?: {
-    top_3: number;
-    top_10: number;
-    top_20: number;
-    top_50: number;
+  url: string;                        // 网站URL
+  keyword_count: number;              // 总关键词数
+  results: CompetitorAnalysisKeyword[]; // 关键词列表
+  pagination: {
+    page: number;                     // 当前页
+    page_size: number;                // 每页数量
+    total: number;                    // 总数
+    total_pages: number;              // 总页数
   };
-  created_at: string;
-  completed_at?: string;
 }
 
 /**
