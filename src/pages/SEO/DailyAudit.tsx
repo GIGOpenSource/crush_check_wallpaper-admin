@@ -576,9 +576,9 @@ const DailyAudit: React.FC = () => {
 
         console.log('弹窗状态已设置，开始刷新数据...');
 
-        // 巡查完成后刷新数据
+        // 巡查完成后刷新数据，使用巡查时的时间戳重新获取统计数据
         await Promise.all([
-          loadDashboardData(),
+          loadDashboardData(startTs, endTs, selectedSiteUrl),
           loadInspectionData(activeTab as any, 1, pageSize, startTs, endTs, selectedSiteUrl)
         ]);
 
