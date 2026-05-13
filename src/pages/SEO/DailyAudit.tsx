@@ -576,9 +576,9 @@ const DailyAudit: React.FC = () => {
 
         console.log('弹窗状态已设置，开始刷新数据...');
 
-        // 巡查完成后刷新数据，使用巡查时的时间戳重新获取统计数据
+        // 巡查完成后刷新数据
         await Promise.all([
-          loadDashboardData(startTs, endTs, selectedSiteUrl),
+          loadDashboardData(),
           loadInspectionData(activeTab as any, 1, pageSize, startTs, endTs, selectedSiteUrl)
         ]);
 
@@ -951,20 +951,13 @@ const DailyAudit: React.FC = () => {
                 >
                   <Timeline
                     items={inspectionLogs.map((log: any) => {
-                      // 优先使用 start_date，兼容 start_time
-                      const startDate = log.start_date || log.start_time ;
-                      const endDate = log.end_date || log.end_time;
+                      // 优先使用 inspected_at 字段
+                      const inspectedDate = log.inspected_at;
 
                       let timeDisplay = '--:--';
-                      if (startDate) {
-                        const date = dayjs(startDate);
-                        timeDisplay = date.format('YYYY-MM-DD HH:mm');
-
-                        // 如果有结束时间，显示时间段
-                        if (endDate) {
-                          const endDateObj = dayjs(endDate);
-                          timeDisplay = `${date.format('YYYY-MM-DD HH:mm')} - ${endDateObj.format('YYYY-MM-DD HH:mm')}`;
-                        }
+                      if (inspectedDate) {
+                        const date = dayjs(inspectedDate);
+                        timeDisplay = date.format('YYYY-MM-DD HH:mm:ss');
                       }
 
                       const statusColor = log.status === 'success' ? '#52c41a' : log.status === 'failed' ? '#faad14' : '#1890ff';

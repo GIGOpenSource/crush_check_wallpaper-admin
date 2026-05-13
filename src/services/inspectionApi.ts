@@ -163,6 +163,7 @@ export interface InspectionLog {
   status_display: string;              // 状态显示名称
   start_time: string;                  // 开始时间
   end_time?: string;                   // 结束时间
+  inspected_at: string;                // 巡查时间
   duration?: number;                   // 耗时（秒）
   total_items?: number;                // 检查项总数
   normal_count?: number;               // 正常项数量
