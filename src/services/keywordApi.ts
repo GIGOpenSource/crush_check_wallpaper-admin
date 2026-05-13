@@ -167,3 +167,36 @@ export function aiMineHotKeywords(params: AIMineHotKeywordsParams): Promise<Keyw
     seed_keyword: params.seed_keyword,
   });
 }
+
+/**
+ * 导入关键词请求参数
+ */
+export interface ImportKeywordsParams {
+  file: File;                           // 文件（必填）
+  keyword_type: 'hot' | 'long_tail' | 'normal';  // 关键词类型（必填）
+}
+
+/**
+ * 导入关键词响应数据
+ */
+export interface ImportKeywordsResponse {
+  imported: number;                     // 导入成功数量
+  failed: number;                       // 导入失败数量
+  message: string;                      // 提示信息
+}
+
+/**
+ * 导入关键词
+ * @param params 请求参数
+ */
+export function importKeywords(params: ImportKeywordsParams): Promise<ImportKeywordsResponse> {
+  const formData = new FormData();
+  formData.append('file', params.file);
+  formData.append('keyword_type', params.keyword_type);
+  
+  return http.post<ImportKeywordsResponse>('/seo/keyword/import_keywords/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+}

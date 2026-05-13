@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm } from 'antd';
-import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled, DeleteOutlined } from '@ant-design/icons';
+import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm, Upload } from 'antd';
+import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled, DeleteOutlined, InboxOutlined, UploadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
 import { getKeywordDashboardStatistics, type KeywordDashboardStatistics } from '../../services/keywordDashboardApi';
-import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams } from '../../services/keywordApi';
+import { getKeywords, getFavoriteKeywords, createKeyword, aiMineHotKeywords, aiExpandLongTail, batchFavoriteKeywords, importKeywords, type KeywordItem, type CreateKeywordParams, type AIExpandLongTailParams, type ImportKeywordsResponse } from '../../services/keywordApi';
 
 const { TabPane } = Tabs;
 const { Search } = Input;
@@ -48,6 +48,12 @@ const KeywordResearch: React.FC = () => {
   // 收藏的关键词
   const [favorites, setFavorites] = useState<Keyword[]>([]);
   const [activeTab, setActiveTab] = useState('hot');
+
+  // 导入关键词相关状态
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importKeywordType, setImportKeywordType] = useState<'hot' | 'long_tail' | 'normal'>('hot');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
 
   // 关键词统计数据
   const [dashboardStats, setDashboardStats] = useState<KeywordDashboardStatistics>({
@@ -191,39 +197,44 @@ const KeywordResearch: React.FC = () => {
     loadDashboardStats();
   }, []);
 
-  const handleSearch = async () => {
-    // 如果是热门关键词Tab且有搜索值，调用AI挖掘热门关键词接口
-    if (activeTab === 'hot' && searchValue) {
-      setLoading(true);
-      try {
-        console.log('开始调用AI挖掘热门关键词接口...');
-        const res = await aiMineHotKeywords({ seed_keyword: searchValue });
-        console.log('AI挖掘接口返回结果:', res);
-        
-        if (res && Array.isArray(res)) {
-          const converted = res.map(convertKeywordItem);
-          setHotKeywords(converted);
-          setPagination(prev => ({ ...prev, total: converted.length, current: 1 }));
-          message.success(`成功挖掘 ${converted.length} 个热门关键词`);
-        }
-        
-        // 无论AI挖掘是否成功，都刷新列表数据
-        console.log('开始刷新列表数据...');
-        await loadKeywords();
-        console.log('列表数据刷新完成');
-      } catch (err) {
-        console.error('AI挖掘热门关键词失败:', err);
-        message.error('AI挖掘热门关键词失败');
-        // 失败后也要刷新列表
-        await loadKeywords();
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // 其他情况使用原有的搜索逻辑
-      setPagination(prev => ({ ...prev, current: 1 }));
-      loadKeywords();
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }));
+    loadKeywords();
+  };
+
+  // 导入关键词
+  const handleImportKeywords = async () => {
+    if (!importFile) {
+      message.warning('请选择要导入的文件');
+      return;
     }
+
+    setImportLoading(true);
+    try {
+      const result = await importKeywords({
+        file: importFile,
+        keyword_type: importKeywordType,
+      });
+      
+      message.success(`导入成功！成功: ${result.imported} 条，失败: ${result.failed} 条`);
+      setImportModalVisible(false);
+      setImportFile(null);
+      
+      // 刷新列表数据
+      loadKeywords();
+    } catch (error) {
+      console.error('导入关键词失败:', error);
+      message.error('导入关键词失败');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // 打开导入弹窗
+  const openImportModal = (keywordType: 'hot' | 'long_tail' | 'normal') => {
+    setImportKeywordType(keywordType);
+    setImportFile(null);
+    setImportModalVisible(true);
   };
 
   const getDifficultyColor = (difficulty: number) => {
@@ -596,6 +607,7 @@ const KeywordResearch: React.FC = () => {
           关键词挖掘
         </h2>
         <Space>
+          <Button icon={<UploadOutlined />} onClick={() => openImportModal('hot')}>导入关键词</Button>
           <Button icon={<DownloadOutlined />} onClick={() => message.success('数据导出成功')}>导出数据</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建关键词</Button>
         </Space>
@@ -649,6 +661,9 @@ const KeywordResearch: React.FC = () => {
           <Card>
             {/* 搜索栏 */}
             <Space style={{ marginBottom: 16 }}>
+              {/* <Button type="primary" icon={<UploadOutlined />} onClick={() => openImportModal('hot')}>
+                导入关键词
+              </Button> */}
               <Search
                 placeholder="输入关键词进行挖掘"
                 value={searchValue}
@@ -689,7 +704,14 @@ const KeywordResearch: React.FC = () => {
         <TabPane tab="长尾关键词" key="longtail">
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
-              <Card title="推荐长尾词">
+              <Card 
+                title="推荐长尾词"
+                // extra={
+                //   <Button size="small" type="primary" icon={<UploadOutlined />} onClick={() => openImportModal('long_tail')}>
+                //     导入关键词
+                //   </Button>
+                // }
+              >
                 <Table
                   columns={longTailColumns}
                   dataSource={longTailKeywords}
@@ -835,7 +857,9 @@ const KeywordResearch: React.FC = () => {
           <Card>
             <Space style={{ marginBottom: 16 }}>
               {/* <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>添加关键词</Button> */}
-              <Button onClick={() => message.info('批量导入功能开发中')}>批量导入</Button>
+              {/* <Button type="primary" icon={<UploadOutlined />} onClick={() => openImportModal('normal')}>
+                导入关键词
+              </Button> */}
               <Button onClick={() => message.success('导出成功')}>批量导出</Button>
             </Space>
             <Table
@@ -955,6 +979,49 @@ const KeywordResearch: React.FC = () => {
             <Descriptions.Item label="类别">{selectedKeyword.category}</Descriptions.Item>
           </Descriptions>
         )}
+      </Modal>
+
+      {/* 导入关键词弹窗 */}
+      <Modal
+        title="导入关键词"
+        open={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        onOk={handleImportKeywords}
+        okText="导入"
+        cancelText="取消"
+        confirmLoading={importLoading}
+      >
+        <Form layout="vertical">
+          <Form.Item label="关键词类型">
+            <Select 
+              value={importKeywordType} 
+              onChange={setImportKeywordType}
+            >
+              <Select.Option value="hot">热门关键词</Select.Option>
+              <Select.Option value="long_tail">长尾关键词</Select.Option>
+              <Select.Option value="normal">我的词库</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item label="上传文件">
+            <Upload.Dragger
+              beforeUpload={(file) => {
+                setImportFile(file);
+                return false; // 阻止自动上传
+              }}
+              onRemove={() => setImportFile(null)}
+              maxCount={1}
+              accept=".csv,.xlsx,.xls"
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
+              <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+              <p className="ant-upload-hint">
+                支持 CSV、Excel 文件格式
+              </p>
+            </Upload.Dragger>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );
