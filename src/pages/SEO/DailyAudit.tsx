@@ -848,12 +848,12 @@ const DailyAudit: React.FC = () => {
                 </div>
               </div>
             )}
-            <Alert
+            {/* <Alert
               message="安全扫描通过，未发现异常"
               type="success"
               showIcon
               style={{ marginBottom: 16 }}
-            />
+            /> */}
             <Table
               columns={columns}
               dataSource={securityData}
@@ -901,12 +901,12 @@ const DailyAudit: React.FC = () => {
                 </div>
               </div>
             )}
-            <Alert
+            {/* <Alert
               message="整体性能良好，发现3张首屏图片未加载"
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
-            />
+            /> */}
             <Table
               columns={columns}
               dataSource={performanceData}
