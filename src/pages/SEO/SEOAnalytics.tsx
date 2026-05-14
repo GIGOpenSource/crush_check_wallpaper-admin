@@ -50,13 +50,13 @@ const landingPageDataStatic = [
 const SEOAnalytics: React.FC = () => {
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null);
-  
+
   // 防止重复加载的标志位
   const hasLoadedInitialData = useRef(false);
-  
+
   // 防止并发请求的标志位
   const isRefreshing = useRef(false);
-  
+
   // 初始化默认时间范围（最近7天）
   const defaultDateRange: [Dayjs, Dayjs] = [dayjs().subtract(7, 'day'), dayjs()];
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>(defaultDateRange);
@@ -69,7 +69,7 @@ const SEOAnalytics: React.FC = () => {
     ctr: 4.91,
     position: 8.5,
   });
-  
+
   // 收录趋势数据
   const [inclusionTrendData, setInclusionTrendData] = useState<Array<{
     date: string;
@@ -78,11 +78,11 @@ const SEOAnalytics: React.FC = () => {
     ctr: number;
     position: number;
   }>>([]);
-  
+
   // 动态数据状态
   const [landingPageData] = useState(landingPageDataStatic);
   const [trafficData, setTrafficData] = useState<TrafficSource[]>(trafficDataStatic);
-  
+
   // 核心指标 - 从API获取
   const [coreMetrics, setCoreMetrics] = useState({
     totalIndexed: 0,
@@ -159,12 +159,12 @@ const SEOAnalytics: React.FC = () => {
     try {
       // 使用用户选择的日期范围，如果没有选择则使用默认最近7天
       const { startTimestamp, endTimestamp } = dateRange && dateRange[0] && dateRange[1]
-        ? { 
-            startTimestamp: Math.floor(dateRange[0].valueOf() / 1000), 
-            endTimestamp: Math.floor(dateRange[1].valueOf() / 1000) 
-          }
+        ? {
+          startTimestamp: Math.floor(dateRange[0].valueOf() / 1000),
+          endTimestamp: Math.floor(dateRange[1].valueOf() / 1000)
+        }
         : getDefaultTimeRange();
-      
+
       const res = await seoApi.getDataAnalysisDetail({
         site_url: selectedPath,
         start_timestamp: startTimestamp,
@@ -186,7 +186,7 @@ const SEOAnalytics: React.FC = () => {
         } else {
           console.warn('⚠️ inclusion_trend 数据为空:', res.data.inclusion_trend);
         }
-        
+
         setAnalysisDetail({
           indexTrend: res.data.index_trend || [],
           keywordRankings: res.data.keyword_rankings.map((item: any) => ({
@@ -198,7 +198,7 @@ const SEOAnalytics: React.FC = () => {
             landing_page: item.landing_page,
           })) || [],
           // 处理landing_page_analysis：后端可能返回数组或对象
-          landingPages: Array.isArray(res.data.landing_page_analysis) 
+          landingPages: Array.isArray(res.data.landing_page_analysis)
             ? res.data.landing_page_analysis  // 如果已经是数组，直接使用
             : (res.data.landing_page_analysis && res.data.landing_page_analysis.page)
               ? [res.data.landing_page_analysis]  // 如果是对象且有效，包装成数组
@@ -206,7 +206,7 @@ const SEOAnalytics: React.FC = () => {
           // 使用接口返回的traffic_sources数据
           trafficSources: res.data.traffic_sources || [],
         });
-        
+
         console.log('✅ landingPages 数据已设置:', analysisDetail.landingPages);
       }
     } catch (err) {
@@ -248,7 +248,7 @@ const SEOAnalytics: React.FC = () => {
     seriesField: 'category',
     smooth: true,
     autoFit: true,
-    animation: { 
+    animation: {
       appear: { animation: 'path-in', duration: 1000 },
       enter: { animation: 'wave-in', duration: 800 }
     },
@@ -276,14 +276,14 @@ const SEOAnalytics: React.FC = () => {
       // 自定义 tooltip 内容
       customContent: (title: string, items: any[]) => {
         if (!items || items.length === 0) return '';
-        
+
         const container = document.createElement('div');
         container.style.padding = '12px';
         container.style.background = '#fff';
         container.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
         container.style.borderRadius = '4px';
         container.style.minWidth = '150px';
-        
+
         // 标题（日期）
         const titleEl = document.createElement('div');
         titleEl.style.marginBottom = '8px';
@@ -291,7 +291,7 @@ const SEOAnalytics: React.FC = () => {
         titleEl.style.fontSize = '12px';
         titleEl.textContent = title;
         container.appendChild(titleEl);
-        
+
         // 数据项列表
         const listEl = document.createElement('div');
         items.forEach((item: any) => {
@@ -301,7 +301,7 @@ const SEOAnalytics: React.FC = () => {
           row.style.marginBottom = '4px';
           row.style.fontSize = '12px';
           row.style.lineHeight = '20px';
-          
+
           // 颜色点
           const dot = document.createElement('span');
           dot.style.display = 'inline-block';
@@ -311,24 +311,24 @@ const SEOAnalytics: React.FC = () => {
           dot.style.backgroundColor = item.color || '#1890ff';
           dot.style.marginRight = '8px';
           dot.style.flexShrink = '0';
-          
+
           // 名称
           const name = document.createElement('span');
           name.style.flex = '1';
           name.style.color = '#333';
           name.textContent = item.name || '未知';
-          
+
           // 数值 - 直接显示
           const value = document.createElement('span');
           value.style.color = '#666';
           value.style.marginLeft = '12px';
           value.style.fontWeight = '500';
           value.style.flexShrink = '0';
-          
+
           // 获取实际数值
           const rawValue = item.data?.value ?? item.value ?? 0;
           const seriesName = item.name || '';
-          
+
           // 格式化数值
           if (seriesName === '平均排名') {
             value.textContent = rawValue.toFixed(1);
@@ -339,13 +339,13 @@ const SEOAnalytics: React.FC = () => {
           } else {
             value.textContent = String(rawValue);
           }
-          
+
           row.appendChild(dot);
           row.appendChild(name);
           row.appendChild(value);
           listEl.appendChild(row);
         });
-        
+
         container.appendChild(listEl);
         return container;
       },
@@ -386,7 +386,7 @@ const SEOAnalytics: React.FC = () => {
       '分类列表': [...new Set(lineConfig.data.map((d: any) => d.category))],
       '是否有数据': lineConfig.data.length > 0,
     });
-    
+
     if (lineConfig.data.length > 0) {
       console.log(' 示例数据点:', lineConfig.data.slice(0, 4));
     }
@@ -397,61 +397,61 @@ const SEOAnalytics: React.FC = () => {
   // 收录趋势表格列定义
   const inclusionTrendColumns = [
     { title: '当天日期', dataIndex: 'date', key: 'date', width: 120 },
-    { 
-      title: '曝光 / 展现量', 
-      dataIndex: 'impressions', 
-      key: 'impressions', 
+    {
+      title: '曝光 / 展现量',
+      dataIndex: 'impressions',
+      key: 'impressions',
       width: 150,
-      render: (v: number) => v.toLocaleString() 
+      render: (v: number) => v.toLocaleString()
     },
-    { 
-      title: '点击量', 
-      dataIndex: 'clicks', 
-      key: 'clicks', 
+    {
+      title: '点击量',
+      dataIndex: 'clicks',
+      key: 'clicks',
       width: 120,
-      render: (v: number) => v.toLocaleString() 
+      render: (v: number) => v.toLocaleString()
     },
-    { 
-      title: '点击率', 
-      dataIndex: 'ctr', 
-      key: 'ctr', 
+    {
+      title: '点击率',
+      dataIndex: 'ctr',
+      key: 'ctr',
       width: 120,
-      render: (v: number) => `${v.toFixed(2)}%` 
+      render: (v: number) => `${v.toFixed(2)}%`
     },
-    { 
-      title: '平均排名', 
-      dataIndex: 'position', 
-      key: 'position', 
+    {
+      title: '平均排名',
+      dataIndex: 'position',
+      key: 'position',
       width: 120,
-      render: (v: number) => v.toFixed(1) 
+      render: (v: number) => v.toFixed(1)
     },
   ];
 
   // 关键词排名表格列定义
   const keywordColumns = [
-    { 
-      title: '关键词', 
-      dataIndex: 'keyword', 
-      key: 'keyword', 
-      ellipsis: true, 
+    {
+      title: '关键词',
+      dataIndex: 'keyword',
+      key: 'keyword',
+      ellipsis: true,
       width: 200,
     },
-    { 
-      title: '搜索引擎', 
-      dataIndex: 'search_engine', 
-      key: 'search_engine', 
+    {
+      title: '搜索引擎',
+      dataIndex: 'search_engine',
+      key: 'search_engine',
       width: 120,
     },
-    { 
-      title: '当前平均排名', 
-      dataIndex: 'current_position', 
-      key: 'current_position', 
+    {
+      title: '当前平均排名',
+      dataIndex: 'current_position',
+      key: 'current_position',
       width: 140,
-      render: (v: number) => <Tag color={v <= 10 ? 'success' : v <= 30 ? 'warning' : 'default'} style={{ fontSize: '14px', padding: '4px 12px' }}>{v}</Tag> 
+      render: (v: number) => <Tag color={v <= 10 ? 'success' : v <= 30 ? 'warning' : 'default'} style={{ fontSize: '14px', padding: '4px 12px' }}>{v}</Tag>
     },
-    { 
-      title: '排名涨跌变化', 
-      dataIndex: 'position_change', 
+    {
+      title: '排名涨跌变化',
+      dataIndex: 'position_change',
       key: 'position_change',
       width: 140,
       render: (v: number) => {
@@ -463,17 +463,17 @@ const SEOAnalytics: React.FC = () => {
         );
       }
     },
-    { 
-      title: '搜索量', 
-      dataIndex: 'estimated_volume', 
-      key: 'estimated_volume', 
-      width: 120, 
-      render: (v: number) => v.toLocaleString() 
+    {
+      title: '搜索量',
+      dataIndex: 'estimated_volume',
+      key: 'estimated_volume',
+      width: 120,
+      render: (v: number) => v.toLocaleString()
     },
-    { 
-      title: '落地页', 
-      dataIndex: 'landing_page', 
-      key: 'landing_page', 
+    {
+      title: '落地页',
+      dataIndex: 'landing_page',
+      key: 'landing_page',
       ellipsis: true,
       width: 300,
     },
@@ -481,30 +481,30 @@ const SEOAnalytics: React.FC = () => {
 
   // 着陆页表格列定义
   const landingColumns = [
-    { 
-      title: '着陆页', 
-      dataIndex: 'page', 
-      key: 'page', 
+    {
+      title: '着陆页',
+      dataIndex: 'page',
+      key: 'page',
       ellipsis: true,
       width: 300,
     },
-    { 
-      title: '访问量', 
-      dataIndex: 'visits', 
-      key: 'visits', 
+    {
+      title: '访问量',
+      dataIndex: 'visits',
+      key: 'visits',
       width: 120,
       render: (v: number) => v != null ? v.toLocaleString() : '--'
     },
-    { 
-      title: '跳出率', 
-      dataIndex: 'bounce_rate', 
-      key: 'bounce_rate', 
+    {
+      title: '跳出率',
+      dataIndex: 'bounce_rate',
+      key: 'bounce_rate',
       width: 120,
       render: (v: number) => v != null ? `${v.toFixed(1)}%` : '--'
     },
-    { 
-      title: '平均停留', 
-      dataIndex: 'avg_time_on_page', 
+    {
+      title: '平均停留',
+      dataIndex: 'avg_time_on_page',
       key: 'avg_time_on_page',
       width: 120,
       render: (v: number) => v != null ? `${v}s` : '--'
@@ -532,13 +532,13 @@ const SEOAnalytics: React.FC = () => {
   // 加载Google Search Console数据
   const loadGSCData = async () => {
     try {
-      const { startTimestamp, endTimestamp } = dateRange 
-        ? { 
-            startTimestamp: Math.floor(dateRange[0]?.valueOf() / 1000), 
-            endTimestamp: Math.floor(dateRange[1]?.valueOf() / 1000) 
-          }
+      const { startTimestamp, endTimestamp } = dateRange
+        ? {
+          startTimestamp: Math.floor(dateRange[0]?.valueOf() / 1000),
+          endTimestamp: Math.floor(dateRange[1]?.valueOf() / 1000)
+        }
         : getDefaultTimeRange();
-      
+
       const res = await seoApi.getSearchConsoleData({
         site_url: selectedPath,
         start_timestamp: startTimestamp,
@@ -572,7 +572,7 @@ const SEOAnalytics: React.FC = () => {
     // 防止React StrictMode导致的重复执行
     if (hasLoadedInitialData.current) return;
     hasLoadedInitialData.current = true;
-    
+
     loadGSCData();
     loadCoreMetrics();
     loadAnalysisDetail(); // 加载详细数据分析
@@ -588,14 +588,14 @@ const SEOAnalytics: React.FC = () => {
       console.warn('⚠️ 请求正在进行中，忽略重复调用');
       return;
     }
-    
+
     // 防止重复点击
     if (loading) return;
-    
+
     isRefreshing.current = true;
     setLoading(true);
     message.loading('正在刷新数据...', 1);
-    
+
     try {
       await Promise.all([
         loadGSCData(),
@@ -620,7 +620,7 @@ const SEOAnalytics: React.FC = () => {
       traffic: trafficData,
       landingPages: landingPageData,
     };
-    
+
     const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -630,46 +630,46 @@ const SEOAnalytics: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     message.success('JSON报告导出成功！');
   };
 
   // 导出PDF报告
   const handleExportPDF = async () => {
     if (!reportRef.current) return;
-    
+
     setPdfExporting(true);
     message.loading('正在生成PDF报告...', 0);
-    
+
     try {
       const element = reportRef.current;
-      
+
       // 创建标题容器
       const headerDiv = document.createElement('div');
       headerDiv.style.textAlign = 'center';
       headerDiv.style.padding = '20px 0';
       headerDiv.style.marginBottom = '20px';
       headerDiv.style.borderBottom = '2px solid #1890ff';
-      
+
       const titleEl = document.createElement('h1');
       titleEl.textContent = 'SEO数据分析报告';
       titleEl.style.fontSize = '24px';
       titleEl.style.fontWeight = '600';
       titleEl.style.color = '#333';
       titleEl.style.margin = '0 0 10px 0';
-      
+
       const timeEl = document.createElement('p');
       timeEl.textContent = `生成时间: ${new Date().toLocaleString()}`;
       timeEl.style.fontSize = '14px';
       timeEl.style.color = '#666';
       timeEl.style.margin = '0';
-      
+
       headerDiv.appendChild(titleEl);
       headerDiv.appendChild(timeEl);
-      
+
       // 将标题容器插入到报告内容的开头
       element.insertBefore(headerDiv, element.firstChild);
-      
+
       // 使用 html2canvas 捕获整个报告(包括标题)
       const canvas = await html2canvas(element, {
         scale: 2,
@@ -677,28 +677,28 @@ const SEOAnalytics: React.FC = () => {
         logging: false,
         backgroundColor: '#ffffff',
       });
-      
+
       // 移除临时添加的标题容器
       element.removeChild(headerDiv);
-      
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
+
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
       const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      
+
       // 计算缩放后的高度
       const scaledHeight = imgHeight * ratio * (pdfWidth - 20) / (imgWidth * ratio);
       let heightLeft = scaledHeight;
       let position = 10;
-      
+
       // 添加第一页(html2canvas已包含标题和时间)
       pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, scaledHeight);
       heightLeft -= (pdfHeight - position);
-      
+
       // 如果内容超过一页,添加更多页
       while (heightLeft > 0) {
         position = heightLeft - scaledHeight + 10;
@@ -706,7 +706,7 @@ const SEOAnalytics: React.FC = () => {
         pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, scaledHeight);
         heightLeft -= (pdfHeight - 20);
       }
-      
+
       pdf.save(`seo-analytics-${new Date().toISOString().split('T')[0]}.pdf`);
       message.success('PDF报告导出成功!');
     } catch {
@@ -744,27 +744,29 @@ const SEOAnalytics: React.FC = () => {
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 24 }}>
         <Space>
-          <RangePicker 
+          <RangePicker
             value={dateRange}
             onChange={setDateRange}
             format="YYYY-MM-DD"
           />
-          <Select 
-            placeholder="选择路径" 
-            style={{ width: 280 }} 
+          <Select
+            placeholder="选择路径"
+            style={{ width: 280 }}
             value={selectedPath}
             onChange={setSelectedPath}
           >
             <Option value="https://www.markwallpapers.com/">https://www.markwallpapers.com/</Option>
             <Option value="https://markwallpapers.com/">https://markwallpapers.com/</Option>
           </Select>
-        
+
           <Button type="primary" icon={<SearchOutlined />} onClick={handleRefresh} loading={loading}>搜索</Button>
-           {/* <Button  icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>重置</Button> */}
-          <Dropdown menu={{ items: [
-            { key: 'pdf', label: '导出PDF', icon: <FilePdfOutlined />, onClick: handleExportPDF },
-            { key: 'json', label: '导出JSON', icon: <FileExcelOutlined />, onClick: handleExportJSON },
-          ]}}>
+          {/* <Button  icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>重置</Button> */}
+          <Dropdown menu={{
+            items: [
+              { key: 'pdf', label: '导出PDF', icon: <FilePdfOutlined />, onClick: handleExportPDF },
+              { key: 'json', label: '导出JSON', icon: <FileExcelOutlined />, onClick: handleExportJSON },
+            ]
+          }}>
             <Button icon={<DownloadOutlined />} loading={pdfExporting}>导出报告</Button>
           </Dropdown>
         </Space>
@@ -772,130 +774,133 @@ const SEOAnalytics: React.FC = () => {
 
       <Spin spinning={loading}>
         <div ref={reportRef}>
-        {/* 核心指标 */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="总收录量"
-                value={coreMetrics.totalIndexed}
-                prefix={<GlobalOutlined />}
-                valueStyle={{ color: '#1890ff' }}
-              />
-              <div style={{ marginTop: 8 }}>
-                <Tag color="success">+{coreMetrics.totalIndexedWeeklyIncrement} 本周</Tag>
-              </div>
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="SEO流量"
-                value={coreMetrics.seoTraffic}
-                prefix={<SearchOutlined />}
-                valueStyle={{ color: '#52c41a' }}
-              />
-              <div style={{ marginTop: 8 }}>
-                <Tag color={coreMetrics.seoTrafficWeeklyIncrement >= 0 ? 'success' : 'error'}>
-                  {coreMetrics.seoTrafficWeeklyIncrement >= 0 ? '+' : ''}{coreMetrics.seoTrafficWeeklyIncrement}
-                </Tag>
-              </div>
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="平均排名"
-                value={coreMetrics.avgRanking}
-                prefix={<SearchOutlined />}
-                valueStyle={{ color: '#722ed1' }}
-              />
-              <div style={{ marginTop: 8 }}>
-                <Tag color={coreMetrics.avgRankingWeeklyIncrement <= 0 ? 'success' : 'error'}>
-                  {coreMetrics.avgRankingWeeklyIncrement <= 0 ? '↑' : '↓'} {Math.abs(coreMetrics.avgRankingWeeklyIncrement)}
-                </Tag>
-              </div>
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="外链数量"
-                value={coreMetrics.backlinkCount}
-                prefix={<LinkOutlined />}
-                valueStyle={{ color: '#fa8c16' }}
-              />
-              <div style={{ marginTop: 8 }}>
-                <Tag color="success">+{coreMetrics.backlinkCountWeeklyIncrement} 本周</Tag>
-              </div>
-            </Card>
-          </Col>
-        </Row>
+          {/* 核心指标 */}
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={12} sm={6}>
+              <Card>
+                <Statistic
+                  title="总收录量"
+                  value={coreMetrics.totalIndexed}
+                  prefix={<GlobalOutlined />}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+                <div style={{ marginTop: 8 }}>
+                  <Tag color="success">
+                    {coreMetrics.totalIndexedWeeklyIncrement > 0 ? '+' : ''}
+                    {coreMetrics.totalIndexedWeeklyIncrement} 本周
+                  </Tag>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card>
+                <Statistic
+                  title="SEO流量"
+                  value={coreMetrics.seoTraffic}
+                  prefix={<SearchOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+                <div style={{ marginTop: 8 }}>
+                  <Tag color={coreMetrics.seoTrafficWeeklyIncrement >= 0 ? 'success' : 'error'}>
+                    {coreMetrics.seoTrafficWeeklyIncrement >= 0 ? '+' : ''}{coreMetrics.seoTrafficWeeklyIncrement}
+                  </Tag>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card>
+                <Statistic
+                  title="平均排名"
+                  value={coreMetrics.avgRanking}
+                  prefix={<SearchOutlined />}
+                  valueStyle={{ color: '#722ed1' }}
+                />
+                <div style={{ marginTop: 8 }}>
+                  <Tag color={coreMetrics.avgRankingWeeklyIncrement <= 0 ? 'success' : 'error'}>
+                    {coreMetrics.avgRankingWeeklyIncrement <= 0 ? '↑' : '↓'} {Math.abs(coreMetrics.avgRankingWeeklyIncrement)}
+                  </Tag>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card>
+                <Statistic
+                  title="外链数量"
+                  value={coreMetrics.backlinkCount}
+                  prefix={<LinkOutlined />}
+                  valueStyle={{ color: '#fa8c16' }}
+                />
+                <div style={{ marginTop: 8 }}>
+                  <Tag color="success">+{coreMetrics.backlinkCountWeeklyIncrement} 本周</Tag>
+                </div>
+              </Card>
+            </Col>
+          </Row>
 
-        <Tabs defaultActiveKey="trend">
-          <TabPane tab="收录趋势" key="trend">
-            <Row gutter={[16, 16]}>
-              <Col xs={24} lg={24}>
-                <Card title="Google收录趋势">
-                  {loading ? (
-                    <div style={{ textAlign: 'center', padding: '60px' }}>
-                      <Spin size="large" tip="数据加载中..." />
-                    </div>
-                  ) : inclusionTrendData.length > 0 ? (
-                    <Line {...lineConfig} height={400} />
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                      暂无数据，请点击搜索按钮加载数据
-                    </div>
-                  )}
-                </Card>
-              </Col>
-            </Row>
-          </TabPane>
+          <Tabs defaultActiveKey="trend">
+            <TabPane tab="收录趋势" key="trend">
+              <Row gutter={[16, 16]}>
+                <Col xs={24} lg={24}>
+                  <Card title="Google收录趋势">
+                    {loading ? (
+                      <div style={{ textAlign: 'center', padding: '60px' }}>
+                        <Spin size="large" tip="数据加载中..." />
+                      </div>
+                    ) : inclusionTrendData.length > 0 ? (
+                      <Line {...lineConfig} height={400} />
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                        暂无数据，请点击搜索按钮加载数据
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+            </TabPane>
 
-          <TabPane tab="关键词排名" key="keywords">
-            <Card title="关键词排名监控">
-              <Table
-                columns={keywordColumns}
-                dataSource={analysisDetail.keywordRankings}
-                rowKey="keyword"
-                size="middle"
-                bordered
-                scroll={{ x: 'max-content' }}
-                pagination={{ 
-                  pageSize: 10,
-                  position: ['bottomRight'],
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total) => `共 ${total} 条`
-                }}
-                rowClassName={() => 'keyword-row'}
-              />
-            </Card>
-          </TabPane>
+            <TabPane tab="关键词排名" key="keywords">
+              <Card title="关键词排名监控">
+                <Table
+                  columns={keywordColumns}
+                  dataSource={analysisDetail.keywordRankings}
+                  rowKey="keyword"
+                  size="middle"
+                  bordered
+                  scroll={{ x: 'max-content' }}
+                  pagination={{
+                    pageSize: 10,
+                    position: ['bottomRight'],
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`
+                  }}
+                  rowClassName={() => 'keyword-row'}
+                />
+              </Card>
+            </TabPane>
 
-          <TabPane tab="着陆页分析" key="landing">
-            <Card title="Top着陆页表现">
-              <Table
-                columns={landingColumns}
-                dataSource={analysisDetail.landingPages}
-                rowKey="page"
-                pagination={false}
-              />
-            </Card>
-          </TabPane>
+            <TabPane tab="着陆页分析" key="landing">
+              <Card title="Top着陆页表现">
+                <Table
+                  columns={landingColumns}
+                  dataSource={analysisDetail.landingPages}
+                  rowKey="page"
+                  pagination={false}
+                />
+              </Card>
+            </TabPane>
 
-          <TabPane tab="流量来源" key="traffic">
-            <Card title="Google流量来源细分">
-              <Table
-                columns={trafficColumns}
-                dataSource={analysisDetail.trafficSources}
-                rowKey="source"
-                pagination={false}
-              />
-            </Card>
-          </TabPane>
-        </Tabs>
+            <TabPane tab="流量来源" key="traffic">
+              <Card title="Google流量来源细分">
+                <Table
+                  columns={trafficColumns}
+                  dataSource={analysisDetail.trafficSources}
+                  rowKey="source"
+                  pagination={false}
+                />
+              </Card>
+            </TabPane>
+          </Tabs>
         </div>
       </Spin>
     </div>
