@@ -92,15 +92,15 @@ const BasicSettings: React.FC = () => {
             <Form.Item name="contactEmail" label="联系邮箱">
               <Input placeholder="请输入联系邮箱" />
             </Form.Item>
-            <Form.Item name="auditEnabled" label="开启壁纸审核" valuePropName="checked">
+            {/* <Form.Item name="auditEnabled" label="开启壁纸审核" valuePropName="checked">
               <Switch />
-            </Form.Item>
-            <Form.Item name="commentEnabled" label="开启评论审核" valuePropName="checked">
+            </Form.Item> */}
+            {/* <Form.Item name="commentEnabled" label="开启评论审核" valuePropName="checked">
               <Switch />
-            </Form.Item>
-            <Form.Item name="registerEnabled" label="允许用户注册" valuePropName="checked">
+            </Form.Item> */}
+            {/* <Form.Item name="registerEnabled" label="允许用户注册" valuePropName="checked">
               <Switch />
-            </Form.Item>
+            </Form.Item> */}
             <Form.Item>
               <Button 
                 type="primary" 
