@@ -662,12 +662,13 @@ const WallpaperList: React.FC = () => {
       dataIndex: 'thumb_url',
       key: 'thumb_url',
       width: 120,
-      render: (url: string) => (
+      render: (thumbUrl: string, record: Wallpaper) => (
         <Image 
-          src={url} 
+          src={thumbUrl} 
+          preview={{ src: record.url }}
           width={100} 
           height={60} 
-          style={{ objectFit: 'cover', borderRadius: 4 }} 
+          style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }} 
         />
       ),
     },
@@ -1502,6 +1503,8 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
 
 
 

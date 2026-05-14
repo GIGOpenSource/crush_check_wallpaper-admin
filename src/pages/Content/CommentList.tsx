@@ -148,7 +148,7 @@ const CommentList: React.FC = () => {
                 style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
                 preview={false}
                 onClick={() => {
-                  setPreviewImageUrl(record.wallpaper_object!.thumb_url);
+                  setPreviewImageUrl(record.wallpaper_object!.url);
                   setShowImagePreview(true);
                 }}
               />
