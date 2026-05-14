@@ -415,15 +415,16 @@ const ContentOptimizer: React.FC = () => {
           style={{ marginBottom: 16 }}
         />
         <Table columns={columns} dataSource={pages} rowKey="id" loading={listLoading} pagination={false} />
-        <Pagination
-          style={{ marginTop: 16, textAlign: 'right' }}
-          current={currentPage}
-          pageSize={pageSize}
-          total={total}
-          onChange={handlePageChange}
-          showSizeChanger
-          showQuickJumper
-        />
+        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={total}
+            onChange={handlePageChange}
+            showSizeChanger
+            showQuickJumper
+          />
+        </div>
       </Card>
 
       {/* 分析新页面弹窗 */}

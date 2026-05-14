@@ -420,7 +420,7 @@ const PageSpeedAnalyzer: React.FC = () => {
           loading={listLoading}
           pagination={false}
         />
-        <div style={{ marginTop: 16, textAlign: 'right' }}>
+        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
           <Pagination
             current={currentPage}
             pageSize={pageSize}
