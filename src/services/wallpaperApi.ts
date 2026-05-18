@@ -321,3 +321,35 @@ export function getUserCollections(customerId: number, params?: {
     ...params,
   });
 }
+
+/**
+ * 保存壁纸SEO设置
+ * @param data SEO数据
+ * @param data.wallpaper_id 壁纸ID（必填）
+ * @param data.seo_title SEO标题（必填）
+ * @param data.seo_description SEO描述（必填）
+ * @param data.seo_keywords SEO关键词（必填）
+ */
+export function saveWallpaperSEO(data: {
+  wallpaper_id: number;
+  seo_title: string;
+  seo_description: string;
+  seo_keywords: string;
+}) {
+  return http.post('/seo/tdk/save-wallpaper-seo/', data);
+}
+
+/**
+ * 获取壁纸SEO设置信息
+ * @param wallpaper_id 壁纸ID
+ */
+export function getWallpaperSEO(wallpaper_id: number) {
+  return http.get<{
+    wallpaper_id: number;
+    seo_title?: string;
+    seo_description?: string;
+    seo_keywords?: string;
+  }>('/seo/tdk/', {
+    wallpaper_id,
+  });
+}

@@ -3,7 +3,7 @@ import { Card, Table, Button, Form, Input, message, Modal, Upload, Select, Row, 
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, UploadOutlined, EyeOutlined, GlobalOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { Tag as AntdTag } from 'antd';
-import { getWallpaperList, batchDeleteWallpaper, batchAuditWallpaper, createWallpaperWithImage, updateWallpaper, updateWallpaperWithImage, uploadImage } from '../../services/wallpaperApi';
+import { getWallpaperList, batchDeleteWallpaper, batchAuditWallpaper, createWallpaperWithImage, updateWallpaper, updateWallpaperWithImage, uploadImage, saveWallpaperSEO, getWallpaperSEO } from '../../services/wallpaperApi';
 import { getTagList } from '../../services/tagApi';
 import type { Wallpaper as ApiWallpaper, GetWallpaperListParams } from '../../services/wallpaperApi';
 import type { Tag as ApiTag } from '../../services/tagApi';
@@ -58,6 +58,9 @@ const WallpaperList: React.FC = () => {
   const [filterTagSearchValue, setFilterTagSearchValue] = useState<string>(''); // 筛选标签搜索值
   const [filterTagPage, setFilterTagPage] = useState(1); // 筛选标签分页
   const [filterTagHasMore, setFilterTagHasMore] = useState(true); // 筛选标签是否还有更多数据
+  const [seoModalVisible, setSeoModalVisible] = useState(false);
+  const [seoWallpaper, setSeoWallpaper] = useState<Wallpaper | null>(null);
+  const [seoForm] = Form.useForm();
 
   // 加载壁纸列表
   useEffect(() => {
@@ -276,6 +279,67 @@ const WallpaperList: React.FC = () => {
     }
     
     setEditModalVisible(true);
+  };
+
+  // 打开SEO设置弹窗
+  const handleOpenSeoModal = async (record: Wallpaper) => {
+    setSeoWallpaper(record);
+    
+    try {
+      // 先尝试从API获取最新的SEO数据
+      const response = await getWallpaperSEO(record.id);
+      
+      if (response) {
+        seoForm.setFieldsValue({
+          seo_title: response.seo_title || '',
+          seo_description: response.seo_description || '',
+          seo_keywords: response.seo_keywords || '',
+        });
+      } else {
+        // 如果API没有返回数据，使用记录中的默认值
+        seoForm.setFieldsValue({
+          seo_title: record.seoTitle || '',
+          seo_description: record.seoDescription || '',
+          seo_keywords: record.seoKeywords?.join(',') || '',
+        });
+      }
+    } catch (error) {
+      console.error('获取SEO设置失败:', error);
+      // 如果获取失败，使用记录中的默认值
+      seoForm.setFieldsValue({
+        seo_title: record.seoTitle || '',
+        seo_description: record.seoDescription || '',
+        seo_keywords: record.seoKeywords?.join(',') || '',
+      });
+    }
+    
+    setSeoModalVisible(true);
+  };
+
+  // 保存SEO设置
+  const handleSaveSeo = async () => {
+    if (!seoWallpaper) return;
+    
+    try {
+      const values = await seoForm.validateFields();
+      
+      // 调用API保存SEO设置
+      await saveWallpaperSEO({
+        wallpaper_id: seoWallpaper.id,
+        seo_title: values.seo_title,
+        seo_description: values.seo_description,
+        seo_keywords: values.seo_keywords,
+      });
+      
+      message.success('SEO设置保存成功');
+      setSeoModalVisible(false);
+      setSeoWallpaper(null);
+      seoForm.resetFields();
+      loadWallpaperList();
+    } catch (error) {
+      console.error('保存SEO设置失败:', error);
+      message.error('保存SEO设置失败');
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -877,7 +941,7 @@ const WallpaperList: React.FC = () => {
             type="primary" 
             size="small"
             icon={<GlobalOutlined />} 
-            onClick={() => handleEdit(record)}
+            onClick={() => handleOpenSeoModal(record)}
           >
             SEO设置
           </Button>
@@ -1084,8 +1148,8 @@ const WallpaperList: React.FC = () => {
         cancelText="取消"
       >
         <Form form={form} layout="vertical">
-          <Tabs defaultActiveKey="basic">
-            <TabPane tab="基本信息" key="basic">
+          {/* <Tabs defaultActiveKey="basic"> */}
+            {/* <TabPane tab="基本信息" key="basic"> */}
               <Row gutter={16}>
                 <Col span={24}>
                   <Form.Item name="name" label="壁纸名称" rules={[{ required: true, message: '请输入壁纸名称' }]}>
@@ -1263,8 +1327,8 @@ const WallpaperList: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
-            </TabPane>
-            <TabPane tab="SEO设置" key="seo">
+            {/* </TabPane> */}
+            {/* <TabPane tab="SEO设置" key="seo">
               <Form.Item name="seoTitle" label="SEO标题">
                 <Input placeholder="建议50-60个字符，包含关键词" maxLength={60} showCount />
               </Form.Item>
@@ -1288,8 +1352,8 @@ const WallpaperList: React.FC = () => {
                   <li>Alt文本应描述图片内容，便于搜索引擎理解</li>
                 </ul>
               </div>
-            </TabPane>
-          </Tabs>
+            </TabPane> */}
+          {/* </Tabs> */}
         </Form>
       </Modal>
 
@@ -1498,159 +1562,63 @@ const WallpaperList: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* SEO设置弹窗 */}
+      <Modal
+        title={`SEO设置 - ${seoWallpaper?.name}`}
+        open={seoModalVisible}
+        onOk={handleSaveSeo}
+        onCancel={() => {
+          setSeoModalVisible(false);
+          setSeoWallpaper(null);
+          seoForm.resetFields();
+        }}
+        width={700}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form form={seoForm} layout="vertical">
+          <Form.Item 
+            name="seo_title" 
+            label="SEO标题" 
+            rules={[{ required: true, message: '请输入SEO标题' }]}
+          >
+            <Input placeholder="建议50-60个字符，包含关键词" maxLength={60} showCount />
+          </Form.Item>
+          <Form.Item 
+            name="seo_description" 
+            label="SEO描述" 
+            rules={[{ required: true, message: '请输入SEO描述' }]}
+          >
+            <Input.TextArea 
+              rows={3} 
+              placeholder="建议150-160个字符，描述壁纸内容"
+              maxLength={160}
+              showCount
+            />
+          </Form.Item>
+          <Form.Item 
+            name="seo_keywords" 
+            label="SEO关键词" 
+            rules={[{ required: true, message: '请输入SEO关键词' }]}
+          >
+            <Input placeholder="多个关键词用逗号分隔，如：动漫,壁纸,高清,二次元" />
+          </Form.Item>
+          <div style={{ background: '#f6ffed', padding: 12, borderRadius: 4, marginTop: 16 }}>
+            <strong>SEO优化建议：</strong>
+            <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+              <li>标题应包含主要关键词，长度控制在60字符以内</li>
+              <li>描述应准确概括内容，吸引用户点击</li>
+              <li>关键词数量建议3-5个，避免堆砌</li>
+            </ul>
+          </div>
+        </Form>
+      </Modal>
+
     </div>
   );
 };
 
 export default WallpaperList;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
