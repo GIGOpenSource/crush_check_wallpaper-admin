@@ -41,6 +41,8 @@ import {
   Empty,
   Tooltip,
   Image,
+  Pagination,
+  Divider,
 } from 'antd';
 import {
   PlusOutlined,
@@ -72,6 +74,8 @@ import {
   type ContentItem,
   type StrategyStatistics,
 } from '../../services/recommendationApi';
+import { getTagList, type Tag as TagType } from '../../services/tagApi';
+import { getWallpaperList } from '../../services/wallpaperApi';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
@@ -136,8 +140,13 @@ const RecommendationManagerV2: React.FC = () => {
   
   // 内容库分页
   const [contentCurrentPage, setContentCurrentPage] = useState(1);
-  const [contentPageSize] = useState(10);
+  const [contentPageSize, setContentPageSize] = useState(30);
   const [contentTotal, setContentTotal] = useState(0);
+  
+  // 标签相关状态
+  const [tagList, setTagList] = useState<TagType[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [showOnlyUnadded, setShowOnlyUnadded] = useState(false);
   
   // 策略列表选择
   const [selectedStrategyIds, setSelectedStrategyIds] = useState<number[]>([]);
@@ -160,6 +169,17 @@ const RecommendationManagerV2: React.FC = () => {
     expired_count: 0,
     total_content_count: 0,
   });
+
+  // 加载标签列表
+  const loadTagList = async () => {
+    try {
+      const response = await getTagList({ pageSize: 1000 });
+      setTagList(response.results || []);
+    } catch (error) {
+      console.error('加载标签列表失败:', error);
+      message.error('加载标签列表失败');
+    }
+  };
 
   // 加载策略数据
   const loadStrategies = async (page: number = currentPage) => {
@@ -204,6 +224,7 @@ const RecommendationManagerV2: React.FC = () => {
 
   useEffect(() => {
     loadStrategies(1);
+    loadTagList();
   }, [activeTab]);
 
   // 切换标签页时重置分页
@@ -669,11 +690,14 @@ const RecommendationManagerV2: React.FC = () => {
   const loadContentList = async (page: number = 1) => {
     setContentLoading(true);
     try {
-      const response = await getContentLibrary(
-        page,
-        contentPageSize,
-        contentSearchText || undefined
-      );
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）
+      const response = await getWallpaperList({
+        currentPage: page,
+        pageSize: contentPageSize,
+        name: contentSearchText || undefined,
+        tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
+      });
+      
       // 将壁纸数据转换为ContentItem格式
       const items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
         id: wallpaper.id,
@@ -683,7 +707,41 @@ const RecommendationManagerV2: React.FC = () => {
         type_name: '壁纸',
         views: wallpaper.view_count || 0,
         downloads: wallpaper.download_count || 0,
-        createdAt: wallpaper.created_at,
+        created_at: wallpaper.created_at,
+      }));
+      setContentList(items);
+      setContentTotal(response.pagination?.total || 0);
+      setContentCurrentPage(page);
+    } catch (error) {
+      console.error('加载内容库失败:', error);
+      message.error('加载内容库失败');
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
+  // 加载内容库（带指定的 pageSize）
+  const loadContentListWithSize = async (page: number, size: number) => {
+    setContentLoading(true);
+    try {
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）
+      const response = await getWallpaperList({
+        currentPage: page,
+        pageSize: size,
+        name: contentSearchText || undefined,
+        tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
+      });
+      
+      // 将壁纸数据转换为ContentItem格式
+      const items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
+        id: wallpaper.id,
+        title: wallpaper.name,
+        image: wallpaper.thumb_url,
+        type: 'wallpaper' as const,
+        type_name: '壁纸',
+        views: wallpaper.view_count || 0,
+        downloads: wallpaper.download_count || 0,
+        created_at: wallpaper.created_at,
       }));
       setContentList(items);
       setContentTotal(response.pagination?.total || 0);
@@ -698,6 +756,17 @@ const RecommendationManagerV2: React.FC = () => {
 
   // 搜索内容
   const handleContentSearch = () => {
+    setContentCurrentPage(1);
+    loadContentList(1);
+  };
+
+  // 处理标签筛选变化（多选）
+  const handleTagFilterChange = (values: number[]) => {
+    setSelectedTagIds(values);
+  };
+
+  // 应用筛选（点击搜索按钮时调用）
+  const handleApplyFilters = () => {
     setContentCurrentPage(1);
     loadContentList(1);
   };
@@ -1257,134 +1326,245 @@ const RecommendationManagerV2: React.FC = () => {
           setContentLibraryVisible(false);
           setSelectedContentIds([]);
           setExistingWallpaperIds([]);
+          setSelectedTagIds([]);
+          setShowOnlyUnadded(false);
         }}
-        width={900}
+        width={1200}
         okText="添加到策略"
         cancelText="取消"
       >
         <Alert
           message="批量选择说明"
-          description={`已选择 ${selectedContentIds.filter(id => !existingWallpaperIds.includes(id)).length} 项新内容（已存在 ${selectedContentIds.filter(id => existingWallpaperIds.includes(id)).length} 项）。选择后将添加到当前策略中。`}
+          description={
+            <div>
+              <div>
+                已选择 {selectedContentIds.filter(id => !existingWallpaperIds.includes(id)).length} 项新内容（已存在 {selectedContentIds.filter(id => existingWallpaperIds.includes(id)).length} 项）。选择后将添加到当前策略中。
+              </div>
+              <div style={{ marginTop: 4, color: '#ff4d4f', fontWeight: 500 }}>
+                ⚠️ 每个策略最多只能选择 {managingStrategy?.content_limit || POSITION_CONFIG[managingStrategy?.strategy_type || 'home']?.maxContentPerStrategy || 50} 个内容，当前策略已有 {managingStrategy?.content_count || 0} 项，还可选择 {Math.max(0, (managingStrategy?.content_limit || POSITION_CONFIG[managingStrategy?.strategy_type || 'home']?.maxContentPerStrategy || 50) - (managingStrategy?.content_count || 0))} 项
+              </div>
+            </div>
+          }
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
         />
         
-        <Space style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="搜索壁纸名称"
-            value={contentSearchText}
-            onChange={(e) => setContentSearchText(e.target.value)}
-            onPressEnter={handleContentSearch}
-            style={{ width: 200 }}
-            allowClear
-          />
-          <Button type="primary" onClick={handleContentSearch}>搜索</Button>
-          <Button onClick={handleRefreshContent}>刷新</Button>
-        </Space>
+        <Row gutter={[8, 8]} style={{ marginBottom: 16, alignItems: 'center' }}>
+          <Col span={6}>
+            <Input
+              placeholder="搜索壁纸名称"
+              value={contentSearchText}
+              onChange={(e) => setContentSearchText(e.target.value)}
+              onPressEnter={handleContentSearch}
+              style={{ width: '100%' }}
+              allowClear
+            />
+          </Col>
+          <Col span={8}>
+            <Select
+              placeholder="全部标签"
+              style={{ width: '100%' }}
+              value={selectedTagIds}
+              onChange={handleTagFilterChange}
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              mode="multiple"
+              popupRender={(menu) => (
+                <div>
+                  {menu}
+                  {/* <Divider style={{ margin: '8px 0' }} /> */}
+                  {/* <div style={{ padding: '8px 16px', textAlign: 'center' }}>
+                    <Button 
+                      type="primary"
+                      ghost
+                      size="small" 
+                      icon={<ReloadOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        loadTagList();
+                      }}
+                      style={{ width: '100%' }}
+                    >
+                      刷新标签列表
+                    </Button>
+                  </div> */}
+                </div>
+              )}
+            >
+              {tagList.map(tag => (
+                <Option key={tag.id} value={tag.id}>{tag.name}</Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={4}>
+            <Space>
+              <input
+                type="checkbox"
+                checked={showOnlyUnadded}
+                onChange={(e) => setShowOnlyUnadded(e.target.checked)}
+                style={{ marginRight: 4 }}
+              />
+              <span>只看未添加</span>
+            </Space>
+          </Col>
+          <Col span={6} style={{ textAlign: 'right' }}>
+            <Space>
+              <Button type="primary" onClick={handleContentSearch}>搜索</Button>
+              <Button onClick={handleRefreshContent}>刷新</Button>
+            </Space>
+          </Col>
+        </Row>
 
-        <Table
-          rowSelection={{
-            type: 'checkbox',
-            selectedRowKeys: selectedContentIds,
-            onChange: (selectedRowKeys) => {
-              setSelectedContentIds(selectedRowKeys as number[]);
-            },
-            onSelectAll: (selected, selectedRows, changeRows) => {
-              if (selected) {
-                // 全选：添加当前页所有未禁用的项
-                const selectableIds = contentList
-                  .filter(item => !existingWallpaperIds.includes(item.id))
-                  .map(item => item.id);
-                // 合并已有的选择和新选择的项
-                const newSelectedIds = Array.from(new Set([...selectedContentIds, ...selectableIds]));
-                setSelectedContentIds(newSelectedIds);
-              } else {
-                // 取消全选：移除当前页的项
-                const currentPageIds = contentList.map(item => item.id);
-                const newSelectedIds = selectedContentIds.filter(id => !currentPageIds.includes(id));
-                setSelectedContentIds(newSelectedIds);
-              }
-            },
-            getCheckboxProps: (record: ContentItem) => ({
-              // 已存在的壁纸禁用选择
-              disabled: existingWallpaperIds.includes(record.id),
-              name: record.title,
-            }),
-          }}
-          columns={[
-            {
-              title: '壁纸',
-              key: 'wallpaper',
-              width: 300,
-              render: (_, record: ContentItem) => (
-                <Space>
-                  <Image
-                    src={record.image}
-                    width={60}
-                    height={60}
-                    style={{ objectFit: 'cover', borderRadius: 4 }}
-                    fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-                  />
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{record.title}</div>
-                    <Tag color="blue">{record.type_name}</Tag>
-                    {existingWallpaperIds.includes(record.id) && (
-                      <Tag color="green" style={{ fontSize: 12 }}>已添加</Tag>
+        <div style={{ 
+          maxHeight: '500px', 
+          overflowY: 'auto', 
+          border: '1px solid #f0f0f0',
+          padding: '12px',
+          background: '#fafafa'
+        }}>
+          <Row gutter={[12, 12]}>
+            {contentList.map((item: ContentItem) => {
+              // 计算是否已达到选择上限
+              const maxCount = managingStrategy?.content_limit || POSITION_CONFIG[managingStrategy?.strategy_type || 'home']?.maxContentPerStrategy || 50;
+              const currentContentCount = managingStrategy?.content_count || 0;
+              const availableSlots = maxCount - currentContentCount;
+              const newSelectedCount = selectedContentIds.filter(id => !existingWallpaperIds.includes(id)).length;
+              const isAtLimit = !existingWallpaperIds.includes(item.id) && !selectedContentIds.includes(item.id) && newSelectedCount >= availableSlots;
+              
+              return (
+                <Col span={4} key={item.id}>
+                  <div
+                    onClick={() => {
+                      if (!existingWallpaperIds.includes(item.id)) {
+                        // 如果正在取消选择，允许操作
+                        if (selectedContentIds.includes(item.id)) {
+                          const newSelected = selectedContentIds.filter(id => id !== item.id);
+                          setSelectedContentIds(newSelected);
+                        } else {
+                          // 如果正在新增选择，检查是否超出限制
+                          if (newSelectedCount + 1 > availableSlots) {
+                            message.warning(`已达到最大限制，最多还可选择${availableSlots}个新内容`);
+                            return;
+                          }
+                          
+                          const newSelected = [...selectedContentIds, item.id];
+                          setSelectedContentIds(newSelected);
+                        }
+                      }
+                    }}
+                    style={{
+                      cursor: existingWallpaperIds.includes(item.id) || isAtLimit ? 'not-allowed' : 'pointer',
+                      background: selectedContentIds.includes(item.id) ? '#e6f7ff' : '#fff',
+                      border: selectedContentIds.includes(item.id) ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                      borderRadius: '4px',
+                      padding: '0',
+                      opacity: existingWallpaperIds.includes(item.id) || isAtLimit ? 0.5 : 1,
+                      transition: 'all 0.3s',
+                      position: 'relative',
+                    }}
+                  >
+                    <Image
+                      src={item.image}
+                      style={{ 
+                        width: '100%', 
+                        height: '120px', 
+                        objectFit: 'cover',
+                        borderRadius: '4px 4px 0 0',
+                        display: 'block'
+                      }}
+                      fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+                    />
+                    {existingWallpaperIds.includes(item.id) && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        left: '8px',
+                        background: '#1890ff',
+                        color: '#fff',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px'
+                      }}>
+                        已存在
+                      </div>
                     )}
+                    {isAtLimit && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        background: '#ff4d4f',
+                        color: '#fff',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px'
+                      }}>
+                        已达上限
+                      </div>
+                    )}
+                    <div style={{ padding: '8px', minHeight: '80px' }}>
+                      <div style={{ 
+                        fontSize: '13px', 
+                        fontWeight: 500, 
+                        marginBottom: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {item.title || '-'}
+                      </div>
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#999'
+                      }}>
+                        浏览 {item.views || 0} · 下载 {item.downloads || 0}
+                      </div>
+                    </div>
                   </div>
-                </Space>
-              ),
-            },
-            {
-              title: '浏览量',
-              dataIndex: 'views',
-              key: 'views',
-              width: 100,
-              render: (views: number) => views.toLocaleString(),
-            },
-            {
-              title: '下载量',
-              dataIndex: 'downloads',
-              key: 'downloads',
-              width: 100,
-              render: (downloads: number) => downloads.toLocaleString(),
-            },
-            {
-              title: '创建时间',
-              dataIndex: 'createdAt',
-              key: 'createdAt',
-              width: 180,
-              render: (createdAt: string) => {
-                if (!createdAt) return '--';
-                return new Date(createdAt).toLocaleString('zh-CN', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: false,
-                }).replace(/\//g, '-');
-              },
-            },
-          ]}
-          dataSource={contentList}
-          rowKey="id"
-          loading={contentLoading}
-          pagination={{
-            current: contentCurrentPage,
-            pageSize: contentPageSize,
-            total: contentTotal,
-            onChange: (page) => {
+                </Col>
+              );
+            })}
+            {contentList.length === 0 && !contentLoading && (
+              <Col span={24}>
+                <Empty description="暂无壁纸数据" />
+              </Col>
+            )}
+            {contentLoading && (
+              <Col span={24}>
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <div>加载中...</div>
+                </div>
+              </Col>
+            )}
+          </Row>
+        </div>
+
+        <div style={{ 
+          marginTop: '16px', 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px 0'
+        }}>
+          <div style={{ color: '#666' }}>
+            共 {contentTotal} 条
+          </div>
+          <Pagination
+            current={contentCurrentPage}
+            pageSize={contentPageSize}
+            total={contentTotal}
+            onChange={(page) => {
               setContentCurrentPage(page);
               loadContentList(page);
-            },
-            showSizeChanger: false,
-            showTotal: (total) => `共 ${total} 条`,
-          }}
-          locale={{ emptyText: '暂无壁纸数据' }}
-        />
+            }}
+            showSizeChanger
+            showQuickJumper
+            showTotal={(total) => `共 ${total} 条`}
+            pageSizeOptions={['10', '20', '50', '100']}
+          />
+        </div>
       </Modal>
     </div>
   );

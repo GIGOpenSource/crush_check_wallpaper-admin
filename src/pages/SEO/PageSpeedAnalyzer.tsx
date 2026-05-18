@@ -464,7 +464,7 @@ const PageSpeedAnalyzer: React.FC = () => {
           >
             <Input
               placeholder="输入页面路径，如 /wallpaper/nature"
-              prefix="/"
+              prefix=""
             />
           </Form.Item>
         </Form>

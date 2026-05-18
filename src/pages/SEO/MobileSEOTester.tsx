@@ -456,7 +456,7 @@ const MobileSEOTester: React.FC = () => {
             >
               <Input
                 placeholder="输入页面路径，如 /wallpaper/nature"
-                prefix="/"
+                prefix=""
                 onChange={(e) => setTestUrl(e.target.value)} // 保持同步更新状态如果需要
               />
             </Form.Item>
