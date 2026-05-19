@@ -730,7 +730,7 @@ const RecommendationManagerV2: React.FC = () => {
         pageSize: contentPageSize,
         name: contentSearchText || undefined,
         tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
-        language: languageFilter !== 'all' ? languageFilter : undefined,
+        lang: languageFilter !== 'all' ? languageFilter : undefined,
       });
       
       // 将壁纸数据转换为ContentItem格式
@@ -772,7 +772,7 @@ const RecommendationManagerV2: React.FC = () => {
         pageSize: size,
         name: contentSearchText || undefined,
         tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
-        language: languageFilter !== 'all' ? languageFilter : undefined,
+        lang: languageFilter !== 'all' ? languageFilter : undefined,
       });
       
       // 将壁纸数据转换为ContentItem格式
@@ -1246,13 +1246,12 @@ const RecommendationManagerV2: React.FC = () => {
             name="apply_area"
           >
             <Select placeholder="请选择语言">
-              <Option value="zh">中文</Option>
-              <Option value="en">English（英语）</Option>
-              <Option value="ja">日本語（日语）</Option>
-              <Option value="ko">한국어（韩语）</Option>
-              <Option value="es">Español（西班牙语）</Option>
-              <Option value="pt">Português（葡萄牙语）</Option>
-             
+              <Option value="zh-hans">中文</Option>
+              <Option value="en">英语</Option>
+              <Option value="ja">日语</Option>
+              <Option value="ko">韩语</Option>
+              <Option value="pt">葡萄牙语</Option>
+              <Option value="es">西班牙语</Option>
             </Select>
           </Form.Item>
           <Form.Item
@@ -1480,7 +1479,7 @@ const RecommendationManagerV2: React.FC = () => {
               allowClear
             >
               <Option value="all">全部语言</Option>
-              <Option value="zh">中文</Option>
+              <Option value="zh-hans">中文</Option>
               <Option value="en">英语</Option>
               <Option value="ja">日语</Option>
               <Option value="ko">韩语</Option>
