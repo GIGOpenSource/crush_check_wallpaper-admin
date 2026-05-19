@@ -148,6 +148,9 @@ const RecommendationManagerV2: React.FC = () => {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [showOnlyUnadded, setShowOnlyUnadded] = useState(false);
   
+  // 语言筛选状态
+  const [languageFilter, setLanguageFilter] = useState<string>('all');
+  
   // 策略列表选择
   const [selectedStrategyIds, setSelectedStrategyIds] = useState<number[]>([]);
   
@@ -683,23 +686,24 @@ const RecommendationManagerV2: React.FC = () => {
     setSelectedContentIds(existingIds);
     
     setContentLibraryVisible(true);
-    loadContentList();
+    loadContentListWithSize(1, contentPageSize);
   };
 
   // 加载内容库
   const loadContentList = async (page: number = 1) => {
     setContentLoading(true);
     try {
-      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）和语言筛选
       const response = await getWallpaperList({
         currentPage: page,
         pageSize: contentPageSize,
         name: contentSearchText || undefined,
         tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
+        language: languageFilter !== 'all' ? languageFilter : undefined,
       });
       
       // 将壁纸数据转换为ContentItem格式
-      const items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
+      let items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
         id: wallpaper.id,
         title: wallpaper.name,
         image: wallpaper.thumb_url,
@@ -709,7 +713,14 @@ const RecommendationManagerV2: React.FC = () => {
         downloads: wallpaper.download_count || 0,
         created_at: wallpaper.created_at,
       }));
+      
+      // 如果勾选了"只看未添加"，过滤掉已存在的壁纸
+      if (showOnlyUnadded && existingWallpaperIds.length > 0) {
+        items = items.filter(item => !existingWallpaperIds.includes(item.id));
+      }
+      
       setContentList(items);
+      // 注意：total 仍然是后端返回的总数，不是过滤后的数量
       setContentTotal(response.pagination?.total || 0);
       setContentCurrentPage(page);
     } catch (error) {
@@ -724,16 +735,17 @@ const RecommendationManagerV2: React.FC = () => {
   const loadContentListWithSize = async (page: number, size: number) => {
     setContentLoading(true);
     try {
-      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）和语言筛选
       const response = await getWallpaperList({
         currentPage: page,
         pageSize: size,
         name: contentSearchText || undefined,
         tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
+        language: languageFilter !== 'all' ? languageFilter : undefined,
       });
       
       // 将壁纸数据转换为ContentItem格式
-      const items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
+      let items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
         id: wallpaper.id,
         title: wallpaper.name,
         image: wallpaper.thumb_url,
@@ -743,7 +755,14 @@ const RecommendationManagerV2: React.FC = () => {
         downloads: wallpaper.download_count || 0,
         created_at: wallpaper.created_at,
       }));
+      
+      // 如果勾选了"只看未添加"，过滤掉已存在的壁纸
+      if (showOnlyUnadded && existingWallpaperIds.length > 0) {
+        items = items.filter(item => !existingWallpaperIds.includes(item.id));
+      }
+      
       setContentList(items);
+      // 注意：total 仍然是后端返回的总数，不是过滤后的数量
       setContentTotal(response.pagination?.total || 0);
       setContentCurrentPage(page);
     } catch (error) {
@@ -757,7 +776,7 @@ const RecommendationManagerV2: React.FC = () => {
   // 搜索内容
   const handleContentSearch = () => {
     setContentCurrentPage(1);
-    loadContentList(1);
+    loadContentListWithSize(1, contentPageSize);
   };
 
   // 处理标签筛选变化（多选）
@@ -765,15 +784,20 @@ const RecommendationManagerV2: React.FC = () => {
     setSelectedTagIds(values);
   };
 
+  // 处理语言筛选变化
+  const handleLanguageFilterChange = (value: string) => {
+    setLanguageFilter(value);
+  };
+
   // 应用筛选（点击搜索按钮时调用）
   const handleApplyFilters = () => {
     setContentCurrentPage(1);
-    loadContentList(1);
+    loadContentListWithSize(1, contentPageSize);
   };
 
   // 刷新内容列表（用于按钮点击）
   const handleRefreshContent = () => {
-    loadContentList(contentCurrentPage);
+    loadContentListWithSize(contentCurrentPage, contentPageSize);
   };
 
   // 处理添加内容
@@ -1351,7 +1375,7 @@ const RecommendationManagerV2: React.FC = () => {
         />
         
         <Row gutter={[8, 8]} style={{ marginBottom: 16, alignItems: 'center' }}>
-          <Col span={6}>
+          <Col span={5}>
             <Input
               placeholder="搜索壁纸名称"
               value={contentSearchText}
@@ -1361,7 +1385,7 @@ const RecommendationManagerV2: React.FC = () => {
               allowClear
             />
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Select
               placeholder="全部标签"
               style={{ width: '100%' }}
@@ -1399,11 +1423,33 @@ const RecommendationManagerV2: React.FC = () => {
             </Select>
           </Col>
           <Col span={4}>
+            <Select
+              placeholder="全部语言"
+              style={{ width: '100%' }}
+              value={languageFilter}
+              onChange={handleLanguageFilterChange}
+              allowClear
+            >
+              <Option value="all">全部语言</Option>
+              <Option value="zh">中文</Option>
+              <Option value="en">英语</Option>
+              <Option value="ja">日语</Option>
+              <Option value="ko">韩语</Option>
+              <Option value="pt">葡萄牙语</Option>
+              <Option value="es">西班牙语</Option>
+            </Select>
+          </Col>
+          <Col span={3}>
             <Space>
               <input
                 type="checkbox"
                 checked={showOnlyUnadded}
-                onChange={(e) => setShowOnlyUnadded(e.target.checked)}
+                onChange={(e) => {
+                  setShowOnlyUnadded(e.target.checked);
+                  // 当勾选/取消勾选时，重新加载列表以应用过滤
+                  loadContentListWithSize(1, contentPageSize);
+                  setContentCurrentPage(1);
+                }}
                 style={{ marginRight: 4 }}
               />
               <span>只看未添加</span>
@@ -1555,14 +1601,15 @@ const RecommendationManagerV2: React.FC = () => {
             current={contentCurrentPage}
             pageSize={contentPageSize}
             total={contentTotal}
-            onChange={(page) => {
+            onChange={(page, size) => {
               setContentCurrentPage(page);
-              loadContentList(page);
+              setContentPageSize(size);
+              loadContentListWithSize(page, size);
             }}
             showSizeChanger
             showQuickJumper
             showTotal={(total) => `共 ${total} 条`}
-            pageSizeOptions={['10', '20', '50', '100']}
+            pageSizeOptions={['10', '20', '30', '50', '100']}
           />
         </div>
       </Modal>
