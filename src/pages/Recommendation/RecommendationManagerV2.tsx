@@ -1607,21 +1607,29 @@ const RecommendationManagerV2: React.FC = () => {
                       position: 'relative',
                     }}
                   >
-                    <Image
-                      src={item.image}
-                      preview={{
-                        src: item.preview_url || item.image, // 预览时显示原图，如果没有则使用缩略图
-                      }}
-                      style={{ 
-                        width: '100%', 
-                        height: '120px', 
-                        objectFit: 'contain', // 保持图片原始比例完整显示
-                        backgroundColor: '#f5f5f5', // 添加背景色填充空白区域
-                        borderRadius: '4px 4px 0 0',
-                        display: 'block'
-                      }}
-                      fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-                    />
+                    <div style={{
+                      width: '100%',
+                      height: '120px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '4px 4px 0 0',
+                      overflow: 'hidden'
+                    }}>
+                      <Image
+                        src={item.image}
+                        preview={{
+                          src: item.preview_url || item.image, // 预览时显示原图，如果没有则使用缩略图
+                        }}
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '100%', 
+                          objectFit: 'contain',
+                          display: 'block'
+                        }}
+                        fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+                      />
+                    </div>
                     {existingWallpaperIds.includes(item.id) && (
                       <div style={{
                         position: 'absolute',
