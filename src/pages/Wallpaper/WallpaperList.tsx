@@ -784,7 +784,7 @@ const WallpaperList: React.FC = () => {
       title: '标签',
       dataIndex: 'tags',
       key: 'tags',
-      width: 200,
+      width: 250,
       ellipsis: true,
       render: (tags: string[] | Array<{ id: number; name: string }>) => {
         const tagList = (tags || []).map((tag) => {
@@ -795,11 +795,38 @@ const WallpaperList: React.FC = () => {
         });
         
         return (
-          <Space wrap>
-            {tagList.map((tag, index) => (
-              <AntdTag key={`${tag}-${index}`} color="blue">{tag}</AntdTag>
-            ))}
-          </Space>
+          <Tooltip 
+            title={
+              <div style={{ maxWidth: 600 }}>
+                {tagList.map((tag, index) => (
+                  <AntdTag 
+                    key={`${tag}-${index}`} 
+                    color="blue"
+                    style={{ marginBottom: 4, marginRight: 4 }}
+                  >
+                    {tag}
+                  </AntdTag>
+                ))}
+              </div>
+            }
+            color="#fff"
+          >
+            <div style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: '28px',
+              maxHeight: '70px'
+            }}>
+              <Space wrap>
+                {tagList.map((tag, index) => (
+                  <AntdTag key={`${tag}-${index}`} color="blue">{tag}</AntdTag>
+                ))}
+              </Space>
+            </div>
+          </Tooltip>
         );
       },
     },
@@ -1628,6 +1655,16 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
+
+
+
+
+
+
+
+
 
 
 
