@@ -456,8 +456,8 @@ const PageSpeedAnalyzer: React.FC = () => {
             rules={[
               { required: true, message: '请输入页面路径' },
               {
-                pattern: /^\/?[a-zA-Z0-9\-_\/.]*$/,
-                message: 'URL只能包含字母、数字、斜杠、连字符和下划线',
+                pattern: /^\/[a-zA-Z0-9\-_\/.]*$/,
+                message: 'URL只能包含字母、数字、斜杠、连字符和下划线，且必须以/开头',
               },
             ]}
             validateTrigger={['onChange', 'onBlur']}
