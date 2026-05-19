@@ -59,7 +59,8 @@ export interface StrategyContentItem {
 export interface ContentItem {
   id: number;
   title: string;
-  image: string;
+  image: string; // 缩略图 URL
+  preview_url?: string; // 预览图/原图 URL（用于图片预览）
   type: 'wallpaper' | 'category' | 'tag' | 'collection';
   type_name: string;
   views: number;

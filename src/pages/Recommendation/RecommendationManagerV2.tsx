@@ -737,7 +737,8 @@ const RecommendationManagerV2: React.FC = () => {
       let items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
         id: wallpaper.id,
         title: wallpaper.name,
-        image: wallpaper.thumb_url,
+        image: wallpaper.thumb_url, // 缩略图用于列表展示
+        preview_url: wallpaper.url, // 原图用于预览
         type: 'wallpaper' as const,
         type_name: '壁纸',
         views: wallpaper.view_count || 0,
@@ -779,7 +780,8 @@ const RecommendationManagerV2: React.FC = () => {
       let items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
         id: wallpaper.id,
         title: wallpaper.name,
-        image: wallpaper.thumb_url,
+        image: wallpaper.thumb_url, // 缩略图用于列表展示
+        preview_url: wallpaper.url, // 原图用于预览
         type: 'wallpaper' as const,
         type_name: '壁纸',
         views: wallpaper.view_count || 0,
@@ -1561,10 +1563,14 @@ const RecommendationManagerV2: React.FC = () => {
                   >
                     <Image
                       src={item.image}
+                      preview={{
+                        src: item.preview_url || item.image, // 预览时显示原图，如果没有则使用缩略图
+                      }}
                       style={{ 
                         width: '100%', 
                         height: '120px', 
-                        objectFit: 'cover',
+                        objectFit: 'contain', // 保持图片原始比例完整显示
+                        backgroundColor: '#f5f5f5', // 添加背景色填充空白区域
                         borderRadius: '4px 4px 0 0',
                         display: 'block'
                       }}
