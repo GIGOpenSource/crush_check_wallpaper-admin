@@ -1574,9 +1574,8 @@ const RecommendationManagerV2: React.FC = () => {
                   const newValue = e.target.checked;
                   setShowOnlyUnadded(newValue);
                   // 当勾选/取消勾选时，重新加载列表以应用过滤
-                  // 使用新函数直接传递新的 showOnlyUnadded 值，避免异步状态更新问题
-                  loadContentListWithParams(1, contentPageSize, newValue);
-                  setContentCurrentPage(1);
+                  // 保持当前页面不变，不跳转到第一页
+                  loadContentListWithParams(contentCurrentPage, contentPageSize, newValue);
                 }}
                 style={{ marginRight: 4 }}
               />
