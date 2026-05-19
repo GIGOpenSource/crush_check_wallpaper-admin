@@ -291,15 +291,21 @@ const WallpaperList: React.FC = () => {
       
       if (response) {
         seoForm.setFieldsValue({
-          seo_title: response.seo_title || '',
-          seo_description: response.seo_description || '',
+          // 如果SEO标题为空，使用壁纸名称作为默认值
+          seo_title: response.seo_title || record.name || '',
+          // 如果SEO描述为空，优先使用壁纸描述，其次使用壁纸名称，确保有值
+          seo_description: response.seo_description || record.description || record.name || '',
+          // SEO关键词不是必填项
           seo_keywords: response.seo_keywords || '',
         });
       } else {
         // 如果API没有返回数据，使用记录中的默认值
         seoForm.setFieldsValue({
-          seo_title: record.seoTitle || '',
-          seo_description: record.seoDescription || '',
+          // 如果SEO标题为空，使用壁纸名称作为默认值
+          seo_title: record.seoTitle || record.name || '',
+          // 如果SEO描述为空，优先使用壁纸描述，其次使用壁纸名称，确保有值
+          seo_description: record.seoDescription || record.description || record.name || '',
+          // SEO关键词不是必填项
           seo_keywords: record.seoKeywords?.join(',') || '',
         });
       }
@@ -307,8 +313,11 @@ const WallpaperList: React.FC = () => {
       console.error('获取SEO设置失败:', error);
       // 如果获取失败，使用记录中的默认值
       seoForm.setFieldsValue({
-        seo_title: record.seoTitle || '',
-        seo_description: record.seoDescription || '',
+        // 如果SEO标题为空，使用壁纸名称作为默认值
+        seo_title: record.seoTitle || record.name || '',
+        // 如果SEO描述为空，优先使用壁纸描述，其次使用壁纸名称，确保有值
+        seo_description: record.seoDescription || record.description || record.name || '',
+        // SEO关键词不是必填项
         seo_keywords: record.seoKeywords?.join(',') || '',
       });
     }
@@ -1582,7 +1591,7 @@ const WallpaperList: React.FC = () => {
             label="SEO标题" 
             rules={[{ required: true, message: '请输入SEO标题' }]}
           >
-            <Input placeholder="建议50-60个字符，包含关键词" maxLength={60} showCount />
+            <Input placeholder="建议50-60个字符，包含关键词（默认使用壁纸名称）" maxLength={60} showCount />
           </Form.Item>
           <Form.Item 
             name="seo_description" 
@@ -1591,24 +1600,24 @@ const WallpaperList: React.FC = () => {
           >
             <Input.TextArea 
               rows={3} 
-              placeholder="建议150-160个字符，描述壁纸内容"
+              placeholder="建议150-160个字符，描述壁纸内容（默认使用壁纸描述）"
               maxLength={160}
               showCount
+              style={{ '--ant-input-placeholder-color': '#000000' } as any}
             />
           </Form.Item>
           <Form.Item 
             name="seo_keywords" 
-            label="SEO关键词" 
-            rules={[{ required: true, message: '请输入SEO关键词' }]}
+            label="SEO关键词"
           >
-            <Input placeholder="多个关键词用逗号分隔，如：动漫,壁纸,高清,二次元" />
+            <Input placeholder="多个关键词用逗号分隔，如：动漫,壁纸,高清,二次元（非必填）" />
           </Form.Item>
           <div style={{ background: '#f6ffed', padding: 12, borderRadius: 4, marginTop: 16 }}>
             <strong>SEO优化建议：</strong>
             <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
               <li>标题应包含主要关键词，长度控制在60字符以内</li>
               <li>描述应准确概括内容，吸引用户点击</li>
-              <li>关键词数量建议3-5个，避免堆砌</li>
+              <li>关键词数量建议3-5个，避免堆砌（非必填项）</li>
             </ul>
           </div>
         </Form>
@@ -1619,6 +1628,14 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
+
+
+
+
+
+
 
 
 
