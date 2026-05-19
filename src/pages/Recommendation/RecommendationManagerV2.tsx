@@ -43,6 +43,7 @@ import {
   Image,
   Pagination,
   Divider,
+  App,
 } from 'antd';
 import {
   PlusOutlined,
@@ -113,6 +114,7 @@ const POSITION_CONFIG = {
 };
 
 const RecommendationManagerV2: React.FC = () => {
+  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState('home');
   const [strategies, setStrategies] = useState<RecommendationStrategy[]>([]);
   const [loading, setLoading] = useState(false);
@@ -706,7 +708,11 @@ const RecommendationManagerV2: React.FC = () => {
     const maxCount = managingStrategy.content_limit || POSITION_CONFIG[managingStrategy.strategy_type]?.maxContentPerStrategy || 50;
     const availableSlots = maxCount - (managingStrategy.content_count || 0);
     if (availableSlots <= 0) {
-      message.warning(`该策略已达到最大内容数量限制（${maxCount}个）`);
+      message.warning({
+        content: `该策略已达到最大内容数量限制（${maxCount}个）`,
+        key: 'content-limit-warning',
+        duration: 3,
+      });
       return;
     }
     
@@ -906,7 +912,11 @@ const RecommendationManagerV2: React.FC = () => {
     
     const maxCount = managingStrategy.content_limit || POSITION_CONFIG[managingStrategy.strategy_type]?.maxContentPerStrategy || 50;
     if ((managingStrategy.content_count || 0) >= maxCount) {
-      message.warning(`该策略已达到最大内容数量限制（${maxCount}个）`);
+      message.warning({
+        content: `该策略已达到最大内容数量限制（${maxCount}个）`,
+        key: 'content-limit-warning',
+        duration: 3,
+      });
       return;
     }
 
@@ -1330,7 +1340,7 @@ const RecommendationManagerV2: React.FC = () => {
           >
             <InputNumber
               min={1}
-              max={100}
+              max={50}
               style={{ width: '100%' }}
               placeholder="该策略最多可添加的内容数量"
             />

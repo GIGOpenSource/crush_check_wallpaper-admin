@@ -1,0 +1,1 @@
+import{y as e}from"./index-DFpVsrzz.js";export default e();
