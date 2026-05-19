@@ -148,6 +148,11 @@ const RecommendationManagerV2: React.FC = () => {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [showOnlyUnadded, setShowOnlyUnadded] = useState(false);
   
+  // 标签分页状态（用于"加载更多"）
+  const [tagPage, setTagPage] = useState(1);
+  const [tagLoading, setTagLoading] = useState(false);
+  const [hasMoreTags, setHasMoreTags] = useState(true);
+  
   // 语言筛选状态
   const [languageFilter, setLanguageFilter] = useState<string>('all');
   
@@ -173,14 +178,40 @@ const RecommendationManagerV2: React.FC = () => {
     total_content_count: 0,
   });
 
-  // 加载标签列表
-  const loadTagList = async () => {
+  // 加载标签列表（支持分页）
+  const loadTagList = async (page: number = 1, append: boolean = false) => {
+    if (tagLoading || (!append && !hasMoreTags)) return;
+    
+    setTagLoading(true);
     try {
-      const response = await getTagList({ pageSize: 1000 });
-      setTagList(response.results || []);
+      const response = await getTagList({ 
+        currentPage: page, 
+        pageSize: 50 
+      });
+      
+      if (append) {
+        // 追加模式：加载更多标签
+        setTagList(prev => [...prev, ...response.results]);
+      } else {
+        // 初始加载模式：替换标签列表
+        setTagList(response.results);
+      }
+      
+      // 判断是否还有更多数据
+      const totalPages = response.pagination?.total_pages || 1;
+      setHasMoreTags(page < totalPages);
+      setTagPage(page);
     } catch (error) {
       console.error('加载标签列表失败:', error);
-      message.error('加载标签列表失败');
+    } finally {
+      setTagLoading(false);
+    }
+  };
+
+  // 加载更多标签
+  const loadMoreTags = () => {
+    if (hasMoreTags && !tagLoading) {
+      loadTagList(tagPage + 1, true);
     }
   };
 
@@ -1396,26 +1427,44 @@ const RecommendationManagerV2: React.FC = () => {
               optionFilterProp="children"
               mode="multiple"
               popupRender={(menu) => (
-                <div>
+                <>
                   {menu}
-                  {/* <Divider style={{ margin: '8px 0' }} /> */}
-                  {/* <div style={{ padding: '8px 16px', textAlign: 'center' }}>
-                    <Button 
-                      type="primary"
-                      ghost
-                      size="small" 
-                      icon={<ReloadOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        loadTagList();
+                  {hasMoreTags && !tagLoading && (
+                    <div 
+                      style={{ 
+                        padding: '8px', 
+                        textAlign: 'center',
+                        borderTop: '1px solid #f0f0f0',
+                        cursor: 'pointer',
+                        color: '#1890ff'
                       }}
-                      style={{ width: '100%' }}
+                      onClick={loadMoreTags}
                     >
-                      刷新标签列表
-                    </Button>
-                  </div> */}
-                </div>
+                      加载更多...
+                    </div>
+                  )}
+                  {tagLoading && (
+                    <div 
+                      style={{ 
+                        padding: '8px', 
+                        textAlign: 'center',
+                        borderTop: '1px solid #f0f0f0',
+                        color: '#999'
+                      }}
+                    >
+                      加载中...
+                    </div>
+                  )}
+                </>
               )}
+              onPopupScroll={(e) => {
+                const target = e.target as HTMLElement;
+                // 当滚动到底部时加载更多
+                if (target.scrollTop + target.offsetHeight >= target.scrollHeight - 10) {
+                  loadMoreTags();
+                }
+              }}
+              notFoundContent={tagLoading ? '加载中...' : '暂无数据'}
             >
               {tagList.map(tag => (
                 <Option key={tag.id} value={tag.id}>{tag.name}</Option>
