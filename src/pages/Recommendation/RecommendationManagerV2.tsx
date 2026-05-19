@@ -13,7 +13,7 @@
  * - 策略内容展示完后，按系统规则（热度、时间等）继续展示
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import {
   Card,
@@ -116,6 +116,9 @@ const RecommendationManagerV2: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [strategies, setStrategies] = useState<RecommendationStrategy[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // 内容库滚动容器引用（用于切换页面时重置滚动位置）
+  const contentLibraryScrollRef = useRef<HTMLDivElement>(null);
   
   // 策略弹窗
   const [strategyModalVisible, setStrategyModalVisible] = useState(false);
@@ -755,6 +758,13 @@ const RecommendationManagerV2: React.FC = () => {
       // 注意：total 仍然是后端返回的总数，不是过滤后的数量
       setContentTotal(response.pagination?.total || 0);
       setContentCurrentPage(page);
+      
+      // 数据加载完成后，延迟滚动到顶部（确保 DOM 渲染完成）
+      setTimeout(() => {
+        if (contentLibraryScrollRef.current) {
+          contentLibraryScrollRef.current.scrollTop = 0;
+        }
+      }, 100);
     } catch (error) {
       console.error('加载内容库失败:', error);
       message.error('加载内容库失败');
@@ -798,6 +808,13 @@ const RecommendationManagerV2: React.FC = () => {
       // 注意：total 仍然是后端返回的总数，不是过滤后的数量
       setContentTotal(response.pagination?.total || 0);
       setContentCurrentPage(page);
+      
+      // 数据加载完成后，延迟滚动到顶部（确保 DOM 渲染完成）
+      setTimeout(() => {
+        if (contentLibraryScrollRef.current) {
+          contentLibraryScrollRef.current.scrollTop = 0;
+        }
+      }, 100);
     } catch (error) {
       console.error('加载内容库失败:', error);
       message.error('加载内容库失败');
@@ -841,6 +858,13 @@ const RecommendationManagerV2: React.FC = () => {
       // 注意：total 仍然是后端返回的总数，不是过滤后的数量
       setContentTotal(response.pagination?.total || 0);
       setContentCurrentPage(page);
+      
+      // 数据加载完成后，延迟滚动到顶部（确保 DOM 渲染完成）
+      setTimeout(() => {
+        if (contentLibraryScrollRef.current) {
+          contentLibraryScrollRef.current.scrollTop = 0;
+        }
+      }, 100);
     } catch (error) {
       console.error('加载内容库失败:', error);
       message.error('加载内容库失败');
@@ -1368,6 +1392,7 @@ const RecommendationManagerV2: React.FC = () => {
         }}
         width={1200}
         footer={null}
+       
       >
         <Alert
           message="内容管理说明"
@@ -1431,6 +1456,7 @@ const RecommendationManagerV2: React.FC = () => {
         width={1200}
         okText="添加到策略"
         cancelText="取消"
+          style={{ top: 30 }}
       >
         <Alert
           message="批量选择说明"
@@ -1559,13 +1585,15 @@ const RecommendationManagerV2: React.FC = () => {
           </Col>
         </Row>
 
-        <div style={{ 
-          maxHeight: '500px', 
-          overflowY: 'auto', 
-          border: '1px solid #f0f0f0',
-          padding: '12px',
-          background: '#fafafa'
-        }}>
+        <div ref={contentLibraryScrollRef}
+          style={{ 
+            maxHeight: '500px', 
+            overflowY: 'auto', 
+            border: '1px solid #f0f0f0',
+            padding: '12px',
+            background: '#fafafa'
+          }}
+        >
           <Row gutter={[12, 12]}>
             {contentList.map((item: ContentItem) => {
               // 计算是否已达到选择上限
@@ -1703,7 +1731,7 @@ const RecommendationManagerV2: React.FC = () => {
           padding: '12px 0'
         }}>
           <div style={{ color: '#666' }}>
-            共 {contentTotal} 条
+            {/* 共 {contentTotal} 条 */}
           </div>
           <Pagination
             current={contentCurrentPage}
