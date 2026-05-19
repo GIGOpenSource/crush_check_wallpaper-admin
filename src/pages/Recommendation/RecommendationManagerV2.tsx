@@ -806,6 +806,49 @@ const RecommendationManagerV2: React.FC = () => {
     }
   };
 
+  // 加载内容库（带指定的 pageSize 和 showOnlyUnadded 参数）
+  const loadContentListWithParams = async (page: number, size: number, unadded: boolean) => {
+    setContentLoading(true);
+    try {
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）和语言筛选
+      const response = await getWallpaperList({
+        currentPage: page,
+        pageSize: size,
+        name: contentSearchText || undefined,
+        tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
+        lang: languageFilter !== 'all' ? languageFilter : undefined,
+      });
+      
+      // 将壁纸数据转换为ContentItem格式
+      let items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
+        id: wallpaper.id,
+        title: wallpaper.name,
+        image: wallpaper.thumb_url, // 缩略图用于列表展示
+        preview_url: wallpaper.url, // 原图用于预览
+        type: 'wallpaper' as const,
+        type_name: '壁纸',
+        views: wallpaper.view_count || 0,
+        downloads: wallpaper.download_count || 0,
+        created_at: wallpaper.created_at,
+      }));
+      
+      // 如果勾选了"只看未添加"，过滤掉已存在的壁纸
+      if (unadded && existingWallpaperIds.length > 0) {
+        items = items.filter(item => !existingWallpaperIds.includes(item.id));
+      }
+      
+      setContentList(items);
+      // 注意：total 仍然是后端返回的总数，不是过滤后的数量
+      setContentTotal(response.pagination?.total || 0);
+      setContentCurrentPage(page);
+    } catch (error) {
+      console.error('加载内容库失败:', error);
+      message.error('加载内容库失败');
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
   // 搜索内容
   const handleContentSearch = () => {
     setContentCurrentPage(1);
@@ -1397,7 +1440,7 @@ const RecommendationManagerV2: React.FC = () => {
                 已选择 {selectedContentIds.filter(id => !existingWallpaperIds.includes(id)).length} 项新内容（已存在 {selectedContentIds.filter(id => existingWallpaperIds.includes(id)).length} 项）。选择后将添加到当前策略中。
               </div>
               <div style={{ marginTop: 4, color: '#ff4d4f', fontWeight: 500 }}>
-                ⚠️ 每个策略最多只能选择 {managingStrategy?.content_limit || POSITION_CONFIG[managingStrategy?.strategy_type || 'home']?.maxContentPerStrategy || 50} 个内容，当前策略已有 {managingStrategy?.content_count || 0} 项，还可选择 {Math.max(0, (managingStrategy?.content_limit || POSITION_CONFIG[managingStrategy?.strategy_type || 'home']?.maxContentPerStrategy || 50) - (managingStrategy?.content_count || 0))} 项
+                ️ 每个策略最多只能选择 {managingStrategy?.content_limit || POSITION_CONFIG[managingStrategy?.strategy_type || 'home']?.maxContentPerStrategy || 50} 个内容，当前策略已有 {managingStrategy?.content_count || 0} 项，还可选择 {Math.max(0, (managingStrategy?.content_limit || POSITION_CONFIG[managingStrategy?.strategy_type || 'home']?.maxContentPerStrategy || 50) - (managingStrategy?.content_count || 0))} 项
               </div>
             </div>
           }
@@ -1406,6 +1449,7 @@ const RecommendationManagerV2: React.FC = () => {
           style={{ marginBottom: 16 }}
         />
         
+        {/* 主要筛选条件组：搜索、标签、语言、按钮 */}
         <Row gutter={[8, 8]} style={{ marginBottom: 16, alignItems: 'center' }}>
           <Col span={5}>
             <Input
@@ -1491,24 +1535,26 @@ const RecommendationManagerV2: React.FC = () => {
           </Col>
           <Col span={3}>
             <Space>
+              <Button type="primary" onClick={handleContentSearch}>搜索</Button>
+              <Button onClick={handleRefreshContent}>刷新</Button>
+            </Space>
+          </Col>
+          <Col span={6} style={{ textAlign: 'right' }}>
+            <Space>
               <input
                 type="checkbox"
                 checked={showOnlyUnadded}
                 onChange={(e) => {
-                  setShowOnlyUnadded(e.target.checked);
+                  const newValue = e.target.checked;
+                  setShowOnlyUnadded(newValue);
                   // 当勾选/取消勾选时，重新加载列表以应用过滤
-                  loadContentListWithSize(1, contentPageSize);
+                  // 使用新函数直接传递新的 showOnlyUnadded 值，避免异步状态更新问题
+                  loadContentListWithParams(1, contentPageSize, newValue);
                   setContentCurrentPage(1);
                 }}
                 style={{ marginRight: 4 }}
               />
               <span>只看未添加</span>
-            </Space>
-          </Col>
-          <Col span={6} style={{ textAlign: 'right' }}>
-            <Space>
-              <Button type="primary" onClick={handleContentSearch}>搜索</Button>
-              <Button onClick={handleRefreshContent}>刷新</Button>
             </Space>
           </Col>
         </Row>
