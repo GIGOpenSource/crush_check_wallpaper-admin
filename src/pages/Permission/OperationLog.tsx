@@ -16,7 +16,7 @@ const OperationLog: React.FC = () => {
   const [logs, setLogs] = useState<OperationLog[]>([]);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   
   // 详情弹窗
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -33,11 +33,11 @@ const OperationLog: React.FC = () => {
   }>({});
 
   // 加载日志列表
-  const loadLogs = async (page: number = currentPage, params?: typeof searchParams) => {
+  const loadLogs = async (page: number, size: number, params?: typeof searchParams) => {
     setLoading(true);
     try {
       const queryParams = params || searchParams;
-      const response = await getOperationLogList(page, pageSize, queryParams);
+      const response = await getOperationLogList(page, size, queryParams);
       setLogs(response.results || []);
       setTotal(response.pagination?.total || 0);
     } catch (error) {
@@ -48,7 +48,7 @@ const OperationLog: React.FC = () => {
   };
 
   useEffect(() => {
-    loadLogs(1);
+    loadLogs(1, pageSize);
   }, []);
 
   // 搜索
@@ -67,7 +67,7 @@ const OperationLog: React.FC = () => {
     
     setSearchParams(params);
     setCurrentPage(1);
-    loadLogs(1, params);
+    loadLogs(1, pageSize, params);
   };
 
   // 重置搜索
@@ -75,7 +75,14 @@ const OperationLog: React.FC = () => {
     form.resetFields();
     setSearchParams({});
     setCurrentPage(1);
-    loadLogs(1, {});
+    loadLogs(1, pageSize, {});
+  };
+
+  // 处理每页条数变化
+  const handlePageSizeChange = (current: number, size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+    loadLogs(1, size);
   };
 
   // 查看详情
@@ -331,34 +338,39 @@ const OperationLog: React.FC = () => {
         </Form>
 
         {/* 表格 */}
-        <Table
-          columns={columns}
-          dataSource={logs}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1400 }}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: total,
-            onChange: (page) => {
-              setCurrentPage(page);
-              loadLogs(page);
-            },
-            showSizeChanger: false,
-            showTotal: (total) => `共 ${total} 条`,
-            size: 'default',
-          }}
-          locale={{ emptyText: (
-            <div style={{ padding: '40px 0', color: '#999' }}>
-              {/* <div style={{ fontSize: 16, marginBottom: 8 }}>📋</div> */}
-              <div>暂无操作日志</div>
-            </div>
-          )}}
-          size="middle"
-          bordered={false}
-          style={{ marginTop: 16 }}
-        />
+        <div style={{ marginTop: 16 }}>
+          <Table
+            columns={columns}
+            dataSource={logs}
+            rowKey="id"
+            loading={loading}
+            scroll={{ x: 1400 }}
+            pagination={{
+              current: currentPage,
+              pageSize: pageSize,
+              total: total,
+              onChange: (page) => {
+                setCurrentPage(page);
+                loadLogs(page, pageSize);
+              },
+              onShowSizeChange: handlePageSizeChange,
+              showSizeChanger: true,
+              showTotal: (total) => `共 ${total} 条`,
+              size: 'default',
+              position: ['bottomRight'],
+              pageSizeOptions: ['10', '20', '50', '100'],
+              showQuickJumper: true,
+            }}
+            locale={{ emptyText: (
+              <div style={{ padding: '40px 0', color: '#999' }}>
+                {/* <div style={{ fontSize: 16, marginBottom: 8 }}>📋</div> */}
+                <div>暂无操作日志</div>
+              </div>
+            )}}
+            size="middle"
+            bordered={false}
+          />
+        </div>
       </Card>
 
       {/* 详情弹窗 */}
