@@ -118,6 +118,7 @@ const CompetitorAnalysis: React.FC = () => {
       title: '网站',
       dataIndex: 'name',
       key: 'name',
+      width: 250,
       render: (text: string, record: Competitor) => (
         <Space>
           <Avatar style={{ backgroundColor: '#1890ff' }}>{text[0]}</Avatar>
@@ -141,7 +142,7 @@ const CompetitorAnalysis: React.FC = () => {
       title: '月流量',
       dataIndex: 'monthly_traffic',
       key: 'monthly_traffic',
-      width: 120,
+      width: 100,
       render: (v: number) => v ? `${((v || 0) / 10000).toFixed(1)}万` : '--',
     },
     {
@@ -180,10 +181,10 @@ const CompetitorAnalysis: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 180,
       render: (_: unknown, record: Competitor) => (
         <Space>
-          <Button type="link" onClick={() => handleAnalyzeGap(record)}>关键词差距</Button>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handleAnalyzeGap(record)}>关键词差距</Button>
           <Popconfirm
             title="确认删除"
             description={`确定要删除竞争对手 "${record.name}" 吗？此操作不可撤销。`}
@@ -392,6 +393,7 @@ const CompetitorAnalysis: React.FC = () => {
           dataSource={competitors} 
           rowKey="id" 
           loading={tableLoading}
+          scroll={{ x: 'max-content' }}
           pagination={{
             ...pagination,
             showSizeChanger: true,
