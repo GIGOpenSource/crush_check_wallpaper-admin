@@ -309,8 +309,8 @@ const RecommendationManagerV2: React.FC = () => {
       width: 120,
       render: (applyArea: string) => {
         const languageMap: Record<string, { color: string; text: string }> = {
-          zh: { color: 'red', text: '中文' },
-          en: { color: 'blue', text: 'English' },
+          'zh-CN': { color: 'red', text: '中文' },
+          en: { color: 'blue', text: '英文' },
           ja: { color: 'orange', text: '日语' },
           ko: { color: 'cyan', text: '韩语' },
           es: { color: 'green', text: '西班牙语' },
