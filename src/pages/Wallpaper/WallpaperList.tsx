@@ -1189,7 +1189,7 @@ const WallpaperList: React.FC = () => {
               <Row gutter={16}>
                 <Col span={24}>
                   <Form.Item name="name" label="壁纸名称" rules={[{ required: true, message: '请输入壁纸名称' }]}>
-                    <Input placeholder="请输入壁纸名称" />
+                    <Input placeholder="请输入壁纸名称"  maxLength={80} showCount/>
                   </Form.Item>
                 </Col>
               </Row>
@@ -1618,7 +1618,7 @@ const WallpaperList: React.FC = () => {
             label="SEO标题" 
             rules={[{ required: true, message: '请输入SEO标题' }]}
           >
-            <Input placeholder="建议50-60个字符，包含关键词（默认使用壁纸名称）" maxLength={60} showCount />
+            <Input placeholder="建议50-60个字符，包含关键词（默认使用壁纸名称）" maxLength={80} showCount />
           </Form.Item>
           <Form.Item 
             name="seo_description" 
@@ -1628,7 +1628,7 @@ const WallpaperList: React.FC = () => {
             <Input.TextArea 
               rows={3} 
               placeholder="建议150-160个字符，描述壁纸内容（默认使用壁纸描述）"
-              maxLength={160}
+              maxLength={500}
               showCount
               style={{ '--ant-input-placeholder-color': '#000000' } as any}
             />

@@ -1097,9 +1097,9 @@ const TDKManager: React.FC = () => {
             label="Title"
           >
             <Input 
-              maxLength={70} 
+              maxLength={80} 
               showCount 
-              placeholder="建议55-65字符" 
+              placeholder="建议50-60字符" 
             />
           </Form.Item>
           <Form.Item
@@ -1108,7 +1108,7 @@ const TDKManager: React.FC = () => {
           >
             <Input.TextArea
               rows={3}
-              maxLength={170}
+              maxLength={500}
               showCount
               placeholder="建议150-160字符"
             />
