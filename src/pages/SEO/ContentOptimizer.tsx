@@ -118,6 +118,7 @@ const ContentOptimizer: React.FC = () => {
       title: '页面',
       dataIndex: 'page_title',
       key: 'page_title',
+      width: 280,
       render: (text: string, record: ContentOptimizationPage) => (
         <div>
           <div style={{ fontWeight: 500 }}>{text}</div>
@@ -137,6 +138,7 @@ const ContentOptimizer: React.FC = () => {
       dataIndex: 'content_score',
       key: 'content_score',
       width: 120,
+      align: 'center' as const,
       render: (score: number) => (
         <Progress
           percent={score}
@@ -149,7 +151,8 @@ const ContentOptimizer: React.FC = () => {
       title: '字数',
       dataIndex: 'word_count',
       key: 'word_count',
-      width: 80,
+      width: 100,
+      align: 'center' as const,
       render: (count: number) => (
         <Tag color={count >= 800 ? 'success' : count >= 300 ? 'warning' : 'error'}>
           {count}字
@@ -161,15 +164,15 @@ const ContentOptimizer: React.FC = () => {
       dataIndex: 'issue_count',
       key: 'issue_count',
       width: 100,
-      render: (count: number, record: ContentOptimizationPage) => {
-        const issues = record.issues || [];
-        const errors = issues.filter(i => i.type === 'error').length;
-        const warnings = issues.filter(i => i.type === 'warning').length;
+      align: 'center' as const,
+      render: (count: number) => {
         return (
           <Space>
-            {errors > 0 && <Badge count={errors} style={{ backgroundColor: '#f5222d' }} />}
-            {warnings > 0 && <Badge count={warnings} style={{ backgroundColor: '#faad14' }} />}
-            {count === 0 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+            {count > 0 ? (
+              <Badge count={count} style={{ backgroundColor: '#f5222d' }} />
+            ) : (
+              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+            )}
           </Space>
         );
       },
@@ -178,7 +181,8 @@ const ContentOptimizer: React.FC = () => {
       title: '最后优化',
       dataIndex: 'last_optimized_at',
       key: 'last_optimized_at',
-      width: 160,
+      width: 170,
+      align: 'center' as const,
       render: (text: string) => {
         if (!text) return '--';
         return new Date(text).toLocaleString('zh-CN', {
@@ -196,6 +200,7 @@ const ContentOptimizer: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
+      align: 'left' as const,
       render: (_: unknown, record: ContentOptimizationPage) => (
         <Space>
           <Popconfirm
@@ -414,7 +419,15 @@ const ContentOptimizer: React.FC = () => {
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <Table columns={columns} dataSource={pages} rowKey="id" loading={listLoading} pagination={false} />
+        <Table 
+          columns={columns} 
+          dataSource={pages} 
+          rowKey="id" 
+          loading={listLoading} 
+          pagination={false}
+          size="small"
+          scroll={{ x: 'max-content' }}
+        />
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
           <Pagination
             current={currentPage}
