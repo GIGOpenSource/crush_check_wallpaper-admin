@@ -624,6 +624,7 @@ const BacklinkManager: React.FC = () => {
                     total: pagination.total,
                     showSizeChanger: true,
                     showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
                     onChange: (page, pageSize) => {
                       setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || prev.pageSize }));
                     },
@@ -695,6 +696,7 @@ const BacklinkManager: React.FC = () => {
                     total: domainPagination.total,
                     showSizeChanger: true,
                     showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
                     onChange: (page, pageSize) => {
                       setDomainPagination(prev => ({ ...prev, current: page, pageSize: pageSize || prev.pageSize }));
                     },
@@ -849,6 +851,7 @@ const BacklinkManager: React.FC = () => {
                     total: buildPagination.total,
                     showSizeChanger: true,
                     showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
                     onChange: (page, pageSize) => {
                       setBuildPagination(prev => ({ ...prev, current: page, pageSize: pageSize || prev.pageSize }));
                     },

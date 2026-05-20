@@ -436,6 +436,7 @@ const ContentOptimizer: React.FC = () => {
             onChange={handlePageChange}
             showSizeChanger
             showQuickJumper
+            showTotal={(total) => `共 ${total} 条`}
           />
         </div>
       </Card>

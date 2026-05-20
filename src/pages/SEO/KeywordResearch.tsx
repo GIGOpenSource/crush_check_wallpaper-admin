@@ -1032,6 +1032,7 @@ const KeywordResearch: React.FC = () => {
                 total: pagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
+                showTotal: (total) => `共 ${total} 条`,
                 onChange: (page, pageSize) => {
                   setPagination(prev => ({ ...prev, current: page, pageSize }));
                 },
@@ -1061,6 +1062,7 @@ const KeywordResearch: React.FC = () => {
                     pageSize: pagination.pageSize,
                     total: pagination.total,
                     showSizeChanger: true,
+                    showTotal: (total) => `共 ${total} 条`,
                     onChange: (page, pageSize) => {
                       setPagination(prev => ({ ...prev, current: page, pageSize }));
                     },
@@ -1214,6 +1216,7 @@ const KeywordResearch: React.FC = () => {
                   pageSize: pagination.pageSize,
                   total: pagination.total,
                   showSizeChanger: true,
+                  showTotal: (total) => `共 ${total} 条`,
                   onChange: (page, pageSize) => {
                     setPagination(prev => ({ ...prev, current: page, pageSize }));
                   },
