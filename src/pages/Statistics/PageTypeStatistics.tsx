@@ -173,43 +173,46 @@ const PageTypeStatistics: React.FC = () => {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
-      width: 60,
+      width: 70,
+      align: 'center' as const,
     },
     {
       title: '页面名称',
       dataIndex: 'page_name',
       key: 'page_name',
+      width: 120,
+      ellipsis: true,
     },
     {
       title: '页面路径',
       dataIndex: 'page_path',
       key: 'page_path',
+      width: 200,
+      ellipsis: true,
       render: (path: string) => <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 4 }}>{path}</code>,
     },
     {
       title: '页面类型',
       dataIndex: 'page_type',
       key: 'page_type',
+      width: 100,
+      align: 'center' as const,
       render: (type: string) => getPageTypeTag(type),
-      // filters: [
-      //   { text: '响应式', value: 'responsive' },
-      //   { text: '桌面端', value: 'desktop' },
-      //   { text: '移动端', value: 'mobile' },
-      //   { text: '混合式', value: 'hybrid' },
-      // ],
-      // onFilter: (value: React.Key | boolean, record: PageDetail) => record.page_type === value,
     },
     {
       title: '设备类型',
       dataIndex: 'device_type',
       key: 'device_type',
-      width: 120,
+      width: 100,
+      align: 'center' as const,
       render: (deviceType?: string) => getDeviceTypeTag(deviceType),
     },
     {
       title: '访问量',
       dataIndex: 'visit_count',
       key: 'visit_count',
+      width: 100,
+      align: 'right' as const,
       sorter: (a: PageDetail, b: PageDetail) => a.visit_count - b.visit_count,
       render: (count: number) => count.toLocaleString(),
     },
@@ -217,12 +220,16 @@ const PageTypeStatistics: React.FC = () => {
       title: '平均停留',
       dataIndex: 'avg_stay_time',
       key: 'avg_stay_time',
-      render: (time: number) => `${time.toFixed(2)}秒`,  // 保留两位小数
+      width: 100,
+      align: 'right' as const,
+      render: (time: number) => `${time.toFixed(2)}秒`,
     },
     {
       title: '跳出率',
       dataIndex: 'bounce_rate',
       key: 'bounce_rate',
+      width: 90,
+      align: 'right' as const,
       sorter: (a: PageDetail, b: PageDetail) => a.bounce_rate - b.bounce_rate,
       render: (rate: number) => `${rate}%`,
     },
@@ -230,16 +237,18 @@ const PageTypeStatistics: React.FC = () => {
       title: 'SEO评分',
       dataIndex: 'seo_score',
       key: 'seo_score',
+      width: 120,
+      align: 'center' as const,
       sorter: (a: PageDetail, b: PageDetail) => a.seo_score - b.seo_score,
       render: (score: number) => getSeoProgress(score),
     },
     {
       title: '最后更新',
-      dataIndex: 'last_updated',  // 改为 last_updated
+      dataIndex: 'last_updated',
       key: 'last_updated',
+      width: 180,
       sorter: (a: PageDetail, b: PageDetail) => new Date(a.last_updated).getTime() - new Date(b.last_updated).getTime(),
       render: (time: string) => {
-        // 格式化时间显示
         if (!time) return '-';
         const date = new Date(time);
         return date.toLocaleString('zh-CN', {
@@ -255,10 +264,11 @@ const PageTypeStatistics: React.FC = () => {
     },
     {
       title: '状态',
-      dataIndex: 'status_display',  // 使用 status_display 字段
+      dataIndex: 'status_display',
       key: 'status_display',
+      width: 80,
+      align: 'center' as const,
       render: (display: string) => {
-        // 根据状态显示文字选择颜色
         const statusMap: Record<string, { color: string; text: string }> = {
           '正常': { color: 'success', text: '正常' },
           '停用': { color: 'default', text: '停用' },
@@ -347,6 +357,7 @@ const PageTypeStatistics: React.FC = () => {
             columns={columns}
             dataSource={pageData}
             rowKey="id"
+            scroll={{ x: 'max-content' }}
             pagination={{
               current: currentPage,
               pageSize: pageSize,

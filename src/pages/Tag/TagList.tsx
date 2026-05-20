@@ -134,25 +134,26 @@ const TagList: React.FC = () => {
       title: '标签名称',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
       render: (name: string) => <Tag color="blue">{name}</Tag>,
     },
     {
       title: '壁纸数量',
       dataIndex: 'wallpaper_count',
       key: 'wallpaper_count',
-      width: 120,
+      width: 100,
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 200,
+      width: 180,
       render: (text: string) => formatTime(text),
     },
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 140,
       render: (_: unknown, record: TagItem) => (
         <Space size={2}>
           <Button 
