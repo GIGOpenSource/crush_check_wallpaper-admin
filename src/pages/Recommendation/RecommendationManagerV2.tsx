@@ -1325,7 +1325,7 @@ const RecommendationManagerV2: React.FC = () => {
             name="apply_area"
           >
             <Select placeholder="请选择语言">
-              <Option value="zh-hans">中文</Option>
+              <Option value="zh-CN">中文</Option>
               <Option value="en">英语</Option>
               <Option value="ja">日语</Option>
               <Option value="ko">韩语</Option>
@@ -1561,7 +1561,7 @@ const RecommendationManagerV2: React.FC = () => {
               allowClear
             >
               <Option value="all">全部语言</Option>
-              <Option value="zh-hans">中文</Option>
+              <Option value="zh-CN">中文</Option>
               <Option value="en">英语</Option>
               <Option value="ja">日语</Option>
               <Option value="ko">韩语</Option>
