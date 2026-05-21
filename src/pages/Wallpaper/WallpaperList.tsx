@@ -1037,6 +1037,15 @@ const WallpaperList: React.FC = () => {
             allowClear
             onPressEnter={handleSearch}
           />
+          <Input
+            placeholder="搜索壁纸ID"
+            value={searchParams.id}
+            onChange={(e) => setSearchParams({ ...searchParams, id: e.target.value })}
+            style={{ width: 180 }}
+            prefix={<SearchOutlined />}
+            allowClear
+            onPressEnter={handleSearch}
+          />
           <Select
             mode="multiple"
             placeholder="选择标签筛选"
@@ -1655,6 +1664,8 @@ const WallpaperList: React.FC = () => {
 };
 
 export default WallpaperList;
+
+
 
 
 

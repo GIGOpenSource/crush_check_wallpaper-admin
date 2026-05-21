@@ -34,6 +34,7 @@ export interface GetWallpaperListParams {
   currentPage?: number;
   pageSize?: number;
   name?: string;
+  id?: string; // 壁纸ID搜索
   audit_status?: 'pending' | 'approved' | 'rejected';
   tag_id?: string; // 标签ID，多个用逗号隔开
   lang?: string; // 语言筛选：zh-hans(中文), en(英语), ja(日语), ko(韩语), pt(葡萄牙语), es(西班牙语)

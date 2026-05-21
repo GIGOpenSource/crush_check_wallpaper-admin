@@ -495,6 +495,16 @@ const RecommendationManagerV2: React.FC = () => {
       ),
     },
     {
+      title: 'ID',
+      dataIndex: 'wallpaper',
+      key: 'id',
+      width: 80,
+      align: 'center' as const,
+      render: (wallpaperId: number) => (
+        <span>{wallpaperId}</span>
+      ),
+    },
+    {
       title: '排序',
       dataIndex: 'sort_order',
       key: 'sort_order',
