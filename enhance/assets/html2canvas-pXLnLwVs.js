@@ -1,0 +1,1 @@
+import{y as e}from"./index-NF-iohLG.js";export default e();

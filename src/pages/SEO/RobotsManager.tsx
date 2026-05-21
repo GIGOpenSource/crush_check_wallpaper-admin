@@ -337,14 +337,17 @@ const RobotsManager: React.FC = () => {
         url_path: urlPath,
       };
       
-      const result = await testRobotsRule(params);
+      const results = await testRobotsRule(params);
       
-      setTestResults([{
+      // 将返回的数据转换为前端展示格式
+      setTestResults(results.map((result: any) => ({
         userAgent: result.user_agent || testUserAgent,
+        url: result.url || urlPath,
         result: result.result,
-        rule: result.rule || '无匹配规则',
+        rule: result.matched_rule || '无匹配规则',
+        statusCode: result.status_code,
         explanation: result.explanation || (result.result === 'Allow' ? '搜索引擎可以抓取此URL' : '搜索引擎禁止抓取此URL'),
-      }]);
+      })));
       
       message.success('测试完成');
     } catch (error: any) {
@@ -539,15 +542,29 @@ const RobotsManager: React.FC = () => {
               {testResults.length > 0 && (
                 <Table
                   columns={[
-                    { title: 'User-agent', dataIndex: 'userAgent' },
-                    { title: '结果', dataIndex: 'result', render: (r: string) => <Tag color={r === 'Allow' ? 'success' : 'error'}>{r}</Tag> },
-                    { title: '匹配规则', dataIndex: 'rule' },
-                    { title: '说明', dataIndex: 'explanation' },
+                    { title: 'User-agent', dataIndex: 'userAgent', key: 'userAgent' },
+                    // { title: 'URL', dataIndex: 'url', key: 'url' },
+                    { 
+                      title: '结果', 
+                      dataIndex: 'result', 
+                      key: 'result',
+                      render: (r: string) => <Tag color={r === 'Allow' ? 'success' : 'error'}>{r}</Tag> 
+                    },
+                    // { 
+                    //   title: '状态码', 
+                    //   dataIndex: 'statusCode', 
+                    //   key: 'statusCode',
+                    //   width: 100,
+                    //   align: 'center',
+                    // },
+                    { title: '匹配规则', dataIndex: 'rule', key: 'rule' },
+                    { title: '说明', dataIndex: 'explanation', key: 'explanation' },
                   ]}
                   dataSource={testResults}
                   pagination={false}
                 />
               )}
+
             </Space>
           </Card>
         </TabPane>

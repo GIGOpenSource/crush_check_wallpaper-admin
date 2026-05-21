@@ -54,12 +54,14 @@ export interface TestRobotsRuleParams {
 }
 
 /**
- * 测试Robots规则响应类型
+ * 测试Robots规则响应类型（单个结果）
  */
 export interface TestRobotsRuleResult {
   user_agent: string;
+  url: string;
   result: string;
-  rule: string;
+  matched_rule: string;
+  status_code: number;
   explanation: string;
 }
 
@@ -129,5 +131,5 @@ export function addRobotsRule(params: AddRobotsRuleParams) {
  * @param params 测试参数
  */
 export function testRobotsRule(params: TestRobotsRuleParams) {
-  return http.post<TestRobotsRuleResult>('/site/test-robots-rule/', params);
+  return http.post<TestRobotsRuleResult[]>('/site/test-robots-rule/', params);
 }
