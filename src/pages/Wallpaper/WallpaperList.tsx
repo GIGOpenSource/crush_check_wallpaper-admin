@@ -1012,6 +1012,7 @@ const WallpaperList: React.FC = () => {
           src={previewWallpaper.url}  // 直接使用 thumb_url
           alt={previewWallpaper.name}
           style={{ display: 'none' }}
+          referrerPolicy="no-referrer"
           preview={{
             visible: true,
             onVisibleChange: (visible) => {

@@ -147,6 +147,7 @@ const CommentList: React.FC = () => {
                 height={40}
                 style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
                 preview={false}
+                referrerPolicy="no-referrer"
                 onClick={() => {
                   setPreviewImageUrl(record.wallpaper_object!.url);
                   setShowImagePreview(true);
