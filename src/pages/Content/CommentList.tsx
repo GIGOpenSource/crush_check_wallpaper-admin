@@ -213,6 +213,7 @@ const CommentList: React.FC = () => {
         <Image
           src={previewImageUrl}
           style={{ display: 'none' }}
+          referrerPolicy="no-referrer"
           preview={{
             visible: true,
             onVisibleChange: (visible) => {

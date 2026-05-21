@@ -237,6 +237,7 @@ const WallpaperAudit: React.FC = () => {
       width: 120,
       render: (_url: string, record: Wallpaper) => (
         <Image
+        referrerPolicy="no-referrer"
           src={record.thumb_url}
           width={100}
           height={60}
@@ -474,6 +475,7 @@ const WallpaperAudit: React.FC = () => {
       {/* 图片预览组件 - 使用key确保每次显示正确的图片 */}
       {showImagePreview && previewWallpaper && (
         <Image
+        referrerPolicy="no-referrer"
           key={previewWallpaper.id}  // 使用壁纸ID作为key，确保切换图片时重新渲染
           src={previewWallpaper.url}  // 直接使用 thumb_url
           alt={previewWallpaper.name}

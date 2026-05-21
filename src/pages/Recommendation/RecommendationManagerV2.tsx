@@ -481,6 +481,7 @@ const RecommendationManagerV2: React.FC = () => {
       render: (_: unknown, record: StrategyContentItem) => (
         <Space>
           <Image
+          referrerPolicy="no-referrer"
             src={record.wallpaper_info.thumb_url}
             width={60}
             height={60}
@@ -1664,6 +1665,7 @@ const RecommendationManagerV2: React.FC = () => {
                       overflow: 'hidden'
                     }}>
                       <Image
+                      referrerPolicy="no-referrer"
                         src={item.image}
                         preview={{
                           src: item.preview_url || item.image, // 预览时显示原图，如果没有则使用缩略图

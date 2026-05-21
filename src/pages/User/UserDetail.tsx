@@ -230,6 +230,7 @@ const UserDetail: React.FC = () => {
       width: 120,
       render: (url: string) => (
         <Image 
+        referrerPolicy="no-referrer"
           src={url} 
           width={100} 
           height={60} 
@@ -443,6 +444,7 @@ const UserDetail: React.FC = () => {
       {/* 图片预览组件 */}
       {showImagePreview && previewWallpaper && (
         <Image
+        referrerPolicy="no-referrer"
           key={previewWallpaper.id}
           src={previewWallpaper.url}
           alt={previewWallpaper.name}

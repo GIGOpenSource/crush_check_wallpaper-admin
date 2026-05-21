@@ -737,6 +737,7 @@ const WallpaperList: React.FC = () => {
       width: 120,
       render: (thumbUrl: string, record: Wallpaper) => (
         <Image 
+        referrerPolicy="no-referrer"
           src={thumbUrl} 
           preview={{ src: record.url }}
           width={100} 
@@ -1333,6 +1334,7 @@ const WallpaperList: React.FC = () => {
                 <div style={{ marginBottom: 8 }}>
                   {fileList.length > 0 && fileList[0].url && (
                     <Image 
+                    referrerPolicy="no-referrer"
                       src={fileList[0].url} 
                       width={200} 
                       height={120} 
