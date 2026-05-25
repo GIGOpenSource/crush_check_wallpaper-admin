@@ -15,20 +15,20 @@ const SendNotification: React.FC = () => {
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [userList, setUserList] = useState<CustomerUser[]>([]);
   const [userLoading, setUserLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
 
   // 加载用户列表
-  const loadUsers = async (page = 1) => {
+  const loadUsers = async (page = 1, size = 20) => {
     setUserLoading(true);
     try {
       const response = await getCustomerUserList({
         currentPage: page,
-        pageSize: 100, // 获取更多用户以便选择
+        pageSize: size,
       });
       setUserList(response.results);
       setPagination({
         current: response.pagination.currentPage,
-        pageSize: response.pagination.page_size,
+        pageSize: size,
         total: response.pagination.total,
       });
     } catch (error) {
@@ -42,7 +42,7 @@ const SendNotification: React.FC = () => {
   // 当打开用户选择弹窗时加载用户
   useEffect(() => {
     if (userModalVisible) {
-      loadUsers();
+      loadUsers(pagination.current, pagination.pageSize);
     }
   }, [userModalVisible]);
 
@@ -249,13 +249,23 @@ const SendNotification: React.FC = () => {
             onChange: (selectedKeys) => {
               setSelectedUserIds(selectedKeys as number[]);
             },
+            preserveSelectedRowKeys: true, // 保留跨页选择状态
+            // selections: [Table.SELECTION_ALL, Table.SELECTION_INVERT], // 添加全选和反选功能
           }}
           pagination={{
             ...pagination,
-            onChange: (page) => {
-              setPagination({ ...pagination, current: page });
-              loadUsers(page);
+            onChange: (page, pageSize) => {
+              // 更新分页大小时也要保存到状态
+              setPagination(prev => ({
+                ...prev,
+                current: page,
+                pageSize: pageSize
+              }));
+              loadUsers(page, pageSize);
             },
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
         />
       </Modal>
