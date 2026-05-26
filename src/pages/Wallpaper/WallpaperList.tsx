@@ -798,7 +798,7 @@ const WallpaperList: React.FC = () => {
         return (
           <Tooltip 
             title={
-              <div style={{ maxWidth: 600 }}>
+              <div style={{ maxWidth: 600,maxHeight: 300, overflowY: 'auto' }}>
                 {tagList.map((tag, index) => (
                   <AntdTag 
                     key={`${tag}-${index}`} 
