@@ -502,7 +502,7 @@ const UserList: React.FC = () => {
                 name="file"
                 action="/api/client/upload-image/"
                 headers={{
-                  Authorization: `Bearer ${localStorage.getItem('token')}`,
+                  Authorization: `Bearer ${localStorage.getItem('admin-token')}`,
                 }}
                 showUploadList={false}
                 beforeUpload={(file) => {

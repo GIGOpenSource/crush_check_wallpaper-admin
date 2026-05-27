@@ -58,7 +58,7 @@ const service: AxiosInstance = axios.create({
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // 从localStorage获取token
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('admin-token');
     
     // 如果配置了skipAuth则不添加token
     const customConfig = config as CustomRequestConfig;

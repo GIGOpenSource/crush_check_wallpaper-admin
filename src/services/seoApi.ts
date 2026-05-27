@@ -22,7 +22,7 @@ const createAxiosInstance = (): AxiosInstance => {
   instance.interceptors.request.use(
     (config) => {
       // 添加认证token
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('admin-token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
         config.headers.Token = `${token}`;
@@ -726,7 +726,7 @@ export interface SitemapSubmissionRecord {
  * @returns 提交历史记录列表
  */
 export const getSitemapSubmissionHistory = async (): Promise<ApiResponse<SitemapSubmissionRecord[]>> => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('admin-token');
   return request<SitemapSubmissionRecord[]>({
     url: `${API_CONFIG.SEO_PREFIX}/seo_view/sitemap-status/`,
     method: 'GET',

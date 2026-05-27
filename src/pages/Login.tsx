@@ -24,7 +24,7 @@ const Login: React.FC = () => {
 
       // 保存token到localStorage
       if (response.token) {
-        localStorage.setItem('token', response.token);
+        localStorage.setItem('admin-token', response.token);
       }
 
       // 保存用户信息

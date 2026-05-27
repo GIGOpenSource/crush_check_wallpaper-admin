@@ -20,7 +20,7 @@ const createAxiosInstance = (): AxiosInstance => {
   instance.interceptors.request.use(
     (config) => {
       // 添加认证token
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('admin-token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
         config.headers.Token = `${token}`;

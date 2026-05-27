@@ -1,0 +1,1 @@
+import{y as e}from"./index-CspjpuKz.js";export default e();

@@ -13,7 +13,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   
   // 检查是否有token
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('admin-token');
   
   if (!token) {
     // 未登录，重定向到登录页，并记录原始访问路径
