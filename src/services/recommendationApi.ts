@@ -11,6 +11,7 @@ export interface RecommendationStrategy {
   strategy_type: 'home' | 'hot' | 'banner';  // 策略类型：home-首页推荐，hot-热门推荐，banner-精选轮播图
   apply_area: string;  // 应用区域：global-全球, cn-中国大陆, overseas-海外, us-美国, jp-日本, kr-韩国
   priority: number;
+  platform?: 'pc' | 'phone';  // 平台：pc-电脑端，phone-手机端
   content_limit?: number;  // 内容数量限制
   wallpaper_ids?: number[];  // 壁纸ID列表
   content_current_count?: number;  // 当前实际内容数量

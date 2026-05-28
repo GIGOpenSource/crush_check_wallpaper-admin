@@ -303,6 +303,20 @@ const RecommendationManagerV2: React.FC = () => {
       ),
     },
     {
+      title: '平台',
+      dataIndex: 'platform',
+      key: 'platform',
+      width: 100,
+      render: (platform: 'pc' | 'phone') => {
+        const platformMap: Record<string, { color: string; text: string }> = {
+          'pc': { color: 'blue', text: 'PC端' },
+          'phone': { color: 'green', text: '手机端' },
+        };
+        const config = platformMap[platform] || { color: 'default', text: platform || '全部平台' };
+        return <Tag color={config.color}>{config.text}</Tag>;
+      },
+    },
+    {
       title: '应用区域',
       dataIndex: 'apply_area',
       key: 'apply_area',
@@ -577,6 +591,7 @@ const RecommendationManagerV2: React.FC = () => {
       name: record.name,
       position: record.strategy_type,
       priority: record.priority,
+      platform: record.platform, // 添加平台字段
       apply_area: record.apply_area,
       content_limit: record.content_limit || POSITION_CONFIG[record.strategy_type as keyof typeof POSITION_CONFIG]?.maxContentPerStrategy || 50,
       status: record.status,
@@ -607,6 +622,7 @@ const RecommendationManagerV2: React.FC = () => {
           name: values.name,
           strategy_type: values.position,
           priority: values.priority,
+          platform: values.platform, // 添加平台字段
           apply_area: values.apply_area,
           content_limit: values.content_limit,
           start_time: startTime,
@@ -621,6 +637,7 @@ const RecommendationManagerV2: React.FC = () => {
           name: values.name,
           strategy_type: values.position,
           priority: values.priority,
+          platform: values.platform, // 添加平台字段
           apply_area: values.apply_area,
           content_limit: values.content_limit,
           start_time: startTime,
@@ -1332,8 +1349,19 @@ const RecommendationManagerV2: React.FC = () => {
             />
           </Form.Item>
           <Form.Item
+            label="平台"
+            name="platform"
+            rules={[{ required: true, message: '请选择平台' }]}
+          >
+            <Select placeholder="请选择平台">
+              <Option value="pc">PC端</Option>
+              <Option value="phone">手机端</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
             label="应用区域"
             name="apply_area"
+            rules={[{ required: true, message: '请选择应用区域' }]}
           >
             <Select placeholder="请选择语言">
               <Option value="zh-CN">中文</Option>
