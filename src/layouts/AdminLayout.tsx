@@ -161,7 +161,7 @@ const AdminLayout: React.FC = () => {
       await logout();
       
       // 清除本地存储的认证信息
-      localStorage.removeItem('token');
+      localStorage.removeItem('admin-token');
       localStorage.removeItem('userInfo');
       
       message.success('退出登录成功');
@@ -171,7 +171,7 @@ const AdminLayout: React.FC = () => {
     } catch (error) {
       console.error('退出登录失败:', error);
       // 即使接口调用失败，也清除本地信息并跳转
-      localStorage.removeItem('token');
+      localStorage.removeItem('admin-token');
       localStorage.removeItem('userInfo');
       navigate('/login', { replace: true });
     }

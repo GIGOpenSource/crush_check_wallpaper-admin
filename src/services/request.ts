@@ -119,7 +119,7 @@ service.interceptors.response.use(
       // 特殊状态码处理
       if (responseCode === 401) {
         // 未授权，清除token并跳转登录
-        localStorage.removeItem('token');
+        localStorage.removeItem('admin-token');
         localStorage.removeItem('userInfo');
         
         // 使用 react-router 导航（如果已设置）
@@ -158,7 +158,7 @@ service.interceptors.response.use(
             break;
           case 401:
             errorMessage = '登录已过期，请重新登录';
-            localStorage.removeItem('token');
+            localStorage.removeItem('admin-token');
             localStorage.removeItem('userInfo');
             
             // 使用 react-router 导航（如果已设置）

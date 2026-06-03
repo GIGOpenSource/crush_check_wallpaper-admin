@@ -61,7 +61,7 @@ const createAxiosInstance = (): AxiosInstance => {
         
         // 401 特殊处理：清除token并跳转登录
         if (status === API_CODE.UNAUTHORIZED) {
-          localStorage.removeItem('token');
+          localStorage.removeItem('admin-token');
           window.location.href = '/login';
         }
       } else {
