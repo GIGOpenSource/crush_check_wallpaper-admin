@@ -33,7 +33,7 @@ export function savePageContent(type: PageContentType, content: string, id: numb
   return http.put<{ content: string }>(`/site/${id}/`, { content });
 }
 
-// 基础设置数据类型1
+// 基础设置数据类型11
 export interface BasicSettings {
   site_name?: string;                // 站点名称
   site_description?: string;         // 站点描述
