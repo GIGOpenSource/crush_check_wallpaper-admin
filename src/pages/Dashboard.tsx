@@ -20,7 +20,7 @@ interface StatsData {
   total_views: number;
   total_downloads: number;
   total_likes: number;
-  total_collection: number;
+  total_collections: number;
   daily_active_users?: number;
   weekly_active_users?: number;
   new_users_today?: number;
@@ -283,13 +283,13 @@ const Dashboard: React.FC = () => {
             <Card>
               <Statistic
                 title="总点赞数"
-                value={stats?.total_likes || 0}
+                value={stats?.total_collections || 0}
                 prefix={<LikeOutlined />}
                 valueStyle={{ color: '#cf1322' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
+          {/* <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="总收藏数"
@@ -298,7 +298,7 @@ const Dashboard: React.FC = () => {
                 valueStyle={{ color: '#faad14' }}
               />
             </Card>
-          </Col>
+          </Col> */}
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
