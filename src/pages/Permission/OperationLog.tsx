@@ -196,13 +196,13 @@ const OperationLog: React.FC = () => {
     },
     { 
       title: '状态', 
-      dataIndex: 'response_code', 
-      key: 'response_code',
+      dataIndex: 'status_display', 
+      key: 'status_display',
       width: 100,
-      render: (code: number) => {
-        if (!code) return '--';
-        const color = code >= 200 && code < 300 ? 'success' : 'error';
-        return <Tag color={color}>{code}</Tag>;
+      render: (status: string) => {
+        if (!status) return '--';
+        const color = status === '成功' ? 'success' : 'error';
+        return <Tag color={color}>{status}</Tag>;
       },
     },
     // { 
