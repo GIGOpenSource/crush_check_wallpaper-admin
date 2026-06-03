@@ -85,16 +85,22 @@ export interface PaginatedResponse<T> {
  * @param currentPage 当前页码
  * @param pageSize 每页条数
  * @param strategy_type 策略类型：'home' 或 'hot' 或 'banner'
+ * @param name 策略名称搜索关键词
+ * @param status 策略状态筛选
  */
 export function getStrategyList(
   currentPage: number,
   pageSize: number,
-  strategy_type: 'home' | 'hot' | 'banner'
+  strategy_type: 'home' | 'hot' | 'banner',
+  name?: string,
+  status?: string
 ) {
   return http.get<PaginatedResponse<RecommendationStrategy>>('/strategy/strategies/', {
     currentPage,
     pageSize,
     strategy_type,
+    name,
+    status: status === 'all' ? undefined : status,
   });
 }
 

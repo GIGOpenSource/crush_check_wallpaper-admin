@@ -167,8 +167,9 @@ const RecommendationManagerV2: React.FC = () => {
   // 搜索
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  // 搜索触发标记（用于控制是否应用本地过滤）
-  const [searchTriggered, setSearchTriggered] = useState(false);
+  // 实际应用的搜索条件（只有点击搜索按钮时才更新）
+  const [appliedSearchText, setAppliedSearchText] = useState('');
+  const [appliedFilterStatus, setAppliedFilterStatus] = useState<string>('all');
 
   // 分页
   const [currentPage, setCurrentPage] = useState(1);
@@ -221,38 +222,23 @@ const RecommendationManagerV2: React.FC = () => {
   };
 
   // 加载策略数据
-  const loadStrategies = async (page: number = currentPage) => {
+  const loadStrategies = async (page: number = currentPage, searchName?: string, status?: string) => {
     setLoading(true);
     try {
       const strategyType = activeTab as 'home' | 'hot' | 'banner';
+      // 使用传入的搜索参数，如果没有则使用已应用的搜索条件
+      const searchValue = searchName !== undefined ? searchName : appliedSearchText;
+      const statusValue = status !== undefined ? status : appliedFilterStatus;
       
       // 并行加载策略列表和统计数据
       const [response, statsResponse] = await Promise.all([
-        getStrategyList(page, pageSize, strategyType),
+        getStrategyList(page, pageSize, strategyType, searchValue, statusValue),
         getStrategyStatistics(strategyType),
       ]);
       
-      // 应用搜索和筛选条件
-      let filteredStrategies = response.results || [];
-      
-      // 按策略名称搜索
-      if (searchText) {
-        filteredStrategies = filteredStrategies.filter(strategy => 
-          strategy.name?.toLowerCase().includes(searchText.toLowerCase())
-        );
-      }
-      
-      // 按状态筛选
-      if (filterStatus && filterStatus !== 'all') {
-        filteredStrategies = filteredStrategies.filter(strategy => 
-          strategy.status === filterStatus
-        );
-      }
-      
-      setStrategies(filteredStrategies);
+      setStrategies(response.results || []);
       setTotal(response.pagination?.total || 0);
       setStatistics(statsResponse);
-      setSearchTriggered(true); // 标记搜索已触发
     } catch (error) {
       console.error('加载策略数据失败:', error);
       message.error('加载策略数据失败');
@@ -270,7 +256,6 @@ const RecommendationManagerV2: React.FC = () => {
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     setSelectedStrategyIds([]);
-    setSearchTriggered(false); // 切换Tab时重置搜索标记
     setCurrentPage(1);
   };
 
@@ -278,9 +263,10 @@ const RecommendationManagerV2: React.FC = () => {
   const handleReset = () => {
     setSearchText('');
     setFilterStatus('all');
-    setSearchTriggered(false); // 重置搜索标记
+    setAppliedSearchText('');
+    setAppliedFilterStatus('all');
     setCurrentPage(1);
-    loadStrategies(1);
+    loadStrategies(1, '', 'all');
   };
 
   // 策略列表列定义
@@ -1058,18 +1044,9 @@ const RecommendationManagerV2: React.FC = () => {
     }
   };
 
-  // 筛选数据 - 只有在点击搜索按钮后才应用过滤
-  const shouldFilter = searchTriggered; // 标记是否已触发搜索
-  const filteredStrategies = (shouldFilter ? strategies : strategies)
-    .filter(s => s.strategy_type === activeTab)
-    .filter(s => {
-      if (!shouldFilter || filterStatus === 'all') return true;
-      return s.status === filterStatus;
-    })
-    .filter(s => {
-      if (!shouldFilter || !searchText) return true;
-      return s.name.toLowerCase().includes(searchText.toLowerCase());
-    });
+  // 筛选数据 - API已处理搜索，此处仅按标签页过滤
+  const filteredStrategies = strategies
+    .filter(s => s.strategy_type === activeTab);
 
   // 统计
   const stats = {
@@ -1108,7 +1085,12 @@ const RecommendationManagerV2: React.FC = () => {
               placeholder="搜索策略名称"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              onPressEnter={() => loadStrategies(1)}
+              onPressEnter={() => {
+                setAppliedSearchText(searchText);
+                setAppliedFilterStatus(filterStatus);
+                setCurrentPage(1);
+                loadStrategies(1, searchText, filterStatus);
+              }}
               style={{ width: 200 }}
               allowClear
             />
@@ -1122,8 +1104,13 @@ const RecommendationManagerV2: React.FC = () => {
               <Option value="active">激活</Option>
               <Option value="inactive">未激活</Option>
             </Select>
-            <Button type="primary" icon={<SearchOutlined />} onClick={() => { setCurrentPage(1); loadStrategies(1); }}>搜索</Button>
-            {/* <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button> */}
+            <Button type="primary" icon={<SearchOutlined />} onClick={() => { 
+              setAppliedSearchText(searchText);
+              setAppliedFilterStatus(filterStatus);
+              setCurrentPage(1); 
+              loadStrategies(1, searchText, filterStatus); 
+            }}>搜索</Button>
+            <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
           </Space>
         </Col>
       </Row>
