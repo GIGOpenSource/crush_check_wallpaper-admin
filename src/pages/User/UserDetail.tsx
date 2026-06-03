@@ -115,6 +115,11 @@ const UserDetail: React.FC = () => {
           // 保留wrapper的其他字段（如果有需要）
           collect_id: item.id,
           collect_created_at: item.created_at,
+          // 上传者信息在wrapper级别，需要单独传递
+          uploader: item.uploader || wallpaper.uploader,
+          // 预览图使用wrapper级别url字段
+          url: item.url || wallpaper.url,
+          thumb_url: item.thumb_url || wallpaper.thumb_url,
         } as Wallpaper;
       });
       
@@ -165,12 +170,14 @@ const UserDetail: React.FC = () => {
       dataIndex: 'thumb_url', 
       key: 'thumb_url', 
       width: 120,
-      render: (url: string) => (
+      render: (url: string, record: Wallpaper) => (
         <Image 
           src={url} 
           width={100} 
           height={60} 
-          style={{ objectFit: 'cover', borderRadius: 4 }} 
+          style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }} 
+          preview={false}
+          onClick={() => handlePreview(record)}
         />
       ),
     },
@@ -178,6 +185,7 @@ const UserDetail: React.FC = () => {
       title: '壁纸名称', 
       dataIndex: 'name', 
       key: 'name',
+      width: 150,
       ellipsis: true,
     },
     { 
@@ -228,13 +236,15 @@ const UserDetail: React.FC = () => {
       dataIndex: 'thumb_url', 
       key: 'thumb_url', 
       width: 120,
-      render: (url: string) => (
+      render: (url: string, record: Wallpaper) => (
         <Image 
         referrerPolicy="no-referrer"
           src={url} 
           width={100} 
           height={60} 
-          style={{ objectFit: 'cover', borderRadius: 4 }} 
+          style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }} 
+          preview={false}
+          onClick={() => handlePreview(record)}
         />
       ),
     },
@@ -242,6 +252,7 @@ const UserDetail: React.FC = () => {
       title: '壁纸名称', 
       dataIndex: 'name', 
       key: 'name',
+      width: 150,
       ellipsis: true,
     },
     { 
@@ -255,7 +266,8 @@ const UserDetail: React.FC = () => {
         if (typeof uploader === 'string') {
           return uploader;
         }
-        return uploader?.nickname || uploader?.name || '-';
+        // 检查多个可能的字段
+        return uploader?.nickname || uploader?.name || uploader?.username || '-';
       }
     },
     { 
