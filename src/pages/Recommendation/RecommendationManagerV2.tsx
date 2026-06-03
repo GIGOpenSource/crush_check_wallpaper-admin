@@ -1362,7 +1362,19 @@ const RecommendationManagerV2: React.FC = () => {
           <Form.Item
             label="内容数量限制"
             name="content_limit"
-            rules={[{ required: true, message: '请输入内容数量限制' }]}
+            rules={[
+              { required: true, message: '请输入内容数量限制' },
+              { 
+                validator: (_, value) => {
+                  const currentStrategy = editingStrategy || managingStrategy;
+                  const currentCount = currentStrategy?.content_current_count ?? currentStrategy?.content_count ?? 0;
+                  if (value < currentCount) {
+                    return Promise.reject(new Error(`内容数量限制不能小于当前已有内容数量（${currentCount}个）`));
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
           >
             <InputNumber
               min={1}
