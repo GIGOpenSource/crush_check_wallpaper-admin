@@ -34,11 +34,11 @@ const AdminList: React.FC = () => {
   const [searchUsername, setSearchUsername] = useState('');
 
   // 加载管理员列表
-  const loadAdmins = async (page: number = currentPage) => {
+  const loadAdmins = async (page: number = currentPage, overrideUsername?: string) => {
     setLoading(true);
     try {
       const response = await getAdminList(page, pageSize, {
-        username: searchUsername || undefined,
+        username: overrideUsername !== undefined ? overrideUsername : (searchUsername || undefined),
       });
       setAdmins(response.results || []);
       setTotal(response.pagination?.total || 0);
@@ -169,7 +169,7 @@ const AdminList: React.FC = () => {
   const handleReset = () => {
     setSearchUsername('');
     setCurrentPage(1);
-    loadAdmins(1);
+    loadAdmins(1, '');
   };
 
   const columns = [

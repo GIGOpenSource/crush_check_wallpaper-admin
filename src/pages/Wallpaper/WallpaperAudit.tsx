@@ -69,7 +69,7 @@ const WallpaperAudit: React.FC = () => {
   const handleReset = () => {
     setSearchParams({});
     setCurrentPage(1);
-    loadAuditList();
+    loadAuditList({ name: undefined });
   };
 
   const handlePreview = (record: Wallpaper) => {

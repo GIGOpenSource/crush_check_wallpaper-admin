@@ -56,7 +56,7 @@ const NotificationList: React.FC = () => {
   const handleReset = () => {
     setSearchParams({});
     setCurrentPage(1);
-    loadNotificationList();
+    loadNotificationList({ title: undefined, notification_type: undefined });
   };
 
   // 删除通知

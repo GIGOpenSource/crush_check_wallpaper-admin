@@ -185,7 +185,7 @@ const WallpaperList: React.FC = () => {
     setFilterTagPage(1); // 重置分页
     setFilterTagHasMore(true); // 重置是否有更多数据
     setCurrentPage(1);
-    loadWallpaperList();
+    loadWallpaperList({ name: undefined, id: undefined, tag_id: undefined, audit_status: undefined });
     loadFilterTagList('', 1, false); // 重新加载标签列表
   };
 

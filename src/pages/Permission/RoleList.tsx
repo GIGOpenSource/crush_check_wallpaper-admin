@@ -29,11 +29,11 @@ const RoleList: React.FC = () => {
   const [searchName, setSearchName] = useState('');
 
   // 加载角色列表
-  const loadRoles = async (page: number = currentPage) => {
+  const loadRoles = async (page: number = currentPage, overrideName?: string) => {
     setLoading(true);
     try {
       const response = await getRoleList(page, pageSize, {
-        name: searchName || undefined,
+        name: overrideName !== undefined ? overrideName : (searchName || undefined),
       });
       setRoles(response.results || []);
       setTotal(response.pagination?.total || 0);
@@ -122,7 +122,7 @@ const RoleList: React.FC = () => {
   const handleReset = () => {
     setSearchName('');
     setCurrentPage(1);
-    loadRoles(1);
+    loadRoles(1, '');
   };
 
   const columns = [

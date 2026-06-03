@@ -23,14 +23,14 @@ const CommentList: React.FC = () => {
     loadCommentList();
   }, [currentPage, pageSize]);
 
-  const loadCommentList = async (params?: GetCommentListParams) => {
+  const loadCommentList = async (overrideParams?: GetCommentListParams) => {
     setLoading(true);
     try {
       const requestParams = {
         currentPage,
         pageSize,
         ...searchParams,
-        ...params,
+        ...overrideParams,
       };
       const response = await getCommentList(requestParams);
       setDataSource(response.results);
@@ -53,7 +53,7 @@ const CommentList: React.FC = () => {
   const handleReset = () => {
     setSearchParams({});
     setCurrentPage(1);
-    loadCommentList();
+    loadCommentList({ content: undefined, nickname: undefined });
   };
 
   // 删除评论
