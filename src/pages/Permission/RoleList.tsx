@@ -167,6 +167,7 @@ const RoleList: React.FC = () => {
       title: '描述', 
       dataIndex: 'description', 
       key: 'description',
+      width: 150,
       ellipsis: true,
       render: (description: string) => description || '--',
     },
