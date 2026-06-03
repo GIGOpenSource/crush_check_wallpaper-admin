@@ -154,8 +154,8 @@ const SendNotification: React.FC = () => {
           
           <Form.Item 
             name="send_to" 
-            label="发送对象" 
-            rules={[{ required: true, message: '请选择发送对象' }]}
+            label="发送类型" 
+            rules={[{ required: true, message: '请选择发送类型' }]}
           >
             <Radio.Group>
               <Space direction="vertical">

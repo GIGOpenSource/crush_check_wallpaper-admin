@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Tag, message, Popconfirm, Space, Input, Select } from 'antd';
+import { Table, Card, Button, Tag, message, Popconfirm, Space, Input, Select, Tooltip } from 'antd';
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -113,7 +113,7 @@ const NotificationList: React.FC = () => {
       },
     },
     {
-      title: '发送对象',
+      title: '发送类型',
       key: 'send_to',
       width: 150,
       render: (_: unknown, record: Notification) => {
@@ -123,6 +123,56 @@ const NotificationList: React.FC = () => {
           specific: '部分用户',
         };
         return sendToMap[sendTo] || sendTo || '-';
+      },
+    },
+    {
+      title: '发送对象',
+      key: 'recipient_maps',
+      width: 250,
+      render: (_: unknown, record: Notification) => {
+        const recipientMaps = record.recipient_maps as Array<{ nickname?: string }> || [];
+        if (!recipientMaps || recipientMaps.length === 0) {
+          return <Tag bordered={true} color="default">未知用户</Tag>;
+        }
+        const allTags = recipientMaps.map((item, index) => (
+          <Tag key={index} bordered={true} color="blue">{item?.nickname || '未知用户'}</Tag>
+        ));
+        const showAll = recipientMaps.length <= 6;
+        if (showAll) {
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {allTags}
+            </div>
+          );
+        }
+        const firstRowTags = allTags.slice(0, 3);
+        const secondRowTags = allTags.slice(3, 6);
+        const remainingCount = recipientMaps.length - 6;
+        return (
+          <Tooltip
+            title={
+              
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '400px',maxHeight: 300, overflowY: 'auto' }}>
+                {allTags}
+              </div>
+            }
+            color="#fff"
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '60px', overflow: 'hidden', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', width: '100%' }}>
+                {firstRowTags}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', width: '100%' }}>
+                {secondRowTags}
+              </div>
+              {remainingCount > 0 && (
+                <span style={{ color: '#1890ff', fontSize: '12px' }}>
+                  +{remainingCount}个
+                </span>
+              )}
+            </div>
+          </Tooltip>
+        );
       },
     },
     {
