@@ -1,0 +1,1 @@
+import{y as e}from"./index-CvarKMoG.js";export default e();
