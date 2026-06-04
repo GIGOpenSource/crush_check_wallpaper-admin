@@ -407,7 +407,11 @@ const ContentOptimizer: React.FC = () => {
       <Card
         title="内容优化分析"
         extra={
-          <Button type="primary" icon={<SearchOutlined />} onClick={() => setAnalyzeModalVisible(true)}>
+          <Button type="primary" icon={<SearchOutlined />} onClick={() => {
+            setAnalyzeUrl('');
+            _form.resetFields();
+            setAnalyzeModalVisible(true);
+          }}>
             分析新页面
           </Button>
         }

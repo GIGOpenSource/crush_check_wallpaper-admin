@@ -424,7 +424,11 @@ const MobileSEOTester: React.FC = () => {
       <Card
         title="移动端适配测试"
         extra={
-          <Button type="primary" icon={<ScanOutlined />} onClick={() => setTestModalVisible(true)}>
+          <Button type="primary" icon={<ScanOutlined />} onClick={() => {
+            setTestUrl('');
+            form.setFieldsValue({ url: '' });
+            setTestModalVisible(true);
+          }}>
             测试新页面
           </Button>
         }

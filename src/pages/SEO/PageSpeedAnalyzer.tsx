@@ -417,7 +417,7 @@ const PageSpeedAnalyzer: React.FC = () => {
             type="primary" 
             icon={<PlayCircleOutlined />} 
             onClick={() => {
-              form.resetFields();
+              form.setFieldsValue({ page_path: '' });
               setTestModalVisible(true);
             }}
           >
