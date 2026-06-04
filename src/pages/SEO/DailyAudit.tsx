@@ -50,12 +50,14 @@ const DailyAudit: React.FC = () => {
   const [selectedHistoryDates, setSelectedHistoryDates] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [historyComparisonData, setHistoryComparisonData] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasCompared, setHasCompared] = useState(false);
 
   // 打开历史记录对比弹窗
   const handleOpenHistoryModal = () => {
     // 清空之前的数据
     setSelectedHistoryDates(null);
     setHistoryComparisonData([]);
+    setHasCompared(false);
     setHistoryModalVisible(true);
   };
 
@@ -318,8 +320,17 @@ const DailyAudit: React.FC = () => {
 
     // 使用默认时间戳加载统计数据
     loadDashboardData(startTs, endTs, initialSiteUrl);
-    // 直接传递所有参数加载默认Tab（搜索与抓取）的数据
-    loadInspectionData('search_crawl', 1, 10, startTs, endTs, initialSiteUrl);
+    // 加载所有四个分类的数据，以便在Tab徽章上显示正确的数量
+    Promise.all([
+      loadInspectionData('search_crawl', 1, 10, startTs, endTs, initialSiteUrl),
+      loadInspectionData('page_quality', 1, 10, startTs, endTs, initialSiteUrl),
+      loadInspectionData('security', 1, 10, startTs, endTs, initialSiteUrl),
+      loadInspectionData('performance', 1, 10, startTs, endTs, initialSiteUrl),
+    ]).then(() => {
+      console.log('所有分类数据加载完成');
+    }).catch(err => {
+      console.error('加载分类数据失败:', err);
+    });
     // 加载巡查日志数据
     loadInspectionLogs(1, 10);
   }, []);
@@ -367,7 +378,9 @@ const DailyAudit: React.FC = () => {
         timestamp_b: timestampB,
       });
        console.log(res,'rrrr')
-      if (res && res && Array.isArray(res)) {
+      // 标记已执行对比
+      setHasCompared(true);
+      if (res && res && Array.isArray(res) && res.length > 0) {
         setHistoryComparisonData(res);
       } else {
         message.warning('未获取到对比数据');
@@ -1214,12 +1227,21 @@ const DailyAudit: React.FC = () => {
         )}
 
         {historyComparisonData.length === 0 && !historyLoading && (
-          <Alert
-            message="使用说明"
-            description="请选择两个日期进行对比，查看SEO指标的变化趋势。"
-            type="info"
-            showIcon
-          />
+          hasCompared ? (
+            <Alert
+              message="暂无数据"
+              description="未找到所选日期的对比数据，请选择其他日期重试。"
+              type="warning"
+              showIcon
+            />
+          ) : (
+            <Alert
+              message="使用说明"
+              description="请选择两个日期进行对比，查看SEO指标的变化趋势。"
+              type="info"
+              showIcon
+            />
+          )
         )}
       </Modal>
     </div>
