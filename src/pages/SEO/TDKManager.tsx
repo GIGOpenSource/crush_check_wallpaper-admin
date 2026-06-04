@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tabs, App, Breadcrumb, Upload, Popconfirm } from 'antd';
+import { Card, Form, Input, Select, Button, Table, Tag, Space, Modal, Alert, Tabs, App, Breadcrumb, Upload, Popconfirm, Tooltip } from 'antd';
 import { EditOutlined, EyeOutlined, CopyOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi, type TDKTemplate as ApiTDKTemplate, type PageTDK as ApiPageTDK } from '../../services/seoApi';
@@ -311,11 +311,17 @@ const TDKManager: React.FC = () => {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
+      width: 250,
+      ellipsis: true,
       render: (text: string, record: ApiPageTDK) => {
         const titleLength = text ? text.length : 0;
         return (
           <div>
-            <div>{text}</div>
+            <Tooltip title={text || ''} placement="top">
+              <div style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {text}
+              </div>
+            </Tooltip>
             <Tag color={titleLength > 60 ? 'error' : titleLength > 55 ? 'warning' : 'success'}>
               {titleLength} 字符
             </Tag>
@@ -327,13 +333,17 @@ const TDKManager: React.FC = () => {
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
-      width: 300,
-       ellipsis: true,
+      width: 250,
+      ellipsis: true,
       render: (text: string, record: ApiPageTDK) => {
         const descLength = text ? text.length : 0;
         return (
           <div>
-            <div style={{ fontSize: 12, color: '#666' }}>{text}</div>
+            <Tooltip title={text || ''} placement="top">
+              <div style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: '#666' }}>
+                {text}
+              </div>
+            </Tooltip>
             <Tag color={descLength > 160 ? 'error' : descLength > 150 ? 'warning' : 'success'}>
               {descLength} 字符
             </Tag>
@@ -345,14 +355,48 @@ const TDKManager: React.FC = () => {
       title: 'Keywords',
       dataIndex: 'keywords',
       key: 'keywords',
-      width: 300, ellipsis: true,
+      width: 300,
       render: (keywords: string[] | string) => {
         // 防御性处理：确保keywords是数组
-        const keywordArray = Array.isArray(keywords) ? keywords : (typeof keywords === 'string' ? [keywords] : []);
+        let keywordArray: string[] = [];
+        if (Array.isArray(keywords)) {
+          keywordArray = keywords;
+        } else if (typeof keywords === 'string') {
+          // 按英文逗号或中文逗号分割
+          keywordArray = keywords.split(/[,，]/).map(k => k.trim()).filter(k => k);
+        }
+        
+        const tooltipContent = (
+          <div style={{ maxWidth: 400 }}>
+            <Space wrap>
+              {keywordArray.map((k, i) => (
+                <Tag key={i} color="purple" style={{ fontSize: 12 }}>{k}</Tag>
+              ))}
+            </Space>
+          </div>
+        );
+        
         return (
-          <Space wrap>
-            {keywordArray.map((k, i) => <Tag key={i}>{k}</Tag>)}
-          </Space>
+          <Tooltip 
+            title={tooltipContent} 
+            placement="top"
+            color={'#ffffff'}
+          >
+            <div style={{ 
+              maxWidth: '100%', 
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              <Space wrap>
+                {keywordArray.map((k, i) => (
+                  <Tag key={i} color="purple" style={{ fontSize: 12 }}>{k}</Tag>
+                ))}
+              </Space>
+            </div>
+          </Tooltip>
         );
       },
     },
