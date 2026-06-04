@@ -25,6 +25,7 @@ const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,9 +47,13 @@ const AdminLayout: React.FC = () => {
 
   const menuItems = [
     {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: '数据概览',
+      key: 'statistics',
+      icon: <BarChartOutlined />,
+      label: '数据统计',
+      children: [
+        { key: '/dashboard', label: '数据概览' },
+        { key: '/statistics/pages', label: '页面类型统计' },
+      ],
     },
     {
       key: '/users',
@@ -89,15 +94,6 @@ const AdminLayout: React.FC = () => {
       children: [
         { key: '/notifications', label: '通知列表' },
         { key: '/notifications/send', label: '发送通知' },
-      ],
-    },
-    {
-      key: 'statistics',
-      icon: <BarChartOutlined />,
-      label: '数据统计',
-      children: [
-        // { key: '/statistics', label: '综合统计' },
-        { key: '/statistics/pages', label: '页面类型统计' },
       ],
     },
     {
@@ -186,18 +182,22 @@ const AdminLayout: React.FC = () => {
     return [pathname];
   };
 
-  const getOpenKeys = () => {
-    const pathname = location.pathname;
+  const getOpenKeys = (pathname: string) => {
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/statistics')) return ['statistics'];
     if (pathname.startsWith('/wallpapers')) return ['wallpaper'];
     if (pathname.startsWith('/tags')) return ['tag'];
     if (pathname.startsWith('/comments') || pathname.startsWith('/reports')) return ['content'];
     if (pathname.startsWith('/notifications')) return ['notification'];
-    if (pathname.startsWith('/statistics')) return ['statistics'];
     if (pathname.startsWith('/seo')) return ['seo'];
     if (pathname.startsWith('/admins') || pathname.startsWith('/roles') || pathname.startsWith('/logs')) return ['permission'];
     if (pathname.startsWith('/settings')) return ['settings'];
     return [];
   };
+
+  // 监听路径变化，更新展开的菜单
+  useEffect(() => {
+    setOpenKeys(getOpenKeys(location.pathname));
+  }, [location.pathname]);
 
   // 侧边栏菜单内容
   const renderMenu = () => (
@@ -225,7 +225,8 @@ const AdminLayout: React.FC = () => {
       <Menu
         mode="inline"
         selectedKeys={getSelectedKeys()}
-        defaultOpenKeys={getOpenKeys()}
+        openKeys={openKeys}
+        onOpenChange={setOpenKeys}
         items={menuItems}
         onClick={({ key }) => {
           handleMenuClick({ key });
