@@ -1123,6 +1123,17 @@ const WallpaperList: React.FC = () => {
               { value: 'rejected', label: '已拒绝' },
             ]}
           />
+          <Select
+            placeholder="平台"
+            style={{ width: 120 }}
+            value={searchParams.platform}
+            onChange={(value) => setSearchParams({ ...searchParams, platform: value })}
+            allowClear
+            options={[
+              { value: 'PC', label: '电脑' },
+              { value: 'PHONE', label: '手机' },
+            ]}
+          />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
           </Button>

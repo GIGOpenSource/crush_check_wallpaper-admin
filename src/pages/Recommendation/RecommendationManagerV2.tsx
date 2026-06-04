@@ -139,6 +139,7 @@ const RecommendationManagerV2: React.FC = () => {
   const [contentLoading, setContentLoading] = useState(false);
   const [contentSearchText, setContentSearchText] = useState('');
   const [contentTypeFilter, setContentTypeFilter] = useState<string>('all');
+  const [resetLoading, setResetLoading] = useState(false);
   
   // 已存在的壁纸ID列表（用于勾选和禁用）
   const [existingWallpaperIds, setExistingWallpaperIds] = useState<number[]>([]);
@@ -160,6 +161,9 @@ const RecommendationManagerV2: React.FC = () => {
   
   // 语言筛选状态
   const [languageFilter, setLanguageFilter] = useState<string>('all');
+  
+  // 平台筛选状态
+  const [platformFilter, setPlatformFilter] = useState<string>('');
   
   // 策略列表选择
   const [selectedStrategyIds, setSelectedStrategyIds] = useState<number[]>([]);
@@ -747,13 +751,14 @@ const RecommendationManagerV2: React.FC = () => {
   const loadContentList = async (page: number = 1) => {
     setContentLoading(true);
     try {
-      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）和语言筛选
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）、语言筛选和平台筛选
       const response = await getWallpaperList({
         currentPage: page,
         pageSize: contentPageSize,
         name: contentSearchText || undefined,
         tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
         lang: languageFilter !== 'all' ? languageFilter : undefined,
+        platform: platformFilter ? platformFilter : undefined,
       });
       
       // 将壁纸数据转换为ContentItem格式
@@ -797,13 +802,14 @@ const RecommendationManagerV2: React.FC = () => {
   const loadContentListWithSize = async (page: number, size: number) => {
     setContentLoading(true);
     try {
-      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）和语言筛选
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）、语言筛选和平台筛选
       const response = await getWallpaperList({
         currentPage: page,
         pageSize: size,
         name: contentSearchText || undefined,
         tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
         lang: languageFilter !== 'all' ? languageFilter : undefined,
+        platform: platformFilter ? platformFilter : undefined,
       });
       
       // 将壁纸数据转换为ContentItem格式
@@ -847,13 +853,14 @@ const RecommendationManagerV2: React.FC = () => {
   const loadContentListWithParams = async (page: number, size: number, unadded: boolean) => {
     setContentLoading(true);
     try {
-      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）和语言筛选
+      // 使用壁纸API，支持tag_id筛选（多选标签用逗号隔开）、语言筛选和平台筛选
       const response = await getWallpaperList({
         currentPage: page,
         pageSize: size,
         name: contentSearchText || undefined,
         tag_id: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
         lang: languageFilter !== 'all' ? languageFilter : undefined,
+        platform: platformFilter ? platformFilter : undefined,
       });
       
       // 将壁纸数据转换为ContentItem格式
@@ -915,9 +922,70 @@ const RecommendationManagerV2: React.FC = () => {
     loadContentListWithSize(1, contentPageSize);
   };
 
-  // 刷新内容列表（用于按钮点击）
-  const handleRefreshContent = () => {
-    loadContentListWithSize(contentCurrentPage, contentPageSize);
+  // 重置筛选条件
+  const handleResetContent = async () => {
+    if (resetLoading || contentLoading) return;
+    
+    setResetLoading(true);
+    try {
+      setContentSearchText('');
+      setSelectedTagIds([]);
+      setLanguageFilter('all');
+      setPlatformFilter('');
+      setShowOnlyUnadded(false);
+      setContentCurrentPage(1);
+      
+      // 直接传递空参数给加载函数，避免React异步状态更新问题
+      await loadContentListWithParamsDirect(1, contentPageSize, '', [], 'all', '', false);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+  
+  // 直接传递参数的内容加载函数（用于重置操作）
+  const loadContentListWithParamsDirect = async (page: number, size: number, name: string, tagIds: number[], lang: string, platform: string, unadded: boolean) => {
+    setContentLoading(true);
+    try {
+      const response = await getWallpaperList({
+        currentPage: page,
+        pageSize: size,
+        name: name || undefined,
+        tag_id: tagIds.length > 0 ? tagIds.join(',') : undefined,
+        lang: lang !== 'all' ? lang : undefined,
+        platform: platform ? platform : undefined,
+      });
+      
+      let items: ContentItem[] = (response.results || []).map((wallpaper: any) => ({
+        id: wallpaper.id,
+        title: wallpaper.name,
+        image: wallpaper.thumb_url,
+        preview_url: wallpaper.url,
+        type: 'wallpaper' as const,
+        type_name: '壁纸',
+        views: wallpaper.view_count || 0,
+        downloads: wallpaper.download_count || 0,
+        created_at: wallpaper.created_at,
+      }));
+      
+      if (unadded && existingWallpaperIds.length > 0) {
+        items = items.filter(item => !existingWallpaperIds.includes(item.id));
+      }
+      
+      setContentList(items);
+      setContentTotal(response.pagination?.total || 0);
+      setContentCurrentPage(page);
+      
+      setTimeout(() => {
+        if (contentLibraryScrollRef.current) {
+          contentLibraryScrollRef.current.scrollTop = 0;
+        }
+      }, 100);
+    } catch (error) {
+      console.error('加载内容库失败:', error);
+      message.error('加载内容库失败');
+    } finally {
+      setContentLoading(false);
+    }
   };
 
   // 处理添加内容
@@ -1590,30 +1658,25 @@ const RecommendationManagerV2: React.FC = () => {
               ))}
             </Select>
           </Col>
-          <Col span={4}>
+          <Col span={3}>
             <Select
-              placeholder="全部语言"
+              placeholder="平台"
               style={{ width: '100%' }}
-              value={languageFilter}
-              onChange={handleLanguageFilterChange}
+              value={platformFilter || undefined}
+              onChange={(value) => setPlatformFilter(value || '')}
               allowClear
             >
-              <Option value="all">全部语言</Option>
-              <Option value="zh-CN">中文</Option>
-              <Option value="en">英语</Option>
-              <Option value="ja">日语</Option>
-              <Option value="ko">韩语</Option>
-              <Option value="pt">葡萄牙语</Option>
-              <Option value="es">西班牙语</Option>
+              <Option value="PC">电脑</Option>
+              <Option value="PHONE">手机</Option>
             </Select>
           </Col>
-          <Col span={3}>
+          <Col span={2}>
             <Space>
               <Button type="primary" onClick={handleContentSearch}>搜索</Button>
-              <Button onClick={handleRefreshContent}>刷新</Button>
+              <Button onClick={handleResetContent}>重置</Button>
             </Space>
           </Col>
-          <Col span={6} style={{ textAlign: 'right' }}>
+          <Col span={8} style={{ textAlign: 'right' }}>
             <Space>
               <input
                 type="checkbox"
