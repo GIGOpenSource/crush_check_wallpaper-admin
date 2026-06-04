@@ -235,6 +235,8 @@ const KeywordResearch: React.FC = () => {
       
       // 刷新列表数据
       loadKeywords();
+      // 刷新统计数据
+      loadDashboardStats();
     } catch (error: any) {
       console.error('导入关键词失败:', error);
       // 优先使用后端返回的错误信息
@@ -283,6 +285,8 @@ const KeywordResearch: React.FC = () => {
       
       // 刷新当前tab的数据
       loadKeywords();
+      // 刷新统计数据
+      loadDashboardStats();
     } catch (error) {
       console.error('添加关键词失败:', error);
       message.error('添加关键词失败');
@@ -333,6 +337,8 @@ const KeywordResearch: React.FC = () => {
       
       // 刷新当前tab的数据
       loadKeywords();
+      // 刷新统计数据
+      loadDashboardStats();
     } catch (error) {
       console.error('删除关键词失败:', error);
       message.error('删除关键词失败');
@@ -1229,7 +1235,7 @@ const KeywordResearch: React.FC = () => {
         <TabPane tab="我的词库" key="mykeywords">
           <Card>
             <Space style={{ marginBottom: 16 }}>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>添加关键词</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => { addForm.resetFields(); setAddModalVisible(true); }}>添加关键词</Button>
               <Button icon={<UploadOutlined />}  onClick={() => openImportModal('normal')}>
                 导入关键词
               </Button>
@@ -1393,7 +1399,10 @@ const KeywordResearch: React.FC = () => {
       <Modal
         title="导入关键词"
         open={importModalVisible}
-        onCancel={() => setImportModalVisible(false)}
+        onCancel={() => {
+          setImportModalVisible(false);
+          setImportFile(null);
+        }}
         onOk={handleImportKeywords}
         okText="导入"
         cancelText="取消"
@@ -1412,6 +1421,7 @@ const KeywordResearch: React.FC = () => {
           </Form.Item> */}
           <Form.Item label="上传文件">
             <Upload.Dragger
+              fileList={importFile ? [{ uid: '1', name: importFile.name, status: 'done' }] : []}
               beforeUpload={(file) => {
                 setImportFile(file);
                 return false; // 阻止自动上传

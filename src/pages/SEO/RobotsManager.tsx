@@ -565,6 +565,7 @@ const RobotsManager: React.FC = () => {
                       setTestResults([]);
                       testForm.resetFields();
                     }}
+                    style={{ marginLeft: 8 }}
                   >重置</Button>
                 </Form.Item>
               </Form>

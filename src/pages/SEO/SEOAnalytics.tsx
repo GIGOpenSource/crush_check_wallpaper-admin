@@ -667,19 +667,36 @@ const SEOAnalytics: React.FC = () => {
       headerDiv.appendChild(titleEl);
       headerDiv.appendChild(timeEl);
 
-      // 将标题容器插入到报告内容的开头
-      element.insertBefore(headerDiv, element.firstChild);
+      // 创建临时容器用于PDF生成（定位在视口外，避免闪烁）
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.top = '-2000px';
+      tempContainer.style.left = '-2000px';
+      tempContainer.style.width = '800px';
+      tempContainer.style.background = '#ffffff';
+      tempContainer.style.padding = '20px';
+      
+      // 克隆报告内容到临时容器
+      const clonedContent = element.cloneNode(true) as HTMLElement;
+      clonedContent.style.width = '100%';
+      clonedContent.style.margin = '0';
+      
+      // 将标题插入到克隆内容的开头
+      clonedContent.insertBefore(headerDiv, clonedContent.firstChild);
+      
+      tempContainer.appendChild(clonedContent);
+      document.body.appendChild(tempContainer);
 
-      // 使用 html2canvas 捕获整个报告(包括标题)
-      const canvas = await html2canvas(element, {
+      // 使用 html2canvas 捕获临时容器
+      const canvas = await html2canvas(tempContainer, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       });
 
-      // 移除临时添加的标题容器
-      element.removeChild(headerDiv);
+      // 清理临时元素
+      document.body.removeChild(tempContainer);
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
