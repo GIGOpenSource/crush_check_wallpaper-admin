@@ -17,6 +17,7 @@ const MobileSEOTester: React.FC = () => {
   const [testing, setTesting] = useState(false);
   const [testUrl, setTestUrl] = useState('');
   const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
+  const [retestingId, setRetestingId] = useState<number | null>(null);
   
   // 刷新状态
   const [refreshing, setRefreshing] = useState(false);
@@ -176,17 +177,33 @@ const MobileSEOTester: React.FC = () => {
           <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} loading={loadingDetailId === record.id}>
             详情
           </Button>
-          <Popconfirm
-            title="确认重测"
-            description={`确定要重新测试页面 ${record.page_path} 吗？`}
-            onConfirm={() => handleRetest(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="link" icon={<ReloadOutlined />}>
-              重测
+          {retestingId === record.id ? (
+            <Button 
+              type="link" 
+              icon={<ReloadOutlined />} 
+              loading={retestingId === record.id}
+              onClick={() => handleRetest(record)}
+            >
+              正在测试
             </Button>
-          </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="确认重测"
+              description={`确定要重新测试页面 ${record.page_path} 吗？`}
+              onConfirm={() => handleRetest(record)}
+              okText="确定"
+              cancelText="取消"
+              disabled={retestingId !== null}
+            >
+              <Button 
+                type="link" 
+                icon={<ReloadOutlined />} 
+                disabled={retestingId !== null}
+              >
+                重测
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -224,7 +241,7 @@ const MobileSEOTester: React.FC = () => {
   };
 
   const handleRetest = async (record: PageSpeedItem) => {
-    message.loading(`正在重新测试 ${record.page_path}...`, 1.5);
+    setRetestingId(record.id);
     try {
       const response = await seoApi.retestPageSpeed({
         id: record.id,
@@ -239,6 +256,8 @@ const MobileSEOTester: React.FC = () => {
       }
     } catch (error) {
       message.error('重新测试失败，请稍后重试');
+    } finally {
+      setRetestingId(null);
     }
   };
 
