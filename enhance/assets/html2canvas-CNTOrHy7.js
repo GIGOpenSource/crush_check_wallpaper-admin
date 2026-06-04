@@ -1,0 +1,1 @@
+import{y as e}from"./index-4A_oFKir.js";export default e();

@@ -28,6 +28,7 @@ const RobotsManager: React.FC = () => {
   const [testResults, setTestResults] = useState<any[]>([]);
   const [rules, setRules] = useState<RobotsRule[]>([]);
   const [addRuleForm] = Form.useForm();
+  const [testForm] = Form.useForm();
   
   // 加载状态
   const [loading, setLoading] = useState(false);
@@ -518,27 +519,55 @@ const RobotsManager: React.FC = () => {
                 type="info"
                 showIcon
               />
-              <Space>
-                <Select
-                  value={testUserAgent}
-                  onChange={setTestUserAgent}
-                  style={{ width: 200 }}
-                  placeholder="选择User-Agent"
+              <Form layout="inline" form={testForm}>
+                <Form.Item>
+                  <Select
+                    value={testUserAgent}
+                    onChange={setTestUserAgent}
+                    style={{ width: 200 }}
+                    placeholder="选择User-Agent"
+                  >
+                    <Select.Option value="*">所有爬虫 (*)</Select.Option>
+                    <Select.Option value="Googlebot">Googlebot</Select.Option>
+                    <Select.Option value="Googlebot-Image">Googlebot-Image</Select.Option>
+                    <Select.Option value="Bingbot">Bingbot</Select.Option>
+                    <Select.Option value="Baiduspider">Baiduspider</Select.Option>
+                  </Select>
+                </Form.Item>
+                <Form.Item
+                  name="testUrl"
+                  rules={[
+                    { required: true, message: '请输入URL路径' },
+                    {
+                      pattern: /^(\/[\w\-_.~:/?#\[\]@!$&'()*+,;=%]*)?$/,
+                      message: '请输入有效的URL路径，必须以/开头',
+                    },
+                  ]}
                 >
-                  <Select.Option value="*">所有爬虫 (*)</Select.Option>
-                  <Select.Option value="Googlebot">Googlebot</Select.Option>
-                  <Select.Option value="Googlebot-Image">Googlebot-Image</Select.Option>
-                  <Select.Option value="Bingbot">Bingbot</Select.Option>
-                  <Select.Option value="Baiduspider">Baiduspider</Select.Option>
-                </Select>
-                <Input
-                  placeholder="输入URL路径，如：/wallpaper/123"
-                  value={testUrl}
-                  onChange={(e) => setTestUrl(e.target.value)}
-                  style={{ width: 300 }}
-                />
-                <Button type="primary" icon={<ExperimentOutlined />} onClick={handleTest}>测试</Button>
-              </Space>
+                  <Input
+                    placeholder="输入URL路径，如：/wallpaper/123"
+                    value={testUrl}
+                    onChange={(e) => setTestUrl(e.target.value)}
+                    style={{ width: 300 }}
+                  />
+                </Form.Item>
+                <Form.Item>
+                  <Button 
+                    type="primary" 
+                    icon={<ExperimentOutlined />} 
+                    onClick={handleTest}
+                    disabled={!testUrl || !testUrl.startsWith('/')}
+                  >测试</Button>
+                  <Button 
+                    icon={<ReloadOutlined />} 
+                    onClick={() => {
+                      setTestUrl('');
+                      setTestResults([]);
+                      testForm.resetFields();
+                    }}
+                  >重置</Button>
+                </Form.Item>
+              </Form>
               {testResults.length > 0 && (
                 <Table
                   columns={[
