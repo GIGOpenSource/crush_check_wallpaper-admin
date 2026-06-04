@@ -189,16 +189,29 @@ export interface ImportKeywordsResponse {
  * 导入关键词
  * @param params 请求参数
  */
-export function importKeywords(params: ImportKeywordsParams): Promise<ImportKeywordsResponse> {
+export async function importKeywords(params: ImportKeywordsParams): Promise<{ code: number; message: string; data: ImportKeywordsResponse }> {
   const formData = new FormData();
   formData.append('file', params.file);
   formData.append('keyword_type', params.keyword_type);
   
-  return http.post<ImportKeywordsResponse>('/seo/keyword/import_keywords/', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  // 直接使用 axios 请求，绕过响应拦截器，获取完整响应（包含 code, message, data）
+  const axios = await import('axios');
+  const token = localStorage.getItem('admin-token');
+  
+  const response = await axios.default.post(
+    `${import.meta.env.VITE_API_BASE_URL || '/api'}/seo/keyword/import_keywords/`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Token': token,
+        'Authorization': token ? `Bearer ${token}` : undefined,
+      },
+    }
+  );
+  
+  // 返回完整的响应数据
+  return response.data;
 }
 
 /**

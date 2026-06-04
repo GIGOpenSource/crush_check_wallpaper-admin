@@ -249,29 +249,21 @@ const KeywordResearch: React.FC = () => {
       // 直接显示后端返回的message，不管状态码是多少
       console.log('导入结果:', result);
       
-      // 响应拦截器会自动提取 data 字段，所以 result 是 data 的内容
-      // 如果 result 包含 success_count，说明是导入成功的响应
-      if (result?.success_count !== undefined) {
-        // 导入成功，使用后端返回的统计信息构建提示
-        const successMsg = result?.message || `导入完成：成功 ${result.success_count} 条，失败 ${result.error_count || 0} 条`;
-        message.success(successMsg);
+      // importKeywords 现在返回完整响应 { code, message, data }
+      const resultMessage = result?.message || '导入完成';
+      
+      // 根据状态码判断显示成功还是错误提示
+      if (result?.code === 0 || result?.code === 200) {
+        message.success(resultMessage);
         setImportModalVisible(false);
         setImportFile(null);
         // 刷新列表数据
         loadKeywords();
         // 刷新统计数据
         loadDashboardStats();
-      } else if (result?.code === 0 || result?.code === 200) {
-        // 兼容其他成功格式
-        message.success(result?.message || '导入完成');
-        setImportModalVisible(false);
-        setImportFile(null);
-        loadKeywords();
-        loadDashboardStats();
       } else {
-        // 失败情况
-        const errorMsg = result?.message || '导入失败';
-        message.error(errorMsg);
+        // 非成功状态码也显示message
+        message.error(resultMessage);
       }
     } catch (error: any) {
       console.error('导入关键词失败:', error);
