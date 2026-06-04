@@ -88,13 +88,14 @@ const BacklinkManager: React.FC = () => {
   };
   
   // 加载外链数据
-  const loadBacklinks = async () => {
+  const loadBacklinks = async (searchValue?: string) => {
+    const queryText = searchValue !== undefined ? searchValue : searchText;
     setBacklinksLoading(true);
     try {
       const res = await seoApi.getBacklinks({
         currentPage: pagination.current,
         pageSize: pagination.pageSize,
-        source_page: searchText,
+        source_page: queryText,
       });
       if (res.code === 200) {
         // SEO模块API返回结构：pagination + results
@@ -123,7 +124,7 @@ const BacklinkManager: React.FC = () => {
     }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.current, pagination.pageSize, searchText]);
+  }, [pagination.current, pagination.pageSize]);
 
   // 加载域名分析数据
   useEffect(() => {
@@ -132,7 +133,7 @@ const BacklinkManager: React.FC = () => {
     }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domainPagination.current, domainPagination.pageSize, domainSearchText, domainStatusFilter]);
+  }, [domainPagination.current, domainPagination.pageSize]);
 
   // 加载检测日志数据
   const loadDetectionLogs = async () => {
@@ -164,13 +165,14 @@ const BacklinkManager: React.FC = () => {
   }, []);
 
   // 加载外链建设数据
-  const loadBuildBacklinks = async () => {
+  const loadBuildBacklinks = async (searchValue?: string) => {
+    const queryText = searchValue !== undefined ? searchValue : buildSearchText;
     setBuildBacklinksLoading(true);
     try {
       const res = await seoApi.getBacklinks({
         currentPage: buildPagination.current,
         pageSize: buildPagination.pageSize,
-        source_page: buildSearchText,
+        source_page: queryText,
         build_status: 'pending',
       });
       if (res.code === 200) {
@@ -225,14 +227,14 @@ const BacklinkManager: React.FC = () => {
     }
   };
 
-  // 监听外链建设标签页的筛选条件变化
+  // 监听外链建设标签页的分页变化
   useEffect(() => {
     const timer = setTimeout(() => {
       loadBuildBacklinks();
     }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildPagination.current, buildPagination.pageSize, buildSearchText]);
+  }, [buildPagination.current, buildPagination.pageSize]);
 
   const columns = [
     { title: '来源页面', dataIndex: 'source_page', key: 'source_page', ellipsis: true },
@@ -385,14 +387,16 @@ const BacklinkManager: React.FC = () => {
   };
 
   // 加载域名分析数据
-  const loadDomainAnalysis = async () => {
+  const loadDomainAnalysis = async (searchValue?: string, statusValue?: string) => {
+    const queryText = searchValue !== undefined ? searchValue : domainSearchText;
+    const queryStatus = statusValue !== undefined ? statusValue : domainStatusFilter;
     setDomainAnalysisLoading(true);
     try {
       const res = await seoApi.getDomainAnalysisList({
         currentPage: domainPagination.current,
         pageSize: domainPagination.pageSize,
-        domain: domainSearchText,
-        status: domainStatusFilter,
+        domain: queryText,
+        status: queryStatus,
       });
       if (res.code === 200) {
         const results = res.data?.results || [];
@@ -603,14 +607,16 @@ const BacklinkManager: React.FC = () => {
                   <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
                     添加外链
                   </Button>
-                  <Input.Search
+                  <Input
                     placeholder="搜索来源页面"
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    onSearch={loadBacklinks}
+                    onPressEnter={() => loadBacklinks()}
                     style={{ width: 300 }}
+                    allowClear
                   />
-                  <Button onClick={loadBacklinks}>刷新</Button>
+                  <Button type="primary" onClick={() => loadBacklinks()}>搜索</Button>
+                  <Button onClick={() => { setSearchText(''); loadBacklinks(''); }}>重置</Button>
                 </Space>
 
                 <Table
@@ -646,28 +652,30 @@ const BacklinkManager: React.FC = () => {
                   style={{ marginBottom: 16 }}
                 />
                 <Space style={{ marginBottom: 16 }}>
-                  <Input.Search
+                  <Input
                     placeholder="搜索域名"
                     value={domainSearchText}
                     onChange={(e) => setDomainSearchText(e.target.value)}
-                    onSearch={loadDomainAnalysis}
+                    onPressEnter={() => loadDomainAnalysis()}
                     style={{ width: 300 }}
+                    allowClear
                   />
                   <Select
-                    placeholder="状态筛选"
-                    allowClear
-                    value={domainStatusFilter}
+                    placeholder="状态"
+                    value={domainStatusFilter || 'all'}
                     onChange={(value) => {
-                      setDomainStatusFilter(value);
+                      setDomainStatusFilter(value === 'all' ? '' : value);
                       setDomainPagination(prev => ({ ...prev, current: 1 }));
                     }}
                     style={{ width: 150 }}
                   >
+                    <Select.Option value="all">全部状态</Select.Option>
                     <Select.Option value="safe">安全</Select.Option>
                     <Select.Option value="warning">需关注</Select.Option>
                     <Select.Option value="danger">危险</Select.Option>
                   </Select>
-                  <Button onClick={loadDomainAnalysis}>刷新</Button>
+                  <Button type="primary" onClick={() => loadDomainAnalysis()}>搜索</Button>
+                  <Button onClick={() => { setDomainSearchText(''); setDomainStatusFilter(''); loadDomainAnalysis('', ''); }}>重置</Button>
                   <Popconfirm
                     title="确认批量分析"
                     description={`确定要重新分析选中的 ${selectedRowKeys.length} 个域名吗？`}
@@ -774,14 +782,16 @@ const BacklinkManager: React.FC = () => {
                 
                 {/* 操作栏 */}
                 <Space style={{ marginBottom: 16 }}>
-                  <Input.Search
+                  <Input
                     placeholder="搜索来源页面"
                     value={buildSearchText}
                     onChange={(e) => setBuildSearchText(e.target.value)}
-                    onSearch={loadBuildBacklinks}
+                    onPressEnter={() => loadBuildBacklinks()}
                     style={{ width: 300 }}
+                    allowClear
                   />
-                  <Button onClick={loadBuildBacklinks}>刷新</Button>
+                  <Button type="primary" onClick={() => loadBuildBacklinks()}>搜索</Button>
+                  <Button onClick={() => { setBuildSearchText(''); loadBuildBacklinks(''); }}>重置</Button>
                   <Popconfirm
                     title="确认扫描"
                     description="确定要扫描新的外链机会吗？"
