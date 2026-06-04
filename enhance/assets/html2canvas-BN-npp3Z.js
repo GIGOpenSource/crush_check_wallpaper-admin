@@ -1,0 +1,1 @@
+import{y as e}from"./index-D5PLU55U.js";export default e();

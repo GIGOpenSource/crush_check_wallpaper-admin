@@ -859,15 +859,11 @@ const SEOAnalytics: React.FC = () => {
               <Row gutter={[16, 16]}>
                 <Col xs={24} lg={24}>
                   <Card title="Google收录趋势">
-                    {loading ? (
-                      <div style={{ textAlign: 'center', padding: '60px' }}>
-                        <Spin size="large" tip="数据加载中..." />
-                      </div>
-                    ) : inclusionTrendData.length > 0 ? (
+                    {inclusionTrendData.length > 0 ? (
                       <Line {...lineConfig} height={400} />
                     ) : (
-                      <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                        暂无数据，请点击搜索按钮加载数据
+                      <div style={{ textAlign: 'center', padding: '60px' }}>
+                        <Spin size="large" tip="数据加载中..." />
                       </div>
                     )}
                   </Card>
