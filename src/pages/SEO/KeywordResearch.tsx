@@ -200,17 +200,35 @@ const KeywordResearch: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.current, pagination.pageSize, activeTab]);
 
-  // 加载关键词数据统计
+  // 加载关键词数据统计和收藏数据
   useEffect(() => {
     loadDashboardStats();
+    // 页面初始化时就加载收藏数据，以便在tab标题上显示正确的收藏数量
+    getFavoriteKeywords(1, 999).then(res => {
+      if (res && res.results) {
+        setFavorites(res.results.map(convertKeywordItem));
+      }
+    }).catch(err => {
+      console.error('加载收藏数据失败:', err);
+    });
   }, []);
 
-  const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }));
-    aiMineHotKeywords({ seed_keyword: searchValue}).then(res => {
-      loadKeywords();
-    })
-    
+  const handleSearch = async () => {
+    if (!searchValue.trim()) {
+      message.warning('请输入关键词');
+      return;
+    }
+    setLoading(true);
+    try {
+      setPagination(prev => ({ ...prev, current: 1 }));
+      await aiMineHotKeywords({ seed_keyword: searchValue });
+      await loadKeywords();
+    } catch (error) {
+      console.error('挖掘关键词失败:', error);
+      message.error('挖掘关键词失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 导入关键词
