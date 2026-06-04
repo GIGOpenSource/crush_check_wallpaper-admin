@@ -501,11 +501,11 @@ const MobileSEOTester: React.FC = () => {
           <Tabs defaultActiveKey="overview">
             <TabPane tab="概览" key="overview">
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Alert
+                {/* <Alert
                   message={selectedResult.is_mobile_friendly ? '✅ 页面移动端适配良好' : '❌ 页面存在移动端适配问题'}
                   type={selectedResult.is_mobile_friendly ? 'success' : 'error'}
                   showIcon
-                />
+                /> */}
                 <Progress
                   type="circle"
                   percent={selectedResult.overall_score}
