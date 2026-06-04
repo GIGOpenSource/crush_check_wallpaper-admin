@@ -1,0 +1,1 @@
+import{y as e}from"./index-CN66MKY-.js";export default e();
