@@ -32,7 +32,7 @@ const PageSpeedAnalyzer: React.FC = () => {
   // 详情数据状态
   const [resourceAnalysis, setResourceAnalysis] = useState<ResourceAnalysis | null>(null);
   const [optimizationSuggestions, setOptimizationSuggestions] = useState<OptimizationSuggestion[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
 
   // 获取页面速度统计数据
   useEffect(() => {
@@ -200,7 +200,7 @@ const PageSpeedAnalyzer: React.FC = () => {
       fixed: 'right' as const,
       render: (_: unknown, record: PageSpeedItem) => (
         <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} loading={loadingDetailId === record.id}>
             详情
           </Button>
           <Popconfirm
@@ -220,7 +220,7 @@ const PageSpeedAnalyzer: React.FC = () => {
   ];
 
   const handleViewDetail = async (record: PageSpeedItem) => {
-    setDetailLoading(true);
+    setLoadingDetailId(record.id);
     try {
       // 获取基础详情
       const response = await seoApi.getPageSpeedDetail(record.id);
@@ -253,7 +253,7 @@ const PageSpeedAnalyzer: React.FC = () => {
       console.error('获取页面速度详情失败:', error);
       message.error('获取详情失败，请稍后重试');
     } finally {
-      setDetailLoading(false);
+      setLoadingDetailId(null);
     }
   };
 
@@ -513,7 +513,7 @@ const PageSpeedAnalyzer: React.FC = () => {
           ),
         ]}
       >
-        <Spin spinning={detailLoading}>
+        <Spin spinning={loadingDetailId !== null}>
           {selectedResult && (
             <Tabs defaultActiveKey="vitals">
               <TabPane tab="Core Web Vitals" key="vitals">

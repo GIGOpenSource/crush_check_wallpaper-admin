@@ -16,6 +16,7 @@ const MobileSEOTester: React.FC = () => {
   const [selectedResult, setSelectedResult] = useState<PageSpeedDetail | null>(null);
   const [testing, setTesting] = useState(false);
   const [testUrl, setTestUrl] = useState('');
+  const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
   
   // 刷新状态
   const [refreshing, setRefreshing] = useState(false);
@@ -172,7 +173,7 @@ const MobileSEOTester: React.FC = () => {
       fixed: 'right' as const,
       render: (_: unknown, record: PageSpeedItem) => (
         <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} loading={loadingDetailId === record.id}>
             详情
           </Button>
           <Popconfirm
@@ -192,6 +193,7 @@ const MobileSEOTester: React.FC = () => {
   ];
 
   const handleViewDetail = async (record: PageSpeedItem) => {
+    setLoadingDetailId(record.id);
     try {
       // 并行加载详情和优化建议
       const [detailResponse, suggestionsResponse] = await Promise.all([
@@ -216,6 +218,8 @@ const MobileSEOTester: React.FC = () => {
     } catch (error) {
       console.error('获取页面速度详情失败:', error);
       message.error('获取详情失败，请稍后重试');
+    } finally {
+      setLoadingDetailId(null);
     }
   };
 
