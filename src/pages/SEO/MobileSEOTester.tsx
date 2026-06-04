@@ -18,21 +18,21 @@ const MobileSEOTester: React.FC = () => {
   const [testUrl, setTestUrl] = useState('');
   const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
   const [retestingId, setRetestingId] = useState<number | null>(null);
-  
+
   // 刷新状态
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // 统计数据状态
   const [statistics, setStatistics] = useState<MobilePageSpeedStatistics | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   // 列表数据状态
   const [pageSpeedList, setPageSpeedList] = useState<PageSpeedItem[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  
+
   // 优化建议状态
   const [optimizationSuggestions, setOptimizationSuggestions] = useState<OptimizationSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -100,23 +100,23 @@ const MobileSEOTester: React.FC = () => {
         <Tag icon={<MobileOutlined />}>手机</Tag>
       ),
     },
-     {
-  title: '移动友好',
-  dataIndex: 'mobile_friendly_display',
-  key: 'mobile_friendly_display',
-  width: 100,
-  render: (displayText: string) => {
-    const isFriendly = displayText === '友好';
-    return (
-      <Tag
-        icon={isFriendly ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-        color={isFriendly ? 'success' : 'error'}
-      >
-        {displayText || '-'}
-      </Tag>
-    );
-  },
-},
+    {
+      title: '移动友好',
+      dataIndex: 'mobile_friendly_display',
+      key: 'mobile_friendly_display',
+      width: 100,
+      render: (displayText: string) => {
+        const isFriendly = displayText === '友好';
+        return (
+          <Tag
+            icon={isFriendly ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+            color={isFriendly ? 'success' : 'error'}
+          >
+            {displayText || '-'}
+          </Tag>
+        );
+      },
+    },
     {
       title: '评分',
       dataIndex: 'overall_score',
@@ -153,9 +153,9 @@ const MobileSEOTester: React.FC = () => {
         return (
           <Space>
             {issueCount > 0 && (
-              <Badge 
-                count={issueCount} 
-                style={{ backgroundColor: issueCount > 2 ? '#f5222d' : '#faad14' }} 
+              <Badge
+                count={issueCount}
+                style={{ backgroundColor: issueCount > 2 ? '#f5222d' : '#faad14' }}
               />
             )}
             {issueCount === 0 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
@@ -181,9 +181,9 @@ const MobileSEOTester: React.FC = () => {
             详情
           </Button>
           {retestingId === record.id ? (
-            <Button 
-              type="link" 
-              icon={<ReloadOutlined />} 
+            <Button
+              type="link"
+              icon={<ReloadOutlined />}
               loading={retestingId === record.id}
               onClick={() => handleRetest(record)}
             >
@@ -198,9 +198,9 @@ const MobileSEOTester: React.FC = () => {
               cancelText="取消"
               disabled={retestingId !== null}
             >
-              <Button 
-                type="link" 
-                icon={<ReloadOutlined />} 
+              <Button
+                type="link"
+                icon={<ReloadOutlined />}
                 disabled={retestingId !== null}
               >
                 重测
@@ -220,20 +220,20 @@ const MobileSEOTester: React.FC = () => {
         seoApi.getPageSpeedDetail(record.id),
         seoApi.getOptimizationSuggestions(record.id),
       ]);
-      
+
       if (detailResponse.code === 200 && detailResponse.data) {
         setSelectedResult(detailResponse.data);
       } else {
         message.error('获取详情失败');
         return;
       }
-      
+
       if (suggestionsResponse.code === 200 && suggestionsResponse.data) {
         setOptimizationSuggestions(suggestionsResponse.data || []);
       } else {
         setOptimizationSuggestions([]);
       }
-      
+
       setDetailModalVisible(true);
     } catch (error) {
       console.error('获取页面速度详情失败:', error);
@@ -268,19 +268,19 @@ const MobileSEOTester: React.FC = () => {
     try {
       const values = await form.validateFields();
       let path = values.url;
-      
+
       // 确保路径以 / 开头
       if (!path.startsWith('/')) {
         path = '/' + path;
       }
-      
+
       setTesting(true);
       try {
         const response = await seoApi.testMobilePageSpeed({
           page_path: path,
           platform: 'phone',
         });
-        
+
         if (response.code === 200 || response.code === 201) {
           message.success('移动端页面速度测试已提交，正在后台处理');
           setTestModalVisible(false);
@@ -373,10 +373,10 @@ const MobileSEOTester: React.FC = () => {
           <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/seo')} style={{ marginRight: 8 }} />
           移动端SEO检测
         </h2>
-        <Button 
-          type="primary" 
-          icon={<ReloadOutlined spin={refreshing} />} 
-          onClick={handleRefresh} 
+        <Button
+          type="primary"
+          icon={<ReloadOutlined spin={refreshing} />}
+          onClick={handleRefresh}
           loading={refreshing}
         >
           刷新数据
@@ -391,29 +391,29 @@ const MobileSEOTester: React.FC = () => {
         </Col>
         <Col xs={24} lg={6}>
           <Card loading={loading}>
-            <Statistic 
-              title="优秀页面" 
-              value={statistics?.excellent_count || 0} 
-              suffix={`/ ${statistics?.total_count || 0}`} 
-              valueStyle={{ color: '#3f8600' }} 
+            <Statistic
+              title="优秀页面"
+              value={statistics?.excellent_count || 0}
+              suffix={`/ ${statistics?.total_count || 0}`}
+              valueStyle={{ color: '#3f8600' }}
             />
           </Card>
         </Col>
         <Col xs={24} lg={6}>
           <Card loading={loading}>
-            <Statistic 
-              title="平均评分" 
-              value={statistics?.avg_score || 0} 
-              suffix="分" 
-              valueStyle={{ color: (statistics?.avg_score || 0) >= 80 ? '#3f8600' : '#cf1322' }} 
+            <Statistic
+              title="平均评分"
+              value={statistics?.avg_score || 0}
+              suffix="分"
+              valueStyle={{ color: (statistics?.avg_score || 0) >= 80 ? '#3f8600' : '#cf1322' }}
             />
           </Card>
         </Col>
         <Col xs={24} lg={6}>
           <Card loading={loading}>
-            <Statistic 
-              title="需改进" 
-              value={statistics?.needs_improvement_count || 0} 
+            <Statistic
+              title="需改进"
+              value={statistics?.needs_improvement_count || 0}
               suffix="个"
               valueStyle={{ color: '#faad14' }}
             />
@@ -436,24 +436,24 @@ const MobileSEOTester: React.FC = () => {
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <Table 
-          columns={columns} 
-          dataSource={pageSpeedList} 
-          rowKey="id" 
+        <Table
+          columns={columns}
+          dataSource={pageSpeedList}
+          rowKey="id"
           loading={listLoading}
           pagination={false}
         />
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-            <Pagination 
-                current={currentPage} 
-                pageSize={pageSize} 
-                total={total} 
-                onChange={handlePageChange}
-                onShowSizeChange={handlePageChange} 
-                showSizeChanger 
-                showQuickJumper 
-                showTotal={(total) => `共 ${total} 条`}
-            />
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={total}
+            onChange={handlePageChange}
+            onShowSizeChange={handlePageChange}
+            showSizeChanger
+            showQuickJumper
+            showTotal={(total) => `共 ${total} 条`}
+          />
         </div>
       </Card>
 
@@ -468,9 +468,9 @@ const MobileSEOTester: React.FC = () => {
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form form={form} layout="vertical" initialValues={{ url: testUrl }}>
-            <Form.Item 
+            <Form.Item
               name="url"
-              label="页面URL" 
+              label="页面URL"
               rules={[
                 { required: true, message: '请输入页面URL' },
                 {
@@ -580,7 +580,7 @@ const MobileSEOTester: React.FC = () => {
                     const suggestionType = item.type || item.suggestion_type || 'unknown';
                     const bgColor = item.priority === 'high' ? '#fff1f0' : item.priority === 'medium' ? '#fffbe6' : '#e6f4ff';
                     const borderColor = item.priority === 'high' ? '#ffccc7' : item.priority === 'medium' ? '#ffe58f' : '#91caff';
-                    
+
                     return (
                       <div
                         key={item.id}
@@ -602,7 +602,7 @@ const MobileSEOTester: React.FC = () => {
                           </Tag>
                         </Space>
                         <div style={{ marginBottom: 12, color: '#333' }}>
-                         
+
                           {item.title}
                         </div>
                         <div style={{ color: '#52c41a', fontWeight: 'bold' }}>

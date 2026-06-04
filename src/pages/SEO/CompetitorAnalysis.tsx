@@ -76,7 +76,7 @@ const CompetitorAnalysis: React.FC = () => {
         pageSize: pageSize,
         name: name || undefined,
       });
-      
+
       if (response.code === 200 || response.code === 201) {
         const data = response.data;
         // 直接使用后端返回的数据，不做额外转换
@@ -233,10 +233,10 @@ const CompetitorAnalysis: React.FC = () => {
     setSelectedCompetitor(record);
     setAnalyzing(true);
     setGapModalVisible(true);
-    
+
     try {
       const response = await competitorApi.getKeywordGap(record.id);
-      
+
       if (response.code === 200 || response.code === 201) {
         // 从 response.data.keyword_gaps 中获取数组数据
         const keywordGapsData = response.data?.keyword_gaps || [];
@@ -268,7 +268,7 @@ const CompetitorAnalysis: React.FC = () => {
         name: values.name,
         url: values.url,
       });
-      
+
       if (response.code === 200 || response.code === 201) {
         message.success(response.message || '竞争对手添加成功');
         setAddModalVisible(false);
@@ -288,7 +288,7 @@ const CompetitorAnalysis: React.FC = () => {
   const handleDelete = async (id: number, name: string) => {
     try {
       const response = await competitorApi.deleteCompetitor(id);
-      
+
       if (response.code === 200 || response.code === 201) {
         message.success(response.message || `已成功删除竞争对手：${name}`);
         // 刷新列表和统计数据
@@ -305,7 +305,7 @@ const CompetitorAnalysis: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Breadcrumb 
+      <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
           { title: 'SEO管理' },
@@ -317,40 +317,40 @@ const CompetitorAnalysis: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} lg={6}>
             <Card>
-              <Statistic 
-                title="监控竞争对手" 
-                value={statistics?.total_count || 0} 
-                prefix={<TrophyOutlined />} 
+              <Statistic
+                title="监控竞争对手"
+                value={statistics?.total_count || 0}
+                prefix={<TrophyOutlined />}
               />
             </Card>
           </Col>
           <Col xs={24} lg={6}>
             <Card>
-              <Statistic 
-                title="总关键词数" 
-                value={statistics?.total_keywords || 0} 
-                suffix="个" 
-                valueStyle={{ color: '#1890ff' }} 
+              <Statistic
+                title="总关键词数"
+                value={statistics?.total_keywords || 0}
+                suffix="个"
+                valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
           <Col xs={24} lg={6}>
             <Card>
-              <Statistic 
-                title="总外链数" 
-                value={statistics?.total_backlinks || 0} 
-                suffix="个" 
-                valueStyle={{ color: '#722ed1' }} 
+              <Statistic
+                title="总外链数"
+                value={statistics?.total_backlinks || 0}
+                suffix="个"
+                valueStyle={{ color: '#722ed1' }}
               />
             </Card>
           </Col>
           <Col xs={24} lg={6}>
             <Card>
-              <Statistic 
-                title="月流量总计" 
-                value={statistics?.total_monthly_traffic || 0} 
-                suffix="PV" 
-                valueStyle={{ color: '#3f8600' }} 
+              <Statistic
+                title="月流量总计"
+                value={statistics?.total_monthly_traffic || 0}
+                suffix="PV"
+                valueStyle={{ color: '#3f8600' }}
               />
             </Card>
           </Col>
@@ -375,23 +375,24 @@ const CompetitorAnalysis: React.FC = () => {
             <Button onClick={handleReset}>
               重置
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-              添加竞争对手
-            </Button>
+
           </Space>
         }
       >
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+          添加竞争对手
+        </Button>
         <Alert
           message="竞争对手分析说明"
           description="分析竞争对手的SEO策略，发现关键词差距和外链机会，制定更有针对性的优化方案。"
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16, marginTop: 16 }}
         />
-        <Table 
-          columns={columns} 
-          dataSource={competitors} 
-          rowKey="id" 
+        <Table
+          columns={columns}
+          dataSource={competitors}
+          rowKey="id"
           loading={tableLoading}
           scroll={{ x: 'max-content' }}
           pagination={{
