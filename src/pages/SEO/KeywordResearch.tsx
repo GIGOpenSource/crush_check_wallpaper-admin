@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, message, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm, Upload, Switch, Spin } from 'antd';
+import { Card, Input, Button, Table, Tag, Space, Progress, Tabs, List, Statistic, Row, Col, Alert, Select, Breadcrumb, Modal, Form, Descriptions, Divider, Tooltip, Popconfirm, Upload, Switch, Spin, App } from 'antd';
 import { SearchOutlined, DownloadOutlined, StarOutlined, FireOutlined, RiseOutlined, FallOutlined, PlusOutlined, ArrowLeftOutlined, EyeOutlined, HeartOutlined, HeartFilled, DeleteOutlined, InboxOutlined, UploadOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { seoApi } from '../../services/seoApi';
@@ -32,6 +32,7 @@ interface Keyword {
 }
 
 const KeywordResearch: React.FC = () => {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -245,16 +246,33 @@ const KeywordResearch: React.FC = () => {
         keyword_type: importKeywordType,
       });
       
-      // 直接显示后端返回的message
+      // 直接显示后端返回的message，不管状态码是多少
       console.log('导入结果:', result);
-      message.success(result.message || '导入完成');
-      setImportModalVisible(false);
-      setImportFile(null);
       
-      // 刷新列表数据
-      loadKeywords();
-      // 刷新统计数据
-      loadDashboardStats();
+      // 响应拦截器会自动提取 data 字段，所以 result 是 data 的内容
+      // 如果 result 包含 success_count，说明是导入成功的响应
+      if (result?.success_count !== undefined) {
+        // 导入成功，使用后端返回的统计信息构建提示
+        const successMsg = result?.message || `导入完成：成功 ${result.success_count} 条，失败 ${result.error_count || 0} 条`;
+        message.success(successMsg);
+        setImportModalVisible(false);
+        setImportFile(null);
+        // 刷新列表数据
+        loadKeywords();
+        // 刷新统计数据
+        loadDashboardStats();
+      } else if (result?.code === 0 || result?.code === 200) {
+        // 兼容其他成功格式
+        message.success(result?.message || '导入完成');
+        setImportModalVisible(false);
+        setImportFile(null);
+        loadKeywords();
+        loadDashboardStats();
+      } else {
+        // 失败情况
+        const errorMsg = result?.message || '导入失败';
+        message.error(errorMsg);
+      }
     } catch (error: any) {
       console.error('导入关键词失败:', error);
       // 优先使用后端返回的错误信息

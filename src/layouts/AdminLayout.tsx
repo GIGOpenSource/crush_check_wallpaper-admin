@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Badge, theme, Drawer, message, Popconfirm } from 'antd';
+import { Layout, Menu, Button, Avatar, Badge, theme, Drawer, Popconfirm, App } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -22,6 +22,7 @@ import { logout } from '../services/userApi';
 const { Header, Sider, Content } = Layout;
 
 const AdminLayout: React.FC = () => {
+  const { message } = App.useApp();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
