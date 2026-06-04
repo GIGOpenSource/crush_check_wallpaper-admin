@@ -100,20 +100,23 @@ const MobileSEOTester: React.FC = () => {
         <Tag icon={<MobileOutlined />}>手机</Tag>
       ),
     },
-    {
-      title: '移动友好',
-      dataIndex: 'is_mobile_friendly',
-      key: 'is_mobile_friendly',
-      width: 100,
-      render: (isFriendly: boolean) => (
-        <Tag 
-          icon={isFriendly ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-          color={isFriendly ? 'success' : 'error'}
-        >
-          {isFriendly ? '友好' : '不友好'}
-        </Tag>
-      ),
-    },
+     {
+  title: '移动友好',
+  dataIndex: 'mobile_friendly_display',
+  key: 'mobile_friendly_display',
+  width: 100,
+  render: (displayText: string) => {
+    const isFriendly = displayText === '友好';
+    return (
+      <Tag
+        icon={isFriendly ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+        color={isFriendly ? 'success' : 'error'}
+      >
+        {displayText || '-'}
+      </Tag>
+    );
+  },
+},
     {
       title: '评分',
       dataIndex: 'overall_score',
