@@ -204,6 +204,29 @@ const UserDetail: React.FC = () => {
     { title: '浏览量', dataIndex: 'view_count', key: 'view_count', width: 100 },
     { title: '下载量', dataIndex: 'download_count', key: 'download_count', width: 100 },
     { 
+      title: '审核状态', 
+      dataIndex: 'audit_status', 
+      key: 'audit_status', 
+      width: 100,
+      render: (status: string) => {
+        const statusMap: Record<string, { text: string; color: string }> = {
+          'pending': { text: '待审核', color: 'warning' },
+          'approved': { text: '通过', color: 'success' },
+          'rejected': { text: '拒绝', color: 'error' },
+        };
+        const statusInfo = statusMap[status] || { text: '未知', color: 'default' };
+        return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
+      },
+    },
+    { 
+      title: '拒绝原因', 
+      dataIndex: 'audit_remark', 
+      key: 'audit_remark', 
+      width: 150,
+      ellipsis: true,
+      render: (remark: string) => remark || '-',
+    },
+    { 
       title: '上传时间', 
       dataIndex: 'created_at', 
       key: 'created_at', 
