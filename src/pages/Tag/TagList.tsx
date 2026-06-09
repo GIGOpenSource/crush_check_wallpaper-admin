@@ -137,10 +137,16 @@ const TagList: React.FC = () => {
       width: 200,
       render: (name: string) => <Tag color="blue">{name}</Tag>,
     },
+     {
+      title: '电脑壁纸数量',
+      dataIndex: 'pc_count',
+      key: 'pc_count',
+      width: 100,
+    },
     {
-      title: '壁纸数量',
-      dataIndex: 'wallpaper_count',
-      key: 'wallpaper_count',
+      title: '手机壁纸数量',
+      dataIndex: 'phone_count',
+      key: 'phone_count',
       width: 100,
     },
     {

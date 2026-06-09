@@ -1,0 +1,1 @@
+import{y as e}from"./index-Bb2-Cg7d.js";export default e();
