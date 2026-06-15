@@ -570,6 +570,14 @@ const MobileSEOTester: React.FC = () => {
                     <Col span={12}>
                       <Statistic title="页面路径" value={selectedResult.page_path} />
                     </Col>
+                    {/* <Col span={12}>
+                      <Statistic title="测试时间" value={new Date(selectedResult.tested_at).toLocaleString('zh-CN')} />
+                    </Col> */}
+                  </Row>
+                    <Row gutter={16}>
+                    {/* <Col span={12}>
+                      <Statistic title="页面路径" value={selectedResult.page_path} />
+                    </Col> */}
                     <Col span={12}>
                       <Statistic title="测试时间" value={new Date(selectedResult.tested_at).toLocaleString('zh-CN')} />
                     </Col>
