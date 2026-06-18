@@ -45,6 +45,8 @@ const WallpaperList: React.FC = () => {
   const [tagList, setTagList] = useState<ApiTag[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [formValues, setFormValues] = useState<any>({}); // 用于跟踪表单必填项
   const [tagPage, setTagPage] = useState(1);
   const [tagLoading, setTagLoading] = useState(false);
   const [hasMoreTags, setHasMoreTags] = useState(true);
@@ -424,6 +426,7 @@ const WallpaperList: React.FC = () => {
     setCreateModalVisible(true);
     form.resetFields();
     setFileList([]);
+    setFormValues({}); // 重置表单值
   };
 
   // 保存新建壁纸
@@ -436,6 +439,9 @@ const WallpaperList: React.FC = () => {
         message.error('请先选择壁纸图片');
         return;
       }
+      
+      // 设置创建中状态
+      setIsCreating(true);
       
       // 构建category_ids：始终包含3（静态壁纸）+ 设备类型ID
       const categoryIds: number[] = [3]; // 始终包含静态壁纸
@@ -464,10 +470,14 @@ const WallpaperList: React.FC = () => {
       setCreateModalVisible(false);
       setFileList([]);
       form.resetFields();
+      setFormValues({}); // 重置表单值
       loadWallpaperList();
     } catch (error) {
       console.error('创建失败:', error);
       message.error('创建失败');
+    } finally {
+      // 无论成功还是失败，都重置创建状态
+      setIsCreating(false);
     }
   };
 
@@ -1427,10 +1437,19 @@ const WallpaperList: React.FC = () => {
           form.resetFields();
         }}
         width={900}
-        okText="创建"
+        okText={isCreating ? '创建中...' : '创建'}
         cancelText="取消"
+        okButtonProps={{ 
+          disabled: isCreating || uploading || !formValues.name || !formValues.device_type || !formValues.tags || (formValues.tags && formValues.tags.length === 0) || fileList.length === 0 || !fileList[0]?.url
+        }}
       >
-        <Form form={form} layout="vertical">
+        <Form 
+          form={form} 
+          layout="vertical"
+          onValuesChange={(_, allValues) => {
+            setFormValues(allValues);
+          }}
+        >
           <Tabs defaultActiveKey="basic">
             <TabPane tab="基本信息" key="basic">
               <Row gutter={16}>
@@ -1519,7 +1538,15 @@ const WallpaperList: React.FC = () => {
                 />
               </Form.Item>
               
-              <Form.Item label="缩略图" rules={[{ required: true, message: '请上传缩略图' }]}>
+              <Form.Item 
+                label={
+                  <span>
+                    缩略图 <span style={{ color: '#ff4d4f' }}>*</span>
+                  </span>
+                }
+                labelCol={{ span: 6 }}
+                wrapperCol={{ span: 18 }}
+              >
                 <div style={{ marginBottom: 8 }}>
                   {fileList.length > 0 && fileList[0].url && (
                     <Image 
