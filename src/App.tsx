@@ -52,7 +52,7 @@ function App() {
       }}
     >
       <AntdApp>
-        <BrowserRouter basename="/enhance">
+        <BrowserRouter basename="/">
           {/* 初始化全局导航函数 */}
           <NavigateInitializer />
           

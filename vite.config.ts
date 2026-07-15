@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 const MARK_WALLPAPERS_ORIGIN = 'https://www.markwallpapers.com'
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/enhance/',
+  base: './',
    build: {
       outDir: 'enhance',
     },

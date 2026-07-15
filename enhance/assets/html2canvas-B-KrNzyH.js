@@ -1,0 +1,1 @@
+import{y as e}from"./index-5KSKFhPi.js";export default e();
